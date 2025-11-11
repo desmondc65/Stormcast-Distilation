@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corrdiff-ncdr"
+authors = [
+  { name="NTU CMLAB"},
+]
+description = "Customized version of CorrDiff for NCDR with preprocessing and deployment tools"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+dependencies = [
+    "hydra-core>=1.2.0",
+    "numpy>=1.22.4",
+    "einops>=0.7.0",
+    "termcolor>=2.1.1",
+    "requests",
+    "regex",
+    "netCDF4>=1.7.2",
+    "omegaconf>=2.3.0",
+    "dask>=2025.3.0",
+    "s3fs>=2023.5.0",
+    "xskillscore>=0.0.26",
+    "opencv-python>=4.11.0.86",
+    "numba>=0.61.0",
+    "scipy>=1.15.1",
+    "tensorboard>=2.14",
+    "setuptools>=77.0.3",
+    "torch>=2.4.0",
+    "tqdm>=4.60.0",
+    "psutil>=6.0.0",
+    "typer>=0.16.0",
+    "tqdm>=4.60.0",
+    "onnx>=1.14.0",
+    "packaging>=24.2",
+    "xarray>=2023.1.0",
+    "zarr>=2.14.2",
+    "cartopy>=0.25.0",
+    "matplotlib>=3.10.7",
+    "fsspec>=2023.1.0",
+    "treelib>=1.2.5",
+    "nvtx>=0.2.8",
+    "wandb>=0.13.7",
+    "cftime>=1.6.2",
+    "pydantic>=2.4.2",
+    "pyyaml>=6.0",
+    "pyproj",
+    "nvidia_dali_cuda120>=1.35.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+
+
+[tool.setuptools.dynamic]
+version = {attr = "physicsnemo.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["physicsnemo", "physicsnemo.*"]
+
