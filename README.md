@@ -273,12 +273,6 @@ cd stormcast
 
 ### 訓練注意事項
 
-#### GPU 記憶體設定
-- 若遇到 GPU 記憶體不足問題，可調整以下參數：
-  - 減少 `batch_size`
-  - 減少 `gpus_per_node`
-  - 設定環境變數：`export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`
-
 #### 訓練監控
 - 訓練過程中會自動產生 `loss_curves.png`，可即時查看訓練進度
 - CSV 檔案記錄詳細的訓練指標，可用於後續分析
