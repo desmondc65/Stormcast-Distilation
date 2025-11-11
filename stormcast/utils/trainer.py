@@ -528,9 +528,11 @@ def training_loop(cfg):
         total_steps += 1
         done = total_steps >= total_train_steps
 
-        if dist.rank == 0:
+        if dist.rank == 0 and total_steps % cfg.training.print_progress_freq == 0 and train_steps > 0:
             try:
-                _log_train_loss_csv(rundir, total_steps, float(loss_value.detach().cpu().item()))
+                # Log the average training loss over the print_progress_freq interval
+                avg_loss_to_log = avg_train_loss / train_steps
+                _log_train_loss_csv(rundir, total_steps, float(avg_loss_to_log))
             except Exception as e:
                 logger0.warn(f"Failed to write train_loss.csv at step {total_steps}: {e}")
 
