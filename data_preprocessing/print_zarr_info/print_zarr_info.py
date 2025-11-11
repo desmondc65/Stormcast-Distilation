@@ -1,6 +1,8 @@
 #!/usr/binbin/env python
 
 """
+python3 inspect_zarr.py <path_to_zarr_store>
+
 A script to inspect a Zarr store and print all metadata for all
 groups and arrays, including shape, chunks, dtype, compressor,
 and user attributes.
