@@ -46,3 +46,7 @@ compile_model: False # use torch.compile to compile model
 
 # Validation options
 validation_plot_variables: ["t2m", "u10", "v10", "qpepre"]
+
+# outpuc nc
+output_nc: False 
+output_nc_freq: 5 

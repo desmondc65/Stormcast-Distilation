@@ -30,6 +30,15 @@ loss='regression'
 # --- Validation parameters ---
 validation_plot_variables="[t2m,u10,v10,qpepre]"
 
+# --- Optional outputs ---
+# When set to true, NetCDF files for validation fields will be written to
+# ${training_output_dir}/${experiment_name}/run_${run_id}/netcdf_outputs/<field>.
+# Default is false.
+output_nc="true"
+# Output NetCDF every X validations (e.g., if set to 5, only output when validation_counter % 5 == 0).
+# Default is 1 (output every validation).
+output_nc_freq=5
+
 # --- Dataset parameters ---
 location="/project/n/desmond/Stormcast_test/Zarr_test_optimized_skip_invalid"
 HighRes_img_size="[224,128]"
@@ -55,6 +64,8 @@ torchrun --standalone --nnodes=${number_of_nodes} --nproc_per_node=${gpus_per_no
     ++training.total_train_steps=${total_train_steps} \
     ++training.clip_grad_norm=${clip_grad_norm} \
     ++training.loss=${loss} \
+    ++training.output_nc=${output_nc} \
+    ++training.output_nc_freq=${output_nc_freq} \
     ++validation.plot_variables=${validation_plot_variables} \
     ++dataset.location=${location} \
     ++dataset.HighRes_img_size=${HighRes_img_size} \

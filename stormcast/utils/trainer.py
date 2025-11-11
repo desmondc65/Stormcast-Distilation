@@ -24,6 +24,8 @@ import csv
 from collections import defaultdict
 
 import numpy as np
+import xarray as xr
+import datetime
 import torch
 import psutil
 from physicsnemo.models import Module
@@ -125,6 +127,87 @@ def _log_ps1d_field_csv(rundir: str, step: int, field: str,
         for ki, g, t, r in zip(k.tolist(), pk_gen.tolist(), pk_tar.tolist(), ratio.tolist())
     ]
     _append_rows_csv(path, rows, ["step", "k", "Pk_gen", "Pk_tar", "ratio"])
+
+
+def _save_validation_netcdf(
+    rundir: str,
+    step: int,
+    sample_idx: int,
+    field_name: str,
+    generated_data: np.ndarray,
+    truth_data: np.ndarray,
+    coords: dict = None,
+    var_attrs: dict = None,
+):
+    """Saves validation output (generated and truth) to a NetCDF file.
+
+    Args:
+        rundir: The main run directory.
+        step: The current training step.
+        sample_idx: The index of the sample in the batch (e.g., 'i').
+        field_name: The name of the variable (e.g., 't2m').
+        generated_data: The 2D numpy array from the model.
+        truth_data: The 2D numpy array of the ground truth.
+        coords: A dictionary of coordinates, e.g.,
+                {'lat': lat_array, 'lon': lon_array}.
+                If None, default integer (y, x) coordinates are used.
+        var_attrs: A dictionary of variable attributes, e.g.,
+                   {'units': 'K', 'long_name': '2-meter Temperature'}.
+    """
+    try:
+        # 1. Create output directory
+        nc_dir = os.path.join(rundir, "netcdf_outputs", field_name)
+        os.makedirs(nc_dir, exist_ok=True)
+        nc_filename = os.path.join(nc_dir, f"{step}_{sample_idx}_{field_name}.nc")
+
+        # Ensure numpy arrays
+        gen = np.asarray(generated_data)
+        tar = np.asarray(truth_data)
+
+        # 2. Set up coordinates
+        if coords is None:
+            # Create default integer coordinates if none provided
+            H, W = gen.shape
+            y_coords = np.arange(H)
+            x_coords = np.arange(W)
+            coord_dims = ("y", "x")
+            coord_map = {"y": y_coords, "x": x_coords}
+        else:
+            # Use provided coordinates (e.g., {'lat': lat_array, 'lon': lon_array})
+            coord_dims = tuple(coords.keys())
+            coord_map = coords
+
+        # 3. Create the xarray.Dataset
+        ds = xr.Dataset(
+            data_vars={
+                "generated": (coord_dims, gen),
+                "truth": (coord_dims, tar),
+            },
+            coords=coord_map,
+            attrs={
+                "title": f"Validation Output for {field_name}",
+                "field": field_name,
+                "step": int(step),
+                "sample_index": int(sample_idx),
+                "creation_date": datetime.datetime.now().isoformat(),
+            },
+        )
+
+        # 4. Add variable-specific attributes (metadata)
+        if var_attrs is None:
+            var_attrs = {"units": "unknown", "long_name": f"Unknown {field_name}"}
+
+        ds["generated"].attrs["long_name"] = f"Generated {var_attrs.get('long_name', field_name)}"
+        ds["generated"].attrs["units"] = var_attrs.get("units", "unknown")
+        ds["truth"].attrs["long_name"] = f"Truth {var_attrs.get('long_name', field_name)}"
+        ds["truth"].attrs["units"] = var_attrs.get("units", "unknown")
+
+        # 5. Save to file
+        ds.to_netcdf(nc_filename)
+        ds.close()
+
+    except Exception as e:
+        logger.warn(f"Failed to write NetCDF at step {step} for {field_name}: {e}")
 
 
 # ---------- Main training ----------
@@ -318,6 +401,7 @@ def training_loop(cfg):
     train_steps = 0
     valid_time = -1.0
     val_loss = -1.0
+    validation_counter = 0  # Track number of validations performed
 
     rundir = cfg.training.rundir
     os.makedirs(rundir, exist_ok=True)
@@ -392,6 +476,7 @@ def training_loop(cfg):
 
         # Validation
         if total_steps % cfg.training.validation_freq == 0:
+            validation_counter += 1  # Increment validation counter
             valid_start = time.time()
             logger0.info(f"[Validation] Starting validation at training step {total_steps}...")
             batch = next(valid_dataset_iterator)
@@ -519,6 +604,28 @@ def training_loop(cfg):
                         figs[specfig].savefig(
                             os.path.join(image_dir, f"{total_steps}_{i}_{f_}_spec.png")
                         )
+                        # Optionally save NetCDF outputs for generated and truth fields
+                        output_nc_enabled = getattr(cfg.training, "output_nc", False)
+                        output_nc_freq = getattr(cfg.training, "output_nc_freq", 1)
+                        
+                        # Check if we should output NetCDF: enabled AND validation counter is a multiple of freq
+                        if output_nc_enabled and (validation_counter % output_nc_freq == 0):
+                            try:
+                                logger0.info(
+                                    f"Saving NetCDF for {f_} at step {total_steps}, sample {i}"
+                                )
+                                _save_validation_netcdf(
+                                    rundir,
+                                    total_steps,
+                                    i,
+                                    f_,
+                                    generated,
+                                    truth,
+                                )
+                            except Exception as e:
+                                logger0.warn(
+                                    f"Failed to write NetCDF for {f_} at step {total_steps}, sample {i}: {e}"
+                                )
                         if log_to_wandb:
                             for figname, plot in figs.items():
                                 wandb_logs[figname] = wandb.Image(plot)
