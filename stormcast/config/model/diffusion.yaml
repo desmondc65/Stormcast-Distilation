@@ -28,6 +28,6 @@ P_mean: -1.2 # Center of the EDM lognormal noise sampling distribution
 attn_resolutions: [] # Internal resolutions within the U-Net to apply self-attention (empty list == no self-attention)
 
 # Pretrained regression model
-regression_weights: "/work/jasjou71/stormcast/StormCast_qpepre/exp_1_dif_L_26_H_74_1_year_nano5/0/checkpoints_regression/StormCastUNet.0.3000.mdlus" # Path to pretrained regression network,
+regression_weights: "" # Path to pretrained regression network,
                                                                       # used if 'regression' is included in diffusion_conditions
 

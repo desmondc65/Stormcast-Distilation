@@ -18,13 +18,13 @@
 defaults:
 
   # Dataset
-  - dataset/small
+  - dataset/era5_rwrf_qpepre
 
   # Model
-  - model/stormcast
+  - model/diffusion
 
   # Training
-  - training/small
+  - training/regression
 
   # Sampler
   - sampler/edm_deterministic

@@ -26,7 +26,7 @@ wandb_mode: "online" # logging mode, "online" or "offline"
 seed: -1 # Specify a random seed by setting this to an int > 0
 cudnn_benchmark: True # Enable/disable CuDNN benchmark mode
 resume_checkpoint: "latest" # epoch number to continue training from, or "latest" for the latest checkpoint
-initial_weights: "/work/jasjou71/stormcast/StormCast_qpepre/exp_1_dif_L_26_H_74_1_year_nano5/0/checkpoints_diffusion/EDMPrecond.0.50000.mdlus" # if not null, a .mdlus checkpoint to load weights at the start of training; no effect if training continues from a checkpoint
+initial_weights: "" # if not null, a .mdlus checkpoint to load weights at the start of training; no effect if training continues from a checkpoint
 
 # Logging frequency
 print_progress_freq: 1 # How often to print progress, measured in number of training steps
