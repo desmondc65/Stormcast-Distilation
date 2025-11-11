@@ -971,12 +971,82 @@ class NCToZarrPipeline:
         )
 
     # ------------------------------------------------------------------
+    # Validity precomputation
+    # ------------------------------------------------------------------
+
+    def _precompute_combined_validity(self, datetimes: Sequence[datetime]) -> np.ndarray:
+        """Precompute which timesteps have ALL required files (ERA5, RWRF, QPEPRE).
+        
+        Since LowRes and HighRes data are paired for training, we need both to be valid.
+        A timestep is only valid if:
+        - All ERA5 variables are present
+        - RWRF file is present
+        - QPEPRE file is present (if qpepre is in variables)
+        
+        Returns:
+            Boolean array where True means all required files exist for that timestep.
+        """
+        T = len(datetimes)
+        validity = np.ones(T, dtype=bool)
+        
+        era5_missing_count = 0
+        rwrf_missing_count = 0
+        qpepre_missing_count = 0
+        
+        for ti, dt in enumerate(datetimes):
+            # Check all ERA5 variables
+            for var in self.era5_variables:
+                path = self._resolve_era5_path(var, dt)
+                if path is None or not path.exists():
+                    logger.debug("ERA5 missing for validity check: %s at %s", var, dt)
+                    validity[ti] = False
+                    era5_missing_count += 1
+                    break
+            
+            # Check RWRF file (only if ERA5 was valid, for efficiency)
+            if validity[ti]:
+                rwrf_path = self._resolve_rwrf_path(dt)
+                if rwrf_path is None or not rwrf_path.exists():
+                    logger.debug("RWRF missing for validity check at %s", dt)
+                    validity[ti] = False
+                    rwrf_missing_count += 1
+            
+            # Check QPEPRE file if needed (only if both ERA5 and RWRF were valid)
+            if validity[ti] and "qpepre" in self.rwrf_variables:
+                end_key = dt.strftime("%Y%m%d%H%M")
+                start_key = (dt - timedelta(hours=1)).strftime("%Y%m%d%H%M")
+                qpepre_path_str = self._qpepre_index.get(end_key) or self._qpepre_index.get(start_key)
+                if qpepre_path_str is None:
+                    logger.debug("QPEPRE missing for validity check at %s", dt)
+                    validity[ti] = False
+                    qpepre_missing_count += 1
+                else:
+                    qpepre_path = pathlib.Path(qpepre_path_str)
+                    if not qpepre_path.exists():
+                        logger.debug("QPEPRE file does not exist: %s", qpepre_path)
+                        validity[ti] = False
+                        qpepre_missing_count += 1
+        
+        logger.info("Validity check summary: %d timesteps with missing ERA5, %d with missing RWRF, %d with missing QPEPRE",
+                    era5_missing_count, rwrf_missing_count, qpepre_missing_count)
+        
+        return validity
+
+    # ------------------------------------------------------------------
     # Split processing
     # ------------------------------------------------------------------
 
     @time_function
-    def process_lowres(self, split_name: str, datetimes: Sequence[datetime], store: pathlib.Path) -> None:
-        """Process LowRes (ERA5) data for the given split and datetimes, writing to the specified store."""
+    def process_lowres(self, split_name: str, datetimes: Sequence[datetime], store: pathlib.Path, 
+                       valid_mask: Optional[np.ndarray] = None) -> None:
+        """Process LowRes (ERA5) data for the given split and datetimes, writing to the specified store.
+        
+        Args:
+            split_name: Name of the split (train/valid/combined)
+            datetimes: Sequence of timesteps to process
+            store: Path to output Zarr store
+            valid_mask: Pre-computed validity mask. If None, will compute combined validity.
+        """
         if store.exists() and not self.overwrite:
             logger.info("overwrite: %s", self.overwrite)
             logger.info("LowRes %s already exists, skipping", split_name)
@@ -987,15 +1057,28 @@ class NCToZarrPipeline:
         H, W = self.domain_size
         data_cube = np.full((T, C, H, W), np.nan, dtype=np.float32)
         stats = StreamingStats(C)
-        valid_mask = np.ones(T, dtype=bool)
+        
+        # Use provided validity mask or compute combined validity
+        if valid_mask is None:
+            logger.info("LowRes %s: precomputing combined validity for %d timesteps", split_name, T)
+            valid_mask = self._precompute_combined_validity(datetimes)
+        
+        invalid_count = (~valid_mask).sum()
+        logger.info("LowRes %s: %d/%d timesteps have all required inputs, %d will be skipped",
+                    split_name, valid_mask.sum(), T, invalid_count)
+        
         lon_template: Optional[np.ndarray] = None
         lat_template: Optional[np.ndarray] = None
         time_lookup = {dt: idx for idx, dt in enumerate(datetimes)}
         channel_lookup = {name: idx for idx, name in enumerate(channels)}
 
-        use_pool = self.max_workers > 1 and T > 0
+        # Filter to only valid timesteps for processing
+        valid_datetimes = [dt for dt, is_valid in zip(datetimes, valid_mask) if is_valid]
+        
+        use_pool = self.max_workers > 1 and len(valid_datetimes) > 0
         if use_pool:
-            logger.info("LowRes %s: using %d worker processes", split_name, self.max_workers)
+            logger.info("LowRes %s: using %d worker processes for %d valid timesteps", 
+                        split_name, self.max_workers, len(valid_datetimes))
             self._build_era5_index()
             state = ERA5WorkerState(
                 era5_index={var: {k: str(path) for k, path in files.items()} for var, files in self._era5_index.items()},
@@ -1016,7 +1099,7 @@ class NCToZarrPipeline:
             with ProcessPoolExecutor(**executor_kwargs) as executor:
                 futures = {
                     executor.submit(_era5_worker, dt, tuple(channels)): dt
-                    for dt in datetimes
+                    for dt in valid_datetimes
                 }
                 completed = 0
                 for future in as_completed(futures):
@@ -1045,11 +1128,18 @@ class NCToZarrPipeline:
                     if missing:
                         valid_mask[ti] = False
                     completed += 1
-                    if completed % 50 == 0 or completed == T:
-                        logger.info("LowRes %s progress %d/%d", split_name, completed, T)
+                    if completed % 50 == 0 or completed == len(valid_datetimes):
+                        logger.info("LowRes %s progress %d/%d valid (total: %d)", 
+                                    split_name, completed, len(valid_datetimes), T)
         else:
-            logger.info("LowRes %s: processing sequentially", split_name)
+            logger.info("LowRes %s: processing sequentially for %d valid timesteps", 
+                        split_name, len(valid_datetimes))
+            processed = 0
             for ti, dt in enumerate(datetimes):
+                # Skip invalid timesteps - they already have NaN and valid_mask=False
+                if not valid_mask[ti]:
+                    continue
+                    
                 missing = False
                 sample_present = False
                 for ci, var in enumerate(channels):
@@ -1072,8 +1162,10 @@ class NCToZarrPipeline:
                     missing = True
                 if missing:
                     valid_mask[ti] = False
-                if (ti + 1) % 100 == 0 or ti == T - 1:
-                    logger.info("LowRes %s progress %d/%d", split_name, ti + 1, T)
+                processed += 1
+                if processed % 100 == 0 or processed == len(valid_datetimes):
+                    logger.info("LowRes %s progress %d/%d valid (total: %d)", 
+                                split_name, processed, len(valid_datetimes), T)
         if lon_template is None or lat_template is None:
             logger.warning("No ERA5 data collected for split %s", split_name)
             return
@@ -1092,9 +1184,16 @@ class NCToZarrPipeline:
             self._write_stats(store, stats, channels)
 
     @time_function
-    def process_highres(self, split_name: str, datetimes: Sequence[datetime], store: pathlib.Path) -> None:
+    def process_highres(self, split_name: str, datetimes: Sequence[datetime], store: pathlib.Path,
+                        valid_mask: Optional[np.ndarray] = None) -> None:
         """Process HighRes (RWRF + QPEPRE) data for the given split and datetimes, writing to the specified store.
-"""
+        
+        Args:
+            split_name: Name of the split (train/valid/combined)
+            datetimes: Sequence of timesteps to process
+            store: Path to output Zarr store
+            valid_mask: Pre-computed validity mask. If None, will compute combined validity.
+        """
         if store.exists() and not self.overwrite:
             logger.info("HighRes %s already exists, skipping", split_name)
             return
@@ -1105,14 +1204,27 @@ class NCToZarrPipeline:
         H, W = self.domain_size
         data_cube = np.full((T, C, H, W), np.nan, dtype=np.float32)
         stats = StreamingStats(C)
-        valid_mask = np.ones(T, dtype=bool)
+        
+        # Use provided validity mask or compute combined validity
+        if valid_mask is None:
+            logger.info("HighRes %s: precomputing combined validity for %d timesteps", split_name, T)
+            valid_mask = self._precompute_combined_validity(datetimes)
+        
+        invalid_count = (~valid_mask).sum()
+        logger.info("HighRes %s: %d/%d timesteps have all required inputs, %d will be skipped",
+                    split_name, valid_mask.sum(), T, invalid_count)
+        
         lon_template: Optional[np.ndarray] = None
         lat_template: Optional[np.ndarray] = None
         time_lookup = {dt: idx for idx, dt in enumerate(datetimes)}
 
-        use_pool = self.max_workers > 1 and T > 0
+        # Filter to only valid timesteps for processing
+        valid_datetimes = [dt for dt, is_valid in zip(datetimes, valid_mask) if is_valid]
+        
+        use_pool = self.max_workers > 1 and len(valid_datetimes) > 0
         if use_pool:
-            logger.info("HighRes %s: using %d worker processes", split_name, self.max_workers)
+            logger.info("HighRes %s: using %d worker processes for %d valid timesteps", 
+                        split_name, self.max_workers, len(valid_datetimes))
             self._build_rwrf_index()
             self._build_qpepre_index()
             state = RWRFWorkerState(
@@ -1138,7 +1250,7 @@ class NCToZarrPipeline:
             with ProcessPoolExecutor(**executor_kwargs) as executor:
                 futures = {
                     executor.submit(_rwrf_worker, dt): dt
-                    for dt in datetimes
+                    for dt in valid_datetimes
                 }
                 completed = 0
                 for future in as_completed(futures):
@@ -1167,16 +1279,24 @@ class NCToZarrPipeline:
                     if missing:
                         valid_mask[ti] = False
                     completed += 1
-                    if completed % 25 == 0 or completed == T:
-                        logger.info("HighRes %s progress %d/%d", split_name, completed, T)
+                    if completed % 25 == 0 or completed == len(valid_datetimes):
+                        logger.info("HighRes %s progress %d/%d valid (total: %d)", 
+                                    split_name, completed, len(valid_datetimes), T)
         else:
-            logger.info("HighRes %s: processing sequentially", split_name)
+            logger.info("HighRes %s: processing sequentially for %d valid timesteps", 
+                        split_name, len(valid_datetimes))
+            processed = 0
             for ti, dt in enumerate(datetimes):
+                # Skip invalid timesteps - they already have NaN and valid_mask=False
+                if not valid_mask[ti]:
+                    continue
+                    
                 sample = self._process_rwrf_single(dt)
                 missing = False
                 sample_present = False
                 if sample is None:
                     valid_mask[ti] = False
+                    processed += 1
                     continue
                 variables, lon_grid, lat_grid = sample
                 for name in channels:
@@ -1199,8 +1319,10 @@ class NCToZarrPipeline:
                     missing = True
                 if missing:
                     valid_mask[ti] = False
-                if (ti + 1) % 50 == 0 or ti == T - 1:
-                    logger.info("HighRes %s progress %d/%d", split_name, ti + 1, T)
+                processed += 1
+                if processed % 50 == 0 or processed == len(valid_datetimes):
+                    logger.info("HighRes %s progress %d/%d valid (total: %d)", 
+                                split_name, processed, len(valid_datetimes), T)
         if lon_template is None or lat_template is None:
             logger.warning("No RWRF data collected for split %s", split_name)
             return
@@ -1244,12 +1366,24 @@ class NCToZarrPipeline:
             if not datetimes:
                 logger.warning("No timestamps for split %s", split_name)
                 continue
+            
+            # Precompute combined validity ONCE for both LowRes and HighRes
+            # This ensures we only process timesteps where ALL required files exist
+            logger.info("Split %s: precomputing combined validity for %d timesteps", split_name, len(datetimes))
+            valid_mask = self._precompute_combined_validity(datetimes)
+            valid_count = valid_mask.sum()
+            invalid_count = (~valid_mask).sum()
+            logger.info("Split %s: %d/%d timesteps are valid (both LowRes and HighRes complete), %d will be skipped",
+                        split_name, valid_count, len(datetimes), invalid_count)
+            
             lowres_store = self.output_base / "LowRes" / f"{split_name}_era5.zarr"
             highres_store = self.output_base / "HighRes" / f"{split_name}_rwrf.zarr"
+            
+            # Pass the same validity mask to both processing methods
             if not self.skip_lowres:
-                self.process_lowres(split_name, datetimes, lowres_store)
+                self.process_lowres(split_name, datetimes, lowres_store, valid_mask=valid_mask)
             if not self.skip_highres:
-                self.process_highres(split_name, datetimes, highres_store)
+                self.process_highres(split_name, datetimes, highres_store, valid_mask=valid_mask)
             self._report_split_validity(split_name, lowres_store, highres_store)
 
 # ---------------------------------------------------------------------------
@@ -1314,9 +1448,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     missing = []
     if xr is None:
-        missing.append(f"xarray ({_XR_IMPORT_ERROR})")
+        missing.append(f"xarray ({XR_IMPORT_ERROR})")
     if zarr is None:
-        missing.append(f"zarr ({_ZARR_IMPORT_ERROR})")
+        missing.append(f"zarr ({ZARR_IMPORT_ERROR})")
     if missing:
         parser.error(f"Missing required Python modules: {', '.join(missing)}")
 

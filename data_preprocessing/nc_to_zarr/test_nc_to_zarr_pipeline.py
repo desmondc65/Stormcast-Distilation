@@ -161,3 +161,111 @@ def test_load_valid_metadata_matches_real_store(tmp_path):
     shared, overlap = pipeline._compute_valid_overlap(low_meta, high_meta)
     assert shared == 48
     assert overlap == 8
+
+
+def test_validity_precomputation_skips_missing_files(tmp_path):
+    """Verify that validity precomputation correctly identifies missing files without I/O."""
+    pipeline, cfg = _build_pipeline(tmp_path)
+    
+    # Create fake index with some missing files
+    era5_path = Path(cfg["era5-path"])
+    rwrf_path = Path(cfg["rwrf-path"])
+    qpepre_path = Path(cfg["qpepre-path"])
+    
+    # Setup dates
+    datetimes = [
+        datetime(2019, 8, 1, 0),  # All files present
+        datetime(2019, 8, 1, 1),  # Missing one ERA5 variable
+        datetime(2019, 8, 1, 2),  # Missing RWRF file
+        datetime(2019, 8, 1, 3),  # Missing QPEPRE file
+    ]
+    
+    # Create fake ERA5 files for timestep 0 and 1 (but not all variables for 1)
+    pipeline._era5_index = {}
+    for var in pipeline.era5_variables:
+        pipeline._era5_index[var] = {}
+        # Timestep 0: all variables present
+        dt0 = datetimes[0]
+        file0 = era5_path / f"{var}_{dt0.strftime('%Y%m%d%H')}.nc"
+        file0.touch()
+        pipeline._era5_index[var][dt0.strftime("%Y%m%d%H")] = file0
+        
+        # Timestep 1: only first variable present (simulate missing variable)
+        if var == pipeline.era5_variables[0]:
+            dt1 = datetimes[1]
+            file1 = era5_path / f"{var}_{dt1.strftime('%Y%m%d%H')}.nc"
+            file1.touch()
+            pipeline._era5_index[var][dt1.strftime("%Y%m%d%H")] = file1
+    
+    # Create fake RWRF file only for timestep 0
+    pipeline._rwrf_index = {}
+    dt0 = datetimes[0]
+    rwrf_file0 = rwrf_path / f"wrfout_{dt0.strftime('%Y-%m-%d_%H')}"
+    rwrf_file0.touch()
+    pipeline._rwrf_index[dt0.strftime("%Y-%m-%d_%H")] = rwrf_file0
+    
+    # Create fake QPEPRE files for timesteps 0 and 2 (but not 3)
+    pipeline._qpepre_index = {}
+    pipeline.rwrf_variables = ["u10", "v10", "qpepre"]  # Include qpepre
+    for dt in [datetimes[0], datetimes[2]]:
+        qpe_file = qpepre_path / f"qpe_{dt.strftime('%Y%m%d%H%M')}.txt"
+        qpe_file.touch()
+        pipeline._qpepre_index[dt.strftime("%Y%m%d%H%M")] = qpe_file
+    
+    # Test ERA5 validity precomputation
+    era5_validity = pipeline._precompute_era5_validity(datetimes)
+    assert era5_validity[0] == True, "Timestep 0 should be valid (all ERA5 files present)"
+    assert era5_validity[1] == False, "Timestep 1 should be invalid (missing ERA5 variable)"
+    assert era5_validity[2] == False, "Timestep 2 should be invalid (no ERA5 files)"
+    assert era5_validity[3] == False, "Timestep 3 should be invalid (no ERA5 files)"
+    
+    # Test RWRF validity precomputation
+    rwrf_validity = pipeline._precompute_rwrf_validity(datetimes)
+    assert rwrf_validity[0] == True, "Timestep 0 should be valid (RWRF and QPEPRE present)"
+    assert rwrf_validity[1] == False, "Timestep 1 should be invalid (missing RWRF file)"
+    assert rwrf_validity[2] == False, "Timestep 2 should be invalid (missing QPEPRE)"
+    assert rwrf_validity[3] == False, "Timestep 3 should be invalid (missing both RWRF and QPEPRE)"
+    
+    print(f"ERA5 validity: {era5_validity}")
+    print(f"RWRF validity: {rwrf_validity}")
+
+
+def test_process_lowres_skips_invalid_timesteps(tmp_path):
+    """Verify that invalid timesteps are skipped during processing without file I/O."""
+    pipeline, _ = _build_pipeline(tmp_path)
+    
+    datetimes = [
+        datetime(2019, 8, 1, 0),  # Valid
+        datetime(2019, 8, 1, 1),  # Invalid (will be precomputed as such)
+        datetime(2019, 8, 1, 2),  # Valid
+    ]
+    
+    # Track which timesteps were actually processed
+    processed_timesteps = []
+    
+    def fake_era5_single(self, dt, var):
+        processed_timesteps.append((dt, var))
+        data = np.full(self.domain_size, fill_value=1.0, dtype=np.float32)
+        lon = np.zeros(self.domain_size, dtype=np.float32)
+        lat = np.zeros(self.domain_size, dtype=np.float32)
+        return data, lon, lat
+    
+    # Mock the validity precomputation to return specific pattern
+    def fake_precompute_era5_validity(self, dts):
+        return np.array([True, False, True])
+    
+    pipeline._process_era5_single = types.MethodType(fake_era5_single, pipeline)
+    pipeline._precompute_era5_validity = types.MethodType(fake_precompute_era5_validity, pipeline)
+    pipeline._build_era5_index = lambda: None
+    
+    lowres_store = Path(pipeline.output_base) / "LowRes" / "test_skip.zarr"
+    pipeline.process_lowres("test", datetimes, lowres_store)
+    
+    # Only timesteps 0 and 2 should have been processed
+    unique_dts = set(dt for dt, _ in processed_timesteps)
+    assert datetimes[1] not in unique_dts, "Invalid timestep should not be processed"
+    assert datetimes[0] in unique_dts, "Valid timestep 0 should be processed"
+    assert datetimes[2] in unique_dts, "Valid timestep 2 should be processed"
+    
+    print(f"Processed timesteps: {unique_dts}")
+    print(f"Skipped invalid timestep: {datetimes[1]}")

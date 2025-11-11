@@ -1,0 +1,38 @@
+# Python cache and artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+.venv_*/
+.venv_nc_to_zarr/
+env/
+venv/
+
+# Editor/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Build/packaging
+*.egg-info/
+build/
+dist/
+
+# Logs and temporary outputs
+*.log
+*.tmp
+*.bak
+
+# Zarr datasets and derived data
+*.zarr/
+*.zarr
+Zarr_test/
+stats/
+*.npy
