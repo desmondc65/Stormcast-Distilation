@@ -1,9 +1,9 @@
-root_dir: "/home/master/13/dczy/data/NC/ERA5/ERA5_201908_nc/"
-output_dir: "/home/master/13/dczy/data/NC/ERA5_dt1_stable"
-time_variable: "valid_time"
-workers: 20
-dt_hours: 1
-variables:
+root_dir: # 【需更動】ERA5 nc 月檔資料夾路徑
+output_dir: # 【需更動】轉換後  ERA nc 小時檔放置資料夾路徑
+time_variable: "valid_time" # ERA5 nc 檔裡時間變數的名稱
+workers: 20 # 平行處理的核心數，可依據CPU核心數調整
+dt_hours: 1 # 資料時間間隔，單位為小時
+variables: # ERA5檔名的變數名稱 
   - "mslp"
   - "sp"
   - "tcwv"
@@ -31,10 +31,9 @@ variables:
   - "z500"
   - "z250"
 
-# Variable name mapping: file_name_variable -> nc_variable_name
-# Use this when the variable in the file name differs from the actual variable name in the NetCDF file
+# ERA5 檔名：NC檔內變數名稱對照表
 variable_mapping:
-  mslp: "msl"  # mslp files contain variable 'msl'
+  mslp: "msl"  # 檔名：mslp NC檔內的變數：msl
   sp: "sp"
   tcwv: "tcwv"
   t2m: "t2m"
