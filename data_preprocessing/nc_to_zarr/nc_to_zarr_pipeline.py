@@ -1376,8 +1376,8 @@ class NCToZarrPipeline:
             logger.info("Split %s: %d/%d timesteps are valid (both LowRes and HighRes complete), %d will be skipped",
                         split_name, valid_count, len(datetimes), invalid_count)
             
-            lowres_store = self.output_base / "LowRes" / f"{split_name}_era5.zarr"
-            highres_store = self.output_base / "HighRes" / f"{split_name}_rwrf.zarr"
+            lowres_store = self.output_base / "LowRes" / f"{split_name}.zarr"
+            highres_store = self.output_base / "HighRes" / f"{split_name}.zarr"
             
             # Pass the same validity mask to both processing methods
             if not self.skip_lowres:
