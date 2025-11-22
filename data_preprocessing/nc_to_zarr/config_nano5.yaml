@@ -1,0 +1,151 @@
+# Direct NC to Zarr Converter Configuration
+
+# Data paths
+era5-path: "/work/jasjou71/data/test_1_month_data/ERA5_nc_hourly" # ERA5 NC 小時檔資料夾路徑
+rwrf-path: "/work/jasjou71/data/RWRF" # RWRF NC 小時檔資料夾路徑
+qpepre-path: "/work/jasjou71/data/obs_1hrRain" # QPEPRE txt 小時檔資料路徑
+output-path: "/work/jasjou71/data/test_1_month_data/stormcast_zarr" # zarr檔資料夾放置路徑
+
+train-ranges: # 訓練期間
+  - ["2022/01/01", "2022/01/20"]
+
+valid-ranges: # 驗證期間
+  - ["2022/01/21", "2022/01/31"]
+hours: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"]
+
+# Domain configuration
+domain-size: [224, 128]  # [緯度(lat), 經度(long)]
+lon-bounds: [119.75, 122.25]  # 經度的 [min, max]
+lat-bounds: [21.6, 25.6]    # 緯度的 [min, max]
+
+# Processing options
+max-workers: 20 # 平行處理的核心數，可依據CPU核心數調整
+
+# 請勿變動
+overwrite: True 
+skip-era5: false
+skip-rwrf: false
+compute-stats: True
+
+# Split configuration 
+split: "both"  # Options: "train", "valid", "both", or "combined"
+# - "train": Process only training data
+# - "valid": Process only validation data  
+# - "both": Process both train and valid as separate datasets
+# - "combined": Process all date-ranges as single combined dataset
+
+# Variable configurations, add to override defaults
+era5-vars: null  # Optional comma-separated override for ERA5 variables
+rwrf-vars: null  # Optional comma-separated override for RWRF variables
+invariant-vars: null  # Optional comma-separated override for invariant variables
+
+# Full variable definitions used when overrides are null (defaults)
+era5-variables:
+  - "mslp"
+  - "sp"
+  - "t2m"
+  - "u10"
+  - "v10"
+  - "tcwv"
+  - "q1000"
+  - "q850"
+  - "q500"
+  - "q250"
+  - "t1000"
+  - "t850"
+  - "t500"
+  - "t250"
+  - "u1000"
+  - "u850"
+  - "u500"
+  - "u250"
+  - "v1000"
+  - "v850"
+  - "v500"
+  - "v250"
+  - "z1000"
+  - "z850"
+  - "z500"
+  - "z250"
+
+rwrf-variables:
+  - "u10"
+  - "v10"
+  - "t2m"
+  - "sp"
+  - "msl"
+  - "tcwv"
+  - "u50"
+  - "u100"
+  - "u150"
+  - "u200"
+  - "u250"
+  - "u300"
+  - "u400"
+  - "u500"
+  - "u600"
+  - "u700"
+  - "u850"
+  - "u925"
+  - "u1000"
+  - "v50"
+  - "v100"
+  - "v150"
+  - "v200"
+  - "v250"
+  - "v300"
+  - "v400"
+  - "v500"
+  - "v600"
+  - "v700"
+  - "v850"
+  - "v925"
+  - "v1000"
+  - "z50"
+  - "z100"
+  - "z150"
+  - "z200"
+  - "z250"
+  - "z300"
+  - "z400"
+  - "z500"
+  - "z600"
+  - "z700"
+  - "z850"
+  - "z925"
+  - "z1000"
+  - "t50"
+  - "t100"
+  - "t150"
+  - "t200"
+  - "t250"
+  - "t300"
+  - "t400"
+  - "t500"
+  - "t600"
+  - "t700"
+  - "t850"
+  - "t925"
+  - "t1000"
+  - "q50"
+  - "q100"
+  - "q150"
+  - "q200"
+  - "q250"
+  - "q300"
+  - "q400"
+  - "q500"
+  - "q600"
+  - "q700"
+  - "q850"
+  - "q925"
+  - "q1000"
+  - "qpepre"
+
+invariant-variables:
+  - "lsm"
+  - "orog"
+
+# Logging
+log-level: "DEBUG"
+log-file: "nc_to_zarr.log"
