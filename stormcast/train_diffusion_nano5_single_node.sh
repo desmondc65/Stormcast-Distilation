@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --gpus-per-node=1                 # MODIFIED: Changed from 8 to 4
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_logs/%x/%j.out # Changed for clarity
-#SBATCH --error=slurm_logs/%x/%j.err  # Changed for clarity
+#SBATCH --output=stormcast_slurm_logs/%x/%j.out # Changed for clarity
+#SBATCH --error=stormcast_slurm_logs/%x/%j.err  # Changed for clarity
 #SBATCH --export=ALL
 
 # --- Environment setup ---
@@ -58,7 +58,7 @@ kept_LowRes_channels="all"
 kept_HighRes_channels="all"
 
 # --- Model parameters ---
-regression_weights="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_diffusion/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus" 
+regression_weights="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus" 
 # Path to pretrained regression mdlus, used if 'regression' is included in diffusion_conditions
 
 # execute training with torchrun 
