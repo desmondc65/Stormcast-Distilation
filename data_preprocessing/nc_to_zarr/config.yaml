@@ -1,10 +1,10 @@
 # Direct NC to Zarr Converter Configuration
 
 # Data paths
-era5-path: # ERA5 NC 小時檔資料夾路徑
-rwrf-path: # RWRF NC 小時檔資料夾路徑
-qpepre-path: # QPEPRE txt 小時檔資料路徑
-output-path: # zarr檔資料夾放置路徑
+era5-path: "/home/master/13/dczy/code/stormcast-ncdr/data/NC/ERA5_dt1_stable" # ERA5 NC 小時檔資料夾路徑
+rwrf-path: "/home/master/13/dczy/code/stormcast-ncdr/data/NC/RWRF/RWRF_2019-08" # RWRF NC 小時檔資料夾路徑
+qpepre-path: "/home/master/13/dczy/code/stormcast-ncdr/data/qpepre/forai_1hrobs_2019" # QPEPRE txt 小時檔資料路徑
+output-path: "/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_data/nano5_test" # zarr檔資料夾放置路徑
 
 train-ranges: # 訓練期間
   - ["2019/08/01", "2019/08/17"]
