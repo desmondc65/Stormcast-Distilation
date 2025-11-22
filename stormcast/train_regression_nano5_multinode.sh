@@ -44,7 +44,7 @@ checkpoint_freq=1000
 validation_freq=50
 
 # --- Training parameters ---
-batch_size=12
+batch_size=64
 lr=4E-4
 lr_rampup_steps=1000
 total_train_steps=16000
