@@ -53,9 +53,9 @@ output_nc_freq=5
 # --- Dataset parameters ---
 location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"
 HighRes_img_size="[224,128]"
-exp_train_zarrs="[stormcast_test_train]" # Zarr files to use for training
+exp_train_zarrs="[train]" # Zarr files to use for training
 train_dates="[2022/01/01,2022/01/20]"
-exp_valid_zarrs="[stormcast_test_valid]" # Zarr files to use for validation
+exp_valid_zarrs="[valid]" # Zarr files to use for validation
 valid_dates="[2022/01/21,2022/01/31]"
 kept_LowRes_channels="all"
 kept_HighRes_channels="all"
