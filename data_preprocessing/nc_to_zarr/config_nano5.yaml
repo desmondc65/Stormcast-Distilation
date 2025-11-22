@@ -1,10 +1,10 @@
-# Direct NC to Zarr Converter Configuration
+# 直接 NC 轉 Zarr 轉換器設定
 
-# Data paths
+# 資料路徑
 era5-path: "/work/jasjou71/data/test_1_month_data/ERA5_nc_hourly" # ERA5 NC 小時檔資料夾路徑
 rwrf-path: "/work/jasjou71/data/RWRF" # RWRF NC 小時檔資料夾路徑
 qpepre-path: "/work/jasjou71/data/obs_1hrRain" # QPEPRE txt 小時檔資料路徑
-output-path: "/work/jasjou71/data/test_1_month_data/stormcast_zarr" # zarr檔資料夾放置路徑
+output-path: "/work/jasjou71/data/test_1_month_data/stormcast_zarr" # Zarr 檔資料夾放置路徑
 
 train-ranges: # 訓練期間
   - ["2022/01/01", "2022/01/20"]
@@ -13,13 +13,13 @@ valid-ranges: # 驗證期間
   - ["2022/01/21", "2022/01/31"]
 hours: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"]
 
-# Domain configuration
+# 網域設定
 domain-size: [224, 128]  # [緯度(lat), 經度(long)]
-lon-bounds: [119.75, 122.25]  # 經度的 [min, max]
-lat-bounds: [21.6, 25.6]    # 緯度的 [min, max]
+lon-bounds: [119.75, 122.25]  # 經度的 [最小值, 最大值]
+lat-bounds: [21.6, 25.6]    # 緯度的 [最小值, 最大值]
 
-# Processing options
-max-workers: 20 # 平行處理的核心數，可依據CPU核心數調整
+# 處理選項
+max-workers: 20 # 平行處理的核心數，可依據 CPU 核心數調整
 
 # 請勿變動
 overwrite: True 
@@ -27,19 +27,19 @@ skip-era5: false
 skip-rwrf: false
 compute-stats: True
 
-# Split configuration 
-split: "both"  # Options: "train", "valid", "both", or "combined"
-# - "train": Process only training data
-# - "valid": Process only validation data  
-# - "both": Process both train and valid as separate datasets
-# - "combined": Process all date-ranges as single combined dataset
+# 分割設定 
+split: "both"  # 選項: "train", "valid", "both", 或 "combined"
+# - "train": 僅處理訓練資料
+# - "valid": 僅處理驗證資料  
+# - "both": 分別處理訓練和驗證資料
+# - "combined": 將所有日期範圍處理為單一合併資料集
 
-# Variable configurations, add to override defaults
-era5-vars: null  # Optional comma-separated override for ERA5 variables
-rwrf-vars: null  # Optional comma-separated override for RWRF variables
-invariant-vars: null  # Optional comma-separated override for invariant variables
+# 變數設定，新增以覆蓋預設值
+era5-vars: null  # 可選的逗號分隔覆蓋 ERA5 變數
+rwrf-vars: null  # 可選的逗號分隔覆蓋 RWRF 變數
+invariant-vars: null  # 可選的逗號分隔覆蓋不變量變數
 
-# Full variable definitions used when overrides are null (defaults)
+# 當覆蓋為 null 時使用的完整變數定義（預設值）
 era5-variables:
   - "mslp"
   - "sp"
@@ -146,6 +146,6 @@ invariant-variables:
   - "lsm"
   - "orog"
 
-# Logging
+# 紀錄設定
 log-level: "DEBUG"
 log-file: "nc_to_zarr.log"
