@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --gpus-per-node=1                 # MODIFIED: Changed from 8 to 4
 #SBATCH --time=24:00:00
-#SBATCH --output=%nano5_output/%x/%j.out # Changed for clarity
-#SBATCH --error=%nano5_output/%x/%j.err  # Changed for clarity
+#SBATCH --output=slurm_logs/%x/%j.out # Changed for clarity
+#SBATCH --error=slurm_logs/%x/%j.err  # Changed for clarity
 #SBATCH --export=ALL
 
 # --- Environment setup ---
