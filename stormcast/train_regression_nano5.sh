@@ -12,9 +12,9 @@
 #SBATCH --export=ALL
 
 # --- Environment setup ---
-MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n1)
-MASTER_PORT=${MASTER_PORT:-$(( 20000 + (RANDOM % 20000) ))}
-export MASTER_ADDR MASTER_PORT
+# MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n1)
+# MASTER_PORT=${MASTER_PORT:-$(( 20000 + (RANDOM % 20000) ))}
+# export MASTER_ADDR MASTER_PORT
 export NPROC=$SLURM_GPUS_ON_NODE
 
 # --- General training config ---
@@ -63,8 +63,7 @@ kept_HighRes_channels="all"
 # execute training with torchrun 
 srun --mpi=pmix bash -lc "
 torchrun --standalone --nnodes=${SLURM_JOB_NUM_NODES} --nproc_per_node=${NPROC} ${stormcast_train} ${config} \
-    --node_rank=\${SLURM_PROCID} \
-    hydra.run.dir=${training_output_dir} --rdzv_backend=c10d  --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+    hydra.run.dir=${training_output_dir} \
     ++training.experiment_name=${experiment_name} \
     ++training.run_id=${run_id} \
     ++training.rundir=${training_output_dir}/${experiment_name}/run_${run_id} \
