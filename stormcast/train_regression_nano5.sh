@@ -5,7 +5,7 @@
 #SBATCH --nodes=1                         # Already set to 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
-#SBATCH --gpus-per-node=4                 # MODIFIED: Changed from 8 to 4
+#SBATCH --gpus-per-node=1                 # MODIFIED: Changed from 8 to 4
 #SBATCH --time=24:00:00
 #SBATCH --output=%nano5_output/%x/%j.out # Changed for clarity
 #SBATCH --error=%nano5_output/%x/%j.err  # Changed for clarity
