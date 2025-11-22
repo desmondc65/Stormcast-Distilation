@@ -11,9 +11,6 @@
 #SBATCH --error=slurm_logs/%x/%j.err  # 錯誤檔案路徑
 #SBATCH --export=ALL
 
-# 載入您的環境（例如：source activate stormcast_env 或 module load）
-# source activate stormcast_env # 若有需要請取消註解
-
 # --- 多節點環境設定 (Multi-Node Environment Setup) ---
 # 需要 rank 0 節點的位址作為 rendezvous 端點。
 # 我們在 Slurm 分配列表中找出第一個節點的主機名稱。
