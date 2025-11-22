@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=corr_dif_mulnode    # slurm 工作名稱
-#SBATCH --partition=normal    # 使用的分區
+#SBATCH --partition=normal2    # 使用的分區
 #SBATCH --account=MST111414    # 使用的帳號
 #SBATCH --nodes=2              # 使用的節點數量
 #SBATCH --ntasks-per-node=1    # 每個節點的任務數量
