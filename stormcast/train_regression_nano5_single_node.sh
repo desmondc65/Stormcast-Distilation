@@ -1,67 +1,67 @@
 #!/bin/bash
-#SBATCH --job-name=test_1_month_reg   # Changed for clarity
-#SBATCH --partition=normal
-#SBATCH --account=MST111414
-#SBATCH --nodes=1                         # Already set to 1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=12
-#SBATCH --gpus-per-node=1                 # MODIFIED: Changed from 8 to 4
-#SBATCH --time=24:00:00
-#SBATCH --output=slurm_logs/%x/%j.out # Changed for clarity
-#SBATCH --error=slurm_logs/%x/%j.err  # Changed for clarity
+#SBATCH --job-name=test_1_month_reg   # slurm 工作名稱
+#SBATCH --partition=normal              # 使用的分區
+#SBATCH --account=MST111414             # 帳號名稱
+#SBATCH --nodes=1                         # 節點數量
+#SBATCH --ntasks-per-node=1               # 每個節點的任務數量
+#SBATCH --cpus-per-task=12               # 每個任務使用的 CPU 核心數
+#SBATCH --gpus-per-node=1                 # gpu數量
+#SBATCH --time=48:00:00       # 工作的最大執行時間
+#SBATCH --output=slurm_logs/%x/%j.out # 輸出檔案路徑
+#SBATCH --error=slurm_logs/%x/%j.err  # 錯誤檔案路徑
 #SBATCH --export=ALL
 
-# --- Environment setup ---
+# --- 環境設定 ---
 export NPROC=$SLURM_GPUS_ON_NODE
 
-# Initialize Conda (Standard method for Slurm scripts)
+# 初始化 Conda（Slurm 腳本的標準方法）
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
 
-# --- General training config ---
-stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"
-config="--config-name regression.yaml"
-experiment_name="regression_ncdr"
-training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression"
+# --- 一般訓練配置 ---
+stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py" # train.py 的路徑
+config="--config-name regression.yaml" # 使用的配置檔
+experiment_name="regression_ncdr" # 實驗名稱
+training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression" # 訓練輸出目錄
 run_id="0"
 
-# -- logging parameters ---
+# -- 記錄（Logging）參數 ---
 print_progress_freq=25
 checkpoint_freq=1000
 validation_freq=50
 
-# --- Training parameters ---
+# --- 訓練參數 ---
 batch_size=12
 lr=4E-4
 lr_rampup_steps=1000
 total_train_steps=16000
-clip_grad_norm=-1 # Threshold for gradient clipping, set to -1 to disable
+clip_grad_norm=-1 # 梯度裁剪（Gradient Clipping）的閾值，設為 -1 以停用
 loss='regression'
-# seed=42 # Set a positive seed to avoid distributed broadcast issues in single-GPU mode
+# seed=42 # 設定正整數種子以避免單 GPU 模式下的分佈式廣播問題
 
-# --- Validation parameters ---
+# --- 驗證參數 ---
 validation_plot_variables="[t2m,u10,v10,qpepre]"
 
-# --- Optional outputs ---
-# When set to true, NetCDF files for validation fields will be written to
-# ${training_output_dir}/${experiment_name}/run_${run_id}/netcdf_outputs/<field>.
-# Default is false.
+# --- 可選輸出 ---
+# 當設為 true 時，驗證欄位的 NetCDF 檔案將被寫入至
+# ${training_output_dir}/${experiment_name}/run_${run_id}/netcdf_outputs/<field>。
+# 預設為 false。
 output_nc="true"
-# Output NetCDF every X validations (e.g., if set to 5, only output when validation_counter % 5 == 0).
-# Default is 1 (output every validation).
+# 每 X 次驗證輸出一次 NetCDF（例如：若設為 5，則僅當 validation_counter % 5 == 0 時輸出）。
+# 預設為 1（每次驗證都輸出）。
 output_nc_freq=5
 
-# --- Dataset parameters ---
+# --- 資料集參數 ---
 location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"
 HighRes_img_size="[224,128]"
-exp_train_zarrs="[train]" # Zarr files to use for training
+exp_train_zarrs="[train]" # 用於訓練的 Zarr 檔案
 train_dates="[2022/01/01,2022/01/20]"
-exp_valid_zarrs="[valid]" # Zarr files to use for validation
+exp_valid_zarrs="[valid]" # 用於驗證的 Zarr 檔案
 valid_dates="[2022/01/21,2022/01/31]"
 kept_LowRes_channels="all"
 kept_HighRes_channels="all"
 
-# execute training with torchrun 
+# 使用 torchrun 執行訓練
 srun --mpi=pmix bash -lc "
 torchrun --standalone --nnodes=${SLURM_JOB_NUM_NODES} --nproc_per_node=${NPROC} ${stormcast_train} ${config} \
     hydra.run.dir=${training_output_dir} \
