@@ -1,5 +1,82 @@
 # Stormcast-NCDR (客製化訓練資料)
 
+> **Adapted from NVIDIA [Physics‑NeMo / Stormcast](https://github.com/NVIDIA/physicsnemo)** and modified for Taiwan meteorological data.
+
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](#環境設置--environment-setup) [![Conda](https://img.shields.io/badge/conda-env-green)](#環境設置--environment-setup) [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red)](https://pytorch.org/get-started/previous-versions/)  
+
+
+## 目錄 (Table of Contents)
+- [虛擬環境設置](#虛擬環境設置)
+- [資料預處理](#資料預處理)
+  - [資料放置](#資料放置)
+  - [NC轉Zarr格式](#nc轉zarr格式--data_preprocessingnc_to_zarr)
+- [Zarr檔案檢視](#zarr檔案檢視)
+- [Stormcast模型訓練](#stormcast模型訓練)
+  - [1. 訓練回歸模型 (Regression Model)](#1-訓練回歸模型-regression-model)
+  - [2. 訓練擴散模型 (Diffusion Model)](#2-訓練擴散模型-diffusion-model)
+  - [訓練注意事項](#訓練注意事項)
+
+---
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'16px', 'primaryColor':'#fff4e6', 'primaryTextColor':'#333', 'primaryBorderColor':'#ffa94d', 'lineColor':'#495057', 'secondaryColor':'#e7f5ff', 'tertiaryColor':'#f8f9fa'}}}%%
+flowchart LR
+  %% 1. Data Sources
+  subgraph Raw_Data ["原始資料來源"]
+    direction TB
+    A["<b>ERA5 NetCDF</b><br/><br/>Low Res / 綜觀尺度 S_t　　　"]
+    B["<b>RWRF NetCDF</b><br/><br/>High Res / 中尺度 M_t　　　"]
+    C["<b>QPEPRE Text/Grid</b><br/><br/>High Res / 雷達觀測 M_t　　　"]
+  end
+
+  %% 2. Preprocessing
+  subgraph Preprocessing ["前處理與 Zarr 轉換"]
+    direction TB
+    A1["<b>插值 ERA5 至</b><br/><br/>高解析度網格　　　"]
+    Z1["<b>儲存為</b><br/><br/>Zarr 格式　　　"]
+    Z2["<b>儲存為</b><br/><br/>Zarr 格式　　　"]
+  end
+
+  %% 3. Autoregressive Dataset Construction
+  subgraph Dataset_Builder ["建立自迴歸資料集"]
+    direction TB
+    Input_S["<b>輸入: 綜觀狀態 S(t)</b><br/><br/>ERA5　　　"]
+    Input_M["<b>輸入: 中尺度狀態 M(t)</b><br/><br/>RWRF + QPEPRE　　　"]
+    Target_M["<b>目標: 中尺度狀態 M(t+1)</b><br/><br/>下一小時 RWRF + QPEPRE　　　"]
+    Combined_Input["<b>合併輸入向量 X(t)</b>　　　"]
+  end
+
+  %% 4. Training Process
+  subgraph Training ["兩階段訓練流程"]
+    direction TB
+    Train_Reg["<b>訓練 Regression UNet</b>　　　"]
+    Reg_CPT["<b>Regression Checkpoint</b><br/><br/>預測 t+1 的平均值 Mean　　　"]
+    Train_Diff["<b>訓練 Diffusion Model</b><br/><br/>EDM　　　"]
+    Note["<b>Diffusion Condition:</b><br/>1. 綜觀狀態 S(t)<br/>2. 中尺度狀態 M(t)<br/>3. 預測平均值 Mean(t+1)<br/><br/><b>優化目標:</b><br/>殘差 Residual r(t+1)　　　"]
+  end
+
+  %% Connections
+  A --> A1
+  A1 --> Z1
+  B --> Z2
+  C --> Z2
+  
+  Z1 --> Input_S
+  Z2 --> Input_M
+  Z2 --> Target_M
+  
+  Input_S --> Combined_Input
+  Input_M --> Combined_Input
+  
+  Combined_Input --> Train_Reg
+  Target_M --> Train_Reg
+  Train_Reg --> Reg_CPT
+  
+  Combined_Input --> Train_Diff
+  Reg_CPT --> Train_Diff
+  Target_M --> Train_Diff
+  Note -.-> Train_Diff
+```
+
 ## 虛擬環境設置
 1. 使用conda 建立虛擬環境，並安裝所需套件：
 ```bash
