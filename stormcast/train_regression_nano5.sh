@@ -15,7 +15,7 @@
 MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n1)
 MASTER_PORT=${MASTER_PORT:-$(( 20000 + (RANDOM % 20000) ))}
 export MASTER_ADDR MASTER_PORT
-
+export NPROC=$SLURM_GPUS_ON_NODE
 
 # --- General training config ---
 stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"
