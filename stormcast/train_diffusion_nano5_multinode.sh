@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=corr_dif_mulnode    # slurm 工作名稱
-#SBATCH --partition=normal2    # 使用的分區
+#SBATCH --partition=normal    # 使用的分區
 #SBATCH --account=MST111414    # 使用的帳號
 #SBATCH --nodes=2              # 使用的節點數量
 #SBATCH --ntasks-per-node=1    # 每個節點的任務數量
 #SBATCH --cpus-per-task=12     # 每個任務使用的 CPU 核心數
-#SBATCH --gpus-per-node=2      # 每個節點使用的 GPU 數量
+#SBATCH --gpus-per-node=1      # 每個節點使用的 GPU 數量
 #SBATCH --time=48:00:00        # 工作的最大執行時間 
 #SBATCH --output=stormcast_slurm_logs/%x/%j.out # 輸出log檔案位置，%x 代表工作名稱，%j 代表工作 ID
 #SBATCH --error=stormcast_slurm_logs/%x/%j.err  # 輸出錯誤log檔案位置，%x 代表工作名稱，%j 代表工作 ID

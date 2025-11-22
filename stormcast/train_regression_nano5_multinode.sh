@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=cor_reg_mulnode  # slurm 工作名稱
-#SBATCH --partition=normal2              # 使用的分區
+#SBATCH --partition=normal             # 使用的分區
 #SBATCH --account=MST111414             # 帳號名稱
 #SBATCH --nodes=2                         # 節點數量
 #SBATCH --ntasks-per-node=1               # 每個節點的任務數量
 #SBATCH --cpus-per-task=12               # 每個任務使用的 CPU 核心數
-#SBATCH --gpus-per-node=2                 # gpu數量
+#SBATCH --gpus-per-node=1                 # gpu數量
 #SBATCH --time=48:00:00       # 工作的最大執行時間
 #SBATCH --output=slurm_logs/%x/%j.out # 輸出檔案路徑
 #SBATCH --error=slurm_logs/%x/%j.err  # 錯誤檔案路徑
