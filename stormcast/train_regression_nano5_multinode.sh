@@ -31,11 +31,48 @@ export NPROC=$SLURM_GPUS_PER_NODE # Use SLURM_GPUS_PER_NODE for consistency
 # The node_rank is supplied by Slurm's job index.
 NODE_RANK=$SLURM_NODEID 
 
-# --- General training config (Unchanged) ---
+# --- General training config ---
 stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"
 config="--config-name regression.yaml"
 experiment_name="regression_ncdr"
-# ... (all other parameters remain the same) ...
+training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression"
+run_id="0"
+
+# -- logging parameters ---
+print_progress_freq=25
+checkpoint_freq=1000
+validation_freq=50
+
+# --- Training parameters ---
+batch_size=12
+lr=4E-4
+lr_rampup_steps=1000
+total_train_steps=16000
+clip_grad_norm=-1 # Threshold for gradient clipping, set to -1 to disable
+loss='regression'
+# seed=42 # Set a positive seed to avoid distributed broadcast issues in single-GPU mode
+
+# --- Validation parameters ---
+validation_plot_variables="[t2m,u10,v10,qpepre]"
+
+# --- Optional outputs ---
+# When set to true, NetCDF files for validation fields will be written to
+# ${training_output_dir}/${experiment_name}/run_${run_id}/netcdf_outputs/<field>.
+# Default is false.
+output_nc="true"
+# Output NetCDF every X validations (e.g., if set to 5, only output when validation_counter % 5 == 0).
+# Default is 1 (output every validation).
+output_nc_freq=5
+
+# --- Dataset parameters ---
+location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"
+HighRes_img_size="[224,128]"
+exp_train_zarrs="[train]" # Zarr files to use for training
+train_dates="[2022/01/01,2022/01/20]"
+exp_valid_zarrs="[valid]" # Zarr files to use for validation
+valid_dates="[2022/01/21,2022/01/31]"
+kept_LowRes_channels="all"
+kept_HighRes_channels="all"
 
 # ------------------------------------------------------------------
 # execute training with torchrun using Slurm Rendezvous Backend
