@@ -1,5 +1,4 @@
 #!/bin/bash
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export CUDA_VISIBLE_DEVICES=4,5
 
 # --- Torchrun settings ---

@@ -40,9 +40,9 @@ output_nc_freq=5
 # --- Dataset parameters ---
 location="/project/n/desmond/Stormcast_test/Zarr_test_optimized_skip_invalid"
 HighRes_img_size="[224,128]"
-exp_train_zarrs="[stormcast_test_train]" # Zarr files to use for training
+exp_train_zarrs="[train]" # Zarr files to use for training
 train_dates="[2019/08/01,2019/08/17]"
-exp_valid_zarrs="[stormcast_test_valid]" # Zarr files to use for validation
+exp_valid_zarrs="[valid]" # Zarr files to use for validation
 valid_dates="[2019/08/18,2019/08/31]"
 kept_LowRes_channels="all"
 kept_HighRes_channels="all"

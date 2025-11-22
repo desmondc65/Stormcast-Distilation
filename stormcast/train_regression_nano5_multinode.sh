@@ -31,6 +31,10 @@ export NPROC=$SLURM_GPUS_PER_NODE # Use SLURM_GPUS_PER_NODE for consistency
 # The node_rank is supplied by Slurm's job index.
 NODE_RANK=$SLURM_NODEID 
 
+# Initialize Conda (Standard method for Slurm scripts)
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate stormcast_env
+
 # --- General training config ---
 stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"
 config="--config-name regression.yaml"

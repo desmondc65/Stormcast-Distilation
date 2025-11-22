@@ -14,6 +14,10 @@
 # --- Environment setup ---
 export NPROC=$SLURM_GPUS_ON_NODE
 
+# Initialize Conda (Standard method for Slurm scripts)
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate stormcast_env
+
 # --- General training config ---
 stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"
 config="--config-name diffusion.yaml"

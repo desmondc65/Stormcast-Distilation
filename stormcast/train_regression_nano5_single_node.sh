@@ -12,10 +12,11 @@
 #SBATCH --export=ALL
 
 # --- Environment setup ---
-# MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n1)
-# MASTER_PORT=${MASTER_PORT:-$(( 20000 + (RANDOM % 20000) ))}
-# export MASTER_ADDR MASTER_PORT
 export NPROC=$SLURM_GPUS_ON_NODE
+
+# Initialize Conda (Standard method for Slurm scripts)
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate stormcast_env
 
 # --- General training config ---
 stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"
