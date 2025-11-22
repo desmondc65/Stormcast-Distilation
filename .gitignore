@@ -185,3 +185,6 @@ wandb/
 
 # log files
 *.log
+
+# images
+images/
