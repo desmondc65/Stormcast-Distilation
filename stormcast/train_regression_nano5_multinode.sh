@@ -1,85 +1,85 @@
 #!/bin/bash
-#SBATCH --job-name=multinode_reg     # Changed for clarity
+#SBATCH --job-name=multinode_reg     # 為了清晰起見已更改
 #SBATCH --partition=normal2
 #SBATCH --account=MST111414
-#SBATCH --nodes=2                         # <<< CRITICAL: Set to 2 or more nodes for testing
+#SBATCH --nodes=2                         # <<< 關鍵：測試時設定為 2 個或更多節點
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
-#SBATCH --gpus-per-node=2               # <<< CRITICAL: Assuming 2 GPUs per node
+#SBATCH --gpus-per-node=2               # <<< 關鍵：假設每個節點有 2 個 GPU
 #SBATCH --time=24:00:00
 #SBATCH --output=slurm_logs_multinode/%x/%j.out
 #SBATCH --error=slurm_logs_multinode/%x/%j.err
 #SBATCH --export=ALL
 
-# Load your environment (e.g., source activate stormcast_env or module load)
-# source activate stormcast_env # UNCOMMENT if needed
+# 載入您的環境（例如：source activate stormcast_env 或 module load）
+# source activate stormcast_env # 若有需要請取消註解
 
-# --- Multi-Node Environment Setup ---
-# The rank 0 node address is needed for the rendezvous endpoint.
-# We find the hostname of the first node in the Slurm allocation list.
+# --- 多節點環境設定 (Multi-Node Environment Setup) ---
+# 需要 rank 0 節點的位址作為 rendezvous 端點。
+# 我們在 Slurm 分配列表中找出第一個節點的主機名稱。
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 
-# A fixed or predictable port is required. If using a large cluster,
-# use $SLURM_JOB_ID to make the port more unique, or rely on a fixed port if safe.
-# Using a fixed port for simplicity, assuming it's free.
+# 需要一個固定或可預測的連接埠。如果是使用大型叢集，
+# 使用 $SLURM_JOB_ID 可以讓連接埠更具唯一性，或者在安全的情況下依賴固定連接埠。
+# 為求簡單，這裡假設該連接埠空閒並使用固定連接埠。
 MASTER_PORT=29500 
 
 export MASTER_ADDR
 export MASTER_PORT
-export NPROC=$SLURM_GPUS_PER_NODE # Use SLURM_GPUS_PER_NODE for consistency
+export NPROC=$SLURM_GPUS_PER_NODE # 為了保持一致性，使用 SLURM_GPUS_PER_NODE
 
-# The node_rank is supplied by Slurm's job index.
+# node_rank 由 Slurm 的作業索引提供。
 NODE_RANK=$SLURM_NODEID 
 
-# Initialize Conda (Standard method for Slurm scripts)
+# 初始化 Conda（Slurm 腳本的標準方法）
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
 
-# --- General training config ---
+# --- 一般訓練配置 ---
 stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"
 config="--config-name regression.yaml"
 experiment_name="regression_ncdr"
 training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression"
 run_id="0"
 
-# -- logging parameters ---
+# -- 記錄（Logging）參數 ---
 print_progress_freq=25
 checkpoint_freq=1000
 validation_freq=50
 
-# --- Training parameters ---
+# --- 訓練參數 ---
 batch_size=64
 lr=4E-4
 lr_rampup_steps=1000
 total_train_steps=16000
-clip_grad_norm=-1 # Threshold for gradient clipping, set to -1 to disable
+clip_grad_norm=-1 # 梯度裁剪（Gradient Clipping）的閾值，設為 -1 以停用
 loss='regression'
-# seed=42 # Set a positive seed to avoid distributed broadcast issues in single-GPU mode
+# seed=42 # 設定正整數種子以避免單 GPU 模式下的分佈式廣播問題
 
-# --- Validation parameters ---
+# --- 驗證參數 ---
 validation_plot_variables="[t2m,u10,v10,qpepre]"
 
-# --- Optional outputs ---
-# When set to true, NetCDF files for validation fields will be written to
-# ${training_output_dir}/${experiment_name}/run_${run_id}/netcdf_outputs/<field>.
-# Default is false.
+# --- 可選輸出 ---
+# 當設為 true 時，驗證欄位的 NetCDF 檔案將被寫入至
+# ${training_output_dir}/${experiment_name}/run_${run_id}/netcdf_outputs/<field>。
+# 預設為 false。
 output_nc="true"
-# Output NetCDF every X validations (e.g., if set to 5, only output when validation_counter % 5 == 0).
-# Default is 1 (output every validation).
+# 每 X 次驗證輸出一次 NetCDF（例如：若設為 5，則僅當 validation_counter % 5 == 0 時輸出）。
+# 預設為 1（每次驗證都輸出）。
 output_nc_freq=5
 
-# --- Dataset parameters ---
+# --- 資料集參數 ---
 location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"
 HighRes_img_size="[224,128]"
-exp_train_zarrs="[train]" # Zarr files to use for training
+exp_train_zarrs="[train]" # 用於訓練的 Zarr 檔案
 train_dates="[2022/01/01,2022/01/20]"
-exp_valid_zarrs="[valid]" # Zarr files to use for validation
+exp_valid_zarrs="[valid]" # 用於驗證的 Zarr 檔案
 valid_dates="[2022/01/21,2022/01/31]"
 kept_LowRes_channels="all"
 kept_HighRes_channels="all"
 
 # ------------------------------------------------------------------
-# execute training with torchrun using Slurm Rendezvous Backend
+# 使用 Slurm Rendezvous 後端透過 torchrun 執行訓練
 # ------------------------------------------------------------------
 echo "Running distributed training across $SLURM_NNODES nodes, using $NPROC GPUs per node."
 echo "Master Node: $MASTER_ADDR:$MASTER_PORT (Node Rank: $NODE_RANK)"
