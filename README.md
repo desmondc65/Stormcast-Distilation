@@ -41,8 +41,12 @@ stormcast-ncdr/
 │   ├── utils/                  # 訓練工具函數
 │   ├── train.py                # 主訓練程式
 │   ├── inference.py            # 推論程式
-│   ├── train_regression.sh     # 回歸模型訓練腳本
-│   └── train_diffusion.sh      # 擴散模型訓練腳本
+│   ├── train_regression.sh     # 回歸模型訓練腳本 (一般環境)
+│   ├── train_diffusion.sh      # 擴散模型訓練腳本 (一般環境)
+│   ├── train_regression_nano5_single_node.sh    # 回歸模型訓練腳本 (Nano5 單節點)
+│   ├── train_regression_nano5_multinode.sh      # 回歸模型訓練腳本 (Nano5 多節點)
+│   ├── train_diffusion_nano5_single_node.sh     # 擴散模型訓練腳本 (Nano5 單節點)
+│   └── train_diffusion_nano5_multinode.sh       # 擴散模型訓練腳本 (Nano5 多節點)
 │
 ├── LICENSE                      # 授權條款
 ├── README.md                    # 專案說明文件
