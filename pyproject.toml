@@ -28,7 +28,7 @@ dependencies = [
     "scipy>=1.15.1",
     "tensorboard>=2.14",
     "setuptools>=77.0.3",
-    "torch,
+    "torch",
     "tqdm>=4.60.0",
     "psutil>=6.0.0",
     "typer>=0.16.0",
