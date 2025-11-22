@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=cor_reg_mulnode  # slurm 工作名稱
-#SBATCH --partition=normal              # 使用的分區
+#SBATCH --partition=normal2              # 使用的分區
 #SBATCH --account=MST111414             # 帳號名稱
 #SBATCH --nodes=2                         # 節點數量
 #SBATCH --ntasks-per-node=1               # 每個節點的任務數量
