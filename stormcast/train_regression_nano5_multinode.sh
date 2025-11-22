@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=multinode_reg     # Changed for clarity
-#SBATCH --partition=normal
+#SBATCH --partition=normal2
 #SBATCH --account=MST111414
 #SBATCH --nodes=2                         # <<< CRITICAL: Set to 2 or more nodes for testing
 #SBATCH --ntasks-per-node=1
