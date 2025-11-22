@@ -381,6 +381,8 @@ kept_LowRes_channels="all"                                                      
 kept_HighRes_channels="all"                                                     # 保留的高解析度通道
 ```
 
+<div style="page-break-after: always;"></div>
+
 ##### Nano5 單節點設定
 請到 `stormcast/train_regression_nano5_single_node.sh` 修改以下參數：
 
@@ -432,6 +434,9 @@ valid_dates="[2022/01/21,2022/01/31]"                             # 驗證日期
 kept_LowRes_channels="all"                                         # 保留的低解析度通道
 kept_HighRes_channels="all"                                        # 保留的高解析度通道
 ```
+
+<div style="page-break-after: always;"></div>
+
 
 ##### Nano5 多節點設定
 請到 `stormcast/train_regression_nano5_multinode.sh` 修改以下參數：
@@ -525,6 +530,9 @@ sbatch train_regression_nano5_multinode.sh
 
 ---
 
+<div style="page-break-after: always;"></div>
+
+
 ### 2. 訓練擴散模型 (Diffusion Model)
 擴散模型用於生成高品質的氣象預測，需要先訓練好回歸模型。
 
@@ -577,6 +585,8 @@ kept_HighRes_channels="all"                                                     
 # 【重要】預訓練回歸模型的路徑，用於擴散模型的條件輸入
 regression_weights="/home/master/13/dczy/code/stormcast-ncdr/data/Stormcast_test/regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus"
 ```
+
+<div style="page-break-after: always;"></div>
 
 ##### Nano5 單節點設定
 請到 `stormcast/train_diffusion_nano5_single_node.sh` 修改以下參數：
@@ -633,6 +643,9 @@ kept_HighRes_channels="all"                                        # 保留的�
 # 【重要】預訓練回歸模型的路徑，用於擴散模型的條件輸入
 regression_weights="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus"
 ```
+
+<div style="page-break-after: always;"></div>
+
 
 ##### Nano5 多節點設定
 請到 `stormcast/train_diffusion_nano5_multinode.sh` 修改以下參數：
