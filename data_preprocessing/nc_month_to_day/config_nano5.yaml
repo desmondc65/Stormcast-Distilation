@@ -1,9 +1,9 @@
-root_dir: "/work/jasjou71/data/ERA5_nc_monthly"
-output_dir: "/work/jasjou71/data/ERA5_nc_hourly"
-time_variable: "valid_time"
-workers: 20
-dt_hours: 1
-variables:
+root_dir: "/work/jasjou71/data/ERA5_nc_monthly" # ERA5 月份 NetCDF 檔案的根目錄路徑
+output_dir: "/work/jasjou71/data/ERA5_nc_hourly" # 分割後的小時 NetCDF 檔案輸出目錄路徑
+time_variable: "valid_time" # NetCDF 檔案中的時間變數名稱
+workers: 20 # 用於並行處理的工作進程數量
+dt_hours: 1 # 分割檔案的時間間隔 (單位：小時)
+variables: # 需要處理的變數列表
   - "mslp"
   - "sp"
   - "tcwv"
@@ -31,10 +31,10 @@ variables:
   - "z500"
   - "z250"
 
-# Variable name mapping: file_name_variable -> nc_variable_name
-# Use this when the variable in the file name differs from the actual variable name in the NetCDF file
+# 變數名稱對應表：檔案名稱中的變數 -> NetCDF 檔案中的實際變數名稱
+# 當檔案名稱中的變數與 NetCDF 檔案中的實際變數名稱不同時使用此設定
 variable_mapping:
-  mslp: "msl"  # mslp files contain variable 'msl'
+  mslp: "msl"  # mslp 檔案包含變數 'msl'
   sp: "sp"
   tcwv: "tcwv"
   t2m: "t2m"
