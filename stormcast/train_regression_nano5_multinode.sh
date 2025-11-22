@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=multinode_reg     # 為了清晰起見已更改
-#SBATCH --partition=normal2
-#SBATCH --account=MST111414
-#SBATCH --nodes=2                         # <<< 關鍵：測試時設定為 2 個或更多節點
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=12
-#SBATCH --gpus-per-node=2               # <<< 關鍵：假設每個節點有 2 個 GPU
-#SBATCH --time=24:00:00
-#SBATCH --output=slurm_logs_multinode/%x/%j.out
-#SBATCH --error=slurm_logs_multinode/%x/%j.err
+#SBATCH --job-name=cor_reg_mulnode  # slurm 工作名稱
+#SBATCH --partition=normal              # 使用的分區
+#SBATCH --account=MST111414             # 帳號名稱
+#SBATCH --nodes=2                         # 節點數量
+#SBATCH --ntasks-per-node=1               # 每個節點的任務數量
+#SBATCH --cpus-per-task=12               # 每個任務使用的 CPU 核心數
+#SBATCH --gpus-per-node=2                 # gpu數量
+#SBATCH --time=48:00:00       # 工作的最大執行時間
+#SBATCH --output=slurm_logs/%x/%j.out # 輸出檔案路徑
+#SBATCH --error=slurm_logs/%x/%j.err  # 錯誤檔案路徑
 #SBATCH --export=ALL
 
 # 載入您的環境（例如：source activate stormcast_env 或 module load）
