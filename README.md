@@ -54,7 +54,7 @@ stormcast-ncdr/
 
 ## StormCast 架構概覽
 
-![StormCast Architecture](images/stormcast.png)
+<img src="images/stormcast.png" alt="StormCast Architecture" width="100%"/>
 
 ---
 
@@ -135,17 +135,17 @@ Stormcast 分成高解析和低解析的影像資料，請依照以下步驟進�
     - 請把檔案都放在**同一個主資料夾裡**
     - 檔名**必須**為此格式：wrfout_d01_YYYY-MM-DD_HH_interp , YYYY為年份，MM為月份，DD為日期，HH為小時
     - 以下面這張截圖為例，提供RWRF資料夾的絕對路徑，程式就可以搜尋裡面所有的RWRF檔：
-    ![rwrf_path](images/rwrf_path.png)
+    <img src="images/rwrf_path.png" alt="RWRF Path" width="30%"/>
 2. **高解析資料小時txt檔（QPEPRE）**
     - 請把檔案都放在**同一個主資料夾裡**
     - 檔名**必須**為此格式：qpepre_YYYYMMDDHHMM-YYYYMMDDHHMM_1_h.txt
     - 以下面這張截圖為例，提供QPEPRE資料夾的絕對路徑，程式就可以搜尋裡面所有的QPEPRE txt檔：
-    ![qpepre_path](images/qpepre_path.png)
+    <img src="images/qpepre_path.png" alt="QPEPRE Path" width="30%"/>
 3. **低解析資料小時nc檔 (ERA5)**
     - 請把檔案都放在**同一個資料夾裡**
     - 檔名**必須**為此格式：var_YYYYMMDDTHH.nc， var為變數名稱，YYYY為年份，MM為月份，DD為日期，HH為小時，T為時間標記，例子：t2m_20190830T11.nc
     - 以下面這張截圖為例，提供ERA5_dt1_stable資料夾的絕對路徑，程式就可以搜尋裡面所有的ERA5檔：
-    ![era5_path](images/era5_path.png)
+    <img src="images/era5_path.png" alt="ERA5 Path" width="30%"/>
 
 ---
 
@@ -156,7 +156,7 @@ Stormcast 分成高解析和低解析的影像資料，請依照以下步驟進�
 - 如果ERA5為月檔，因月檔案太龐大直接轉換成zarr過程會不穩定
 #### 請先使用 `plit_era5_monthly_to_daily.py` 轉成小時檔
   - 檔名 **必須** 為此格式：var_YYYYMM.nc， var為變數名稱，YYYY為年份，MM為月份，例子：q500_201908.nc
-  ![era5_monthly_to_daily](images/era5_monthly_to_daily.png)
+  <img src="images/era5_monthly_to_daily.png" alt="ERA5 Monthly to Daily" width="30%"/>
   ```yaml
   # 請到data_preprocessing/nc_month_to_day/config.yaml更改
 root_dir: # 【需更動】ERA5 nc 月檔資料夾路徑
@@ -328,12 +328,16 @@ python3 plot_zarr.py <zarr檔案路徑> --source HighRes --variable "u10" --time
 
 ---
 
+<div style="page-break-after: always;"></div>
+
 ## Stormcast模型訓練
 
 ### 1. 訓練回歸模型 (Regression Model)
 回歸模型用於直接預測氣象變數，是擴散模型的基礎。
 
 #### 修改訓練參數
+
+##### 一般環境設定
 請到 `stormcast/train_regression.sh` 修改以下參數：
 
 ```bash
@@ -369,21 +373,142 @@ output_nc_freq=5           # 每 N 次驗證輸出一次 NetCDF（5 表示每 5 
 # --- 資料集參數 ---
 location="/project/n/desmond/Stormcast_test/Zarr_test_optimized_skip_invalid"  # Zarr 資料位置
 HighRes_img_size="[224,128]"                                                    # 高解析度影像大小
-exp_train_zarrs="[stormcast_test_train]"                                       # 訓練用 Zarr 檔案
+exp_train_zarrs="[train]"                                       # 訓練用 Zarr 檔案
 train_dates="[2019/08/01,2019/08/17]"                                          # 訓練日期範圍
-exp_valid_zarrs="[stormcast_test_valid]"                                       # 驗證用 Zarr 檔案
+exp_valid_zarrs="[valid]"                                       # 驗證用 Zarr 檔案
 valid_dates="[2019/08/18,2019/08/31]"                                          # 驗證日期範圍
 kept_LowRes_channels="all"                                                      # 保留的低解析度通道
 kept_HighRes_channels="all"                                                     # 保留的高解析度通道
 ```
 
+##### Nano5 單節點設定
+請到 `stormcast/train_regression_nano5_single_node.sh` 修改以下參數：
+
+```bash
+# --- SLURM 作業設定 ---
+#SBATCH --job-name=test_1_month_reg   # 工作名稱
+#SBATCH --partition=normal            # 分區名稱 (normal/normal2/dev)
+#SBATCH --account=MST111414           # 帳號名稱
+#SBATCH --nodes=1                     # 節點數量
+#SBATCH --ntasks-per-node=1           # 每個節點的任務數量
+#SBATCH --cpus-per-task=12            # 每個任務使用的 CPU 核心數
+#SBATCH --gpus-per-node=1             # 每個節點的 GPU 數量
+#SBATCH --time=48:00:00               # 最大執行時間 (小時:分鐘:秒)
+
+# --- 訓練設定 ---
+stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"  # train.py 的路徑
+config="--config-name regression.yaml"                                     # 配置檔名稱
+experiment_name="regression_ncdr"                                          # 實驗名稱
+training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression"  # 訓練輸出目錄
+run_id="0"                                                                 # 執行編號
+
+# --- 日誌參數 ---
+print_progress_freq=25     # 每 N 步驟印出訓練進度
+checkpoint_freq=1000       # 每 N 步驟儲存檢查點
+validation_freq=50         # 每 N 步驟進行驗證
+
+# --- 訓練參數 ---
+batch_size=12              # 批次大小
+lr=4E-4                    # 學習率
+lr_rampup_steps=1000       # 學習率暖身步數
+total_train_steps=16000    # 總訓練步數
+clip_grad_norm=-1          # 梯度裁剪閾值，設為 -1 表示停用
+loss='regression'          # 損失函數類型
+
+# --- 驗證參數 ---
+validation_plot_variables="[t2m,u10,v10,qpepre]"  # 要繪製的驗證變數
+
+# --- 可選輸出 ---
+output_nc="true"           # 是否輸出 NetCDF 檔案
+output_nc_freq=5           # 每 N 次驗證輸出一次 NetCDF
+
+# --- 資料集參數 ---
+location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"  # Zarr 資料位置
+HighRes_img_size="[224,128]"                                       # 高解析度影像大小
+exp_train_zarrs="[train]"                                          # 訓練用 Zarr 檔案
+train_dates="[2022/01/01,2022/01/20]"                             # 訓練日期範圍
+exp_valid_zarrs="[valid]"                                          # 驗證用 Zarr 檔案
+valid_dates="[2022/01/21,2022/01/31]"                             # 驗證日期範圍
+kept_LowRes_channels="all"                                         # 保留的低解析度通道
+kept_HighRes_channels="all"                                        # 保留的高解析度通道
+```
+
+##### Nano5 多節點設定
+請到 `stormcast/train_regression_nano5_multinode.sh` 修改以下參數：
+
+```bash
+# --- SLURM 作業設定 ---
+#SBATCH --job-name=cor_reg_mulnode    # 工作名稱
+#SBATCH --partition=normal            # 分區名稱 (normal/normal2/dev)
+#SBATCH --account=MST111414           # 帳號名稱
+#SBATCH --nodes=2                     # 節點數量 (多節點訓練)
+#SBATCH --ntasks-per-node=1           # 每個節點的任務數量
+#SBATCH --cpus-per-task=12            # 每個任務使用的 CPU 核心數
+#SBATCH --gpus-per-node=2             # 每個節點的 GPU 數量
+#SBATCH --time=48:00:00               # 最大執行時間 (小時:分鐘:秒)
+
+# --- 多節點環境設定 ---
+MASTER_PORT=29500                     # 主節點通訊埠 (可自訂)
+
+# --- 訓練設定 ---
+stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"  # train.py 的路徑
+config="--config-name regression.yaml"                                     # 配置檔名稱
+experiment_name="regression_ncdr"                                          # 實驗名稱
+training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression"  # 訓練輸出目錄
+run_id="0"                                                                 # 執行編號
+
+# --- 日誌參數 ---
+print_progress_freq=25     # 每 N 步驟印出訓練進度
+checkpoint_freq=1000       # 每 N 步驟儲存檢查點
+validation_freq=50         # 每 N 步驟進行驗證
+
+# --- 訓練參數 ---
+batch_size=64              # 批次大小 (多節點可調大)
+lr=4E-4                    # 學習率
+lr_rampup_steps=1000       # 學習率暖身步數
+total_train_steps=16000    # 總訓練步數
+clip_grad_norm=-1          # 梯度裁剪閾值，設為 -1 表示停用
+loss='regression'          # 損失函數類型
+
+# --- 驗證參數 ---
+validation_plot_variables="[t2m,u10,v10,qpepre]"  # 要繪製的驗證變數
+
+# --- 可選輸出 ---
+output_nc="true"           # 是否輸出 NetCDF 檔案
+output_nc_freq=5           # 每 N 次驗證輸出一次 NetCDF
+
+# --- 資料集參數 ---
+location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"  # Zarr 資料位置
+HighRes_img_size="[224,128]"                                       # 高解析度影像大小
+exp_train_zarrs="[train]"                                          # 訓練用 Zarr 檔案
+train_dates="[2022/01/01,2022/01/20]"                             # 訓練日期範圍
+exp_valid_zarrs="[valid]  "                                          # 驗證用 Zarr 檔案
+valid_dates="[2022/01/21,2022/01/31]"                             # 驗證日期範圍
+kept_LowRes_channels="all"                                         # 保留的低解析度通道
+kept_HighRes_channels="all"                                        # 保留的高解析度通道
+```
+
 #### 執行訓練
+
+##### 一般環境
 ```bash
 # 確保在 stormcast 目錄下
 cd stormcast
 
 # 執行訓練腳本
 ./train_regression.sh
+```
+
+##### Nano5 環境
+```bash
+# 確保在 stormcast 目錄下
+cd stormcast
+
+# 單節點訓練
+sbatch train_regression_nano5_single_node.sh
+
+# 多節點訓練
+sbatch train_regression_nano5_multinode.sh
 ```
 
 #### 訓練輸出
@@ -439,9 +564,9 @@ output_nc_freq=5           # 每 N 次驗證輸出一次 NetCDF（5 表示每 5 
 # --- 資料集參數 ---
 location="/project/n/desmond/Stormcast_test/Zarr_test_optimized_skip_invalid"  # Zarr 資料位置
 HighRes_img_size="[224,128]"                                                    # 高解析度影像大小
-exp_train_zarrs="[stormcast_test_train]"                                       # 訓練用 Zarr 檔案
+exp_train_zarrs="[train]"                                       # 訓練用 Zarr 檔案
 train_dates="[2019/08/01,2019/08/17]"                                          # 訓練日期範圍
-exp_valid_zarrs="[stormcast_test_valid]"                                       # 驗證用 Zarr 檔案
+exp_valid_zarrs="[valid]"                                       # 驗證用 Zarr 檔案
 valid_dates="[2019/08/18,2019/08/31]"                                          # 驗證日期範圍
 kept_LowRes_channels="all"                                                      # 保留的低解析度通道
 kept_HighRes_channels="all"                                                     # 保留的高解析度通道
