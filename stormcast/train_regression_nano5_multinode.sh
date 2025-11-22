@@ -5,7 +5,7 @@
 #SBATCH --nodes=2                         # <<< CRITICAL: Set to 2 or more nodes for testing
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
-#SBATCH --gpus-per-node=1                 # <<< CRITICAL: Assuming 1 GPU per node
+#SBATCH --gpus-per-node=8               # <<< CRITICAL: Assuming 8 GPUs per node
 #SBATCH --time=24:00:00
 #SBATCH --output=slurm_logs_multinode/%x/%j.out
 #SBATCH --error=slurm_logs_multinode/%x/%j.err
