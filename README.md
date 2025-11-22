@@ -6,7 +6,10 @@
 
 
 ## 目錄 (Table of Contents)
+- [專案結構](#專案結構)
+- [StormCast 架構概覽](#stormcast-架構概覽)
 - [虛擬環境設置](#虛擬環境設置)
+- [資料來源與用途](#資料來源與用途-data-sources-and-roles)
 - [資料預處理](#資料預處理)
   - [資料放置](#資料放置)
   - [NC轉Zarr格式](#nc轉zarr格式--data_preprocessingnc_to_zarr)
@@ -17,65 +20,45 @@
   - [訓練注意事項](#訓練注意事項)
 
 ---
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'16px', 'primaryColor':'#fff4e6', 'primaryTextColor':'#333', 'primaryBorderColor':'#ffa94d', 'lineColor':'#495057', 'secondaryColor':'#e7f5ff', 'tertiaryColor':'#f8f9fa'}}}%%
-flowchart LR
-  %% 1. Data Sources
-  subgraph Raw_Data ["原始資料來源"]
-    direction TB
-    A["<b>ERA5 NetCDF</b><br/><br/>Low Res / 綜觀尺度 S_t　　　"]
-    B["<b>RWRF NetCDF</b><br/><br/>High Res / 中尺度 M_t　　　"]
-    C["<b>QPEPRE Text/Grid</b><br/><br/>High Res / 雷達觀測 M_t　　　"]
-  end
 
-  %% 2. Preprocessing
-  subgraph Preprocessing ["前處理與 Zarr 轉換"]
-    direction TB
-    A1["<b>插值 ERA5 至</b><br/><br/>高解析度網格　　　"]
-    Z1["<b>儲存為</b><br/><br/>Zarr 格式　　　"]
-    Z2["<b>儲存為</b><br/><br/>Zarr 格式　　　"]
-  end
+<div style="page-break-after: always;"></div>
 
-  %% 3. Autoregressive Dataset Construction
-  subgraph Dataset_Builder ["建立自迴歸資料集"]
-    direction TB
-    Input_S["<b>輸入: 綜觀狀態 S(t)</b><br/><br/>ERA5　　　"]
-    Input_M["<b>輸入: 中尺度狀態 M(t)</b><br/><br/>RWRF + QPEPRE　　　"]
-    Target_M["<b>目標: 中尺度狀態 M(t+1)</b><br/><br/>下一小時 RWRF + QPEPRE　　　"]
-    Combined_Input["<b>合併輸入向量 X(t)</b>　　　"]
-  end
+## 專案結構
 
-  %% 4. Training Process
-  subgraph Training ["兩階段訓練流程"]
-    direction TB
-    Train_Reg["<b>訓練 Regression UNet</b>　　　"]
-    Reg_CPT["<b>Regression Checkpoint</b><br/><br/>預測 t+1 的平均值 Mean　　　"]
-    Train_Diff["<b>訓練 Diffusion Model</b><br/><br/>EDM　　　"]
-    Note["<b>Diffusion Condition:</b><br/>1. 綜觀狀態 S(t)<br/>2. 中尺度狀態 M(t)<br/>3. 預測平均值 Mean(t+1)<br/><br/><b>優化目標:</b><br/>殘差 Residual r(t+1)　　　"]
-  end
-
-  %% Connections
-  A --> A1
-  A1 --> Z1
-  B --> Z2
-  C --> Z2
-  
-  Z1 --> Input_S
-  Z2 --> Input_M
-  Z2 --> Target_M
-  
-  Input_S --> Combined_Input
-  Input_M --> Combined_Input
-  
-  Combined_Input --> Train_Reg
-  Target_M --> Train_Reg
-  Train_Reg --> Reg_CPT
-  
-  Combined_Input --> Train_Diff
-  Reg_CPT --> Train_Diff
-  Target_M --> Train_Diff
-  Note -.-> Train_Diff
 ```
+stormcast-ncdr/
+├── data_preprocessing/          # 資料預處理工具
+│   ├── nc_month_to_day/        # ERA5 月檔轉小時檔
+│   ├── nc_to_zarr/             # NetCDF 轉 Zarr 格式
+│   ├── plot_zarr/              # Zarr 資料視覺化
+│   └── print_zarr_info/        # Zarr 檔案資訊檢視
+│
+├── physicsnemo/                 # NVIDIA Physics-NeMo 核心函式庫
+│
+├── stormcast/                   # StormCast 訓練腳本
+│   ├── config/                 # 訓練配置檔案
+│   ├── datasets/               # 資料集載入器
+│   ├── utils/                  # 訓練工具函數
+│   ├── train.py                # 主訓練程式
+│   ├── inference.py            # 推論程式
+│   ├── train_regression.sh     # 回歸模型訓練腳本
+│   └── train_diffusion.sh      # 擴散模型訓練腳本
+│
+├── LICENSE                      # 授權條款
+├── README.md                    # 專案說明文件
+├── pyproject.toml              # Python 專案配置
+└── requirements.txt            # Python 套件需求
+```
+
+---
+
+## StormCast 架構概覽
+
+![StormCast Architecture](images/stormcast.png)
+
+---
+
+<div style="page-break-after: always;"></div>
 
 ## 虛擬環境設置
 1. 使用conda 建立虛擬環境，並安裝所需套件：
@@ -91,9 +74,8 @@ conda activate stormcast_env
 nvidia-smi
 ```
 
-3. 請到 [pytorch官網](https://pytorch.org/get-started/previous-versions/) 查詢適合的pytorch版本
+3. 下載pytorch
 ```bash
-# 以cuda 11.8為例，安裝指令如下
 pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu118
 ```
 
@@ -105,23 +87,76 @@ pip install -e .
 ```
 ---
 
+<div style="page-break-after: always;"></div>
+
+## 資料來源與用途 (Data Sources and Roles)
+
+本專案採用 **StormCast** 的自迴歸生成架構，整合了**綜觀尺度 (Synoptic Scale)** 與**對流尺度 (Convection-Allowing)** 的資料進行訓練。
+
+資料集依據解析度與用途分為以下兩類：
+
+### 1. 低解析度資料 (Low Resolution)
+
+用於提供大範圍的大氣背景場，作為模型預測時的邊界條件與大尺度引導 (Conditioning)。
+
+#### ERA5 (ECMWF Reanalysis v5)
+- **角色**: Low Res Input (綜觀狀態 $S_t$)
+- **用途**: 提供全球範圍的綜觀氣象變數（如位勢高度、大尺度風場、溫度等）。在 StormCast 架構中，這些資料被用來捕捉大氣的長波型態與綜觀強迫作用。
+
+### 2. 高解析度資料 (High Resolution)
+
+這是模型主要學習與預測的目標，包含精細的中尺度 (Mesoscale) 動力過程與降雨資訊。
+
+#### RWRF (Radar-assimilated WRF)
+- **角色**: High Res Input/Target (中尺度狀態 $M_t$)
+- **用途**: 來自雷達資料同化的數值模式輸出，提供臺灣區域高解析度的動力與熱力場變數（如垂直風切、邊界層結構等）。
+
+#### QPEPRE (Quantitative Precipitation Estimation)
+- **角色**: High Res Input/Target (雷達觀測 $M_t$)
+- **用途**: 高解析度的雷達定量降雨估計資料。
+- **整合**: RWRF 與 QPEPRE 會被合併視為完整的中尺度狀態向量。模型在時間點 $t$ 接收這些高解析度資料，並學習預測時間點 $t+1$ 的狀態。
+
+### 資料集總覽
+
+| 資料集 (Dataset) | 解析度 (Resolution) | 角色 (Role) | 
+|-----------------|---------------------|-------------|
+| **ERA5** | Low Res (~25-30km) | 綜觀條件輸入 (Conditioning) | 
+| **RWRF** | High Res (2-3km) | 模型狀態輸入 & 預測目標 | 
+| **QPEPRE** | High Res (Grid) | 模型狀態輸入 & 預測目標 | 
+
+---
+
+<div style="page-break-after: always;"></div>
+
 ## 資料預處理
 ### 資料放置
 Stormcast 分成高解析和低解析的影像資料，請依照以下步驟進行資料預處理：
 1. **高解析資料小時nc檔 (RWRF)**
     - 請把檔案都放在**同一個主資料夾裡**
     - 檔名**必須**為此格式：wrfout_d01_YYYY-MM-DD_HH_interp , YYYY為年份，MM為月份，DD為日期，HH為小時
+    - 以下面這張截圖為例，提供RWRF資料夾的絕對路徑，程式就可以搜尋裡面所有的RWRF檔：
+    ![rwrf_path](images/rwrf_path.png)
 2. **高解析資料小時txt檔（QPEPRE）**
     - 請把檔案都放在**同一個主資料夾裡**
     - 檔名**必須**為此格式：qpepre_YYYYMMDDHHMM-YYYYMMDDHHMM_1_h.txt
+    - 以下面這張截圖為例，提供QPEPRE資料夾的絕對路徑，程式就可以搜尋裡面所有的QPEPRE txt檔：
+    ![qpepre_path](images/qpepre_path.png)
 3. **低解析資料小時nc檔 (ERA5)**
     - 請把檔案都放在**同一個資料夾裡**
     - 檔名**必須**為此格式：var_YYYYMMDDTHH.nc， var為變數名稱，YYYY為年份，MM為月份，DD為日期，HH為小時，T為時間標記，例子：t2m_20190830T11.nc
+    - 以下面這張截圖為例，提供ERA5_dt1_stable資料夾的絕對路徑，程式就可以搜尋裡面所有的ERA5檔：
+    ![era5_path](images/era5_path.png)
 
 ---
-#### 如果ERA5為月檔，因月檔案太龐大直接轉換成zarr過程會不穩定
-#### 請先使用 `data_preprocessing/nc_month_to_day/split_era5_monthly_to_daily.py` 轉成小時檔
-  - 檔名 **必須** 為此格式：var_YYYYMM.nc， var為變數名稱，YYYY為年份，MM為月份，例子：t2m_201908.nc
+
+<div style="page-break-after: always;"></div>
+
+### ERA5月檔轉小時檔
+- 路徑 : `data_preprocessing/nc_month_to_day/`
+- 如果ERA5為月檔，因月檔案太龐大直接轉換成zarr過程會不穩定
+#### 請先使用 `plit_era5_monthly_to_daily.py` 轉成小時檔
+  - 檔名 **必須** 為此格式：var_YYYYMM.nc， var為變數名稱，YYYY為年份，MM為月份，例子：q500_201908.nc
+  ![era5_monthly_to_daily](images/era5_monthly_to_daily.png)
   ```yaml
   # 請到data_preprocessing/nc_month_to_day/config.yaml更改
 root_dir: # 【需更動】ERA5 nc 月檔資料夾路徑
@@ -135,39 +170,130 @@ dt_hours: 1 # 資料時間間隔，單位為小時
   # 執行前請先修改 config.yaml 裡的路徑參數
   python3 split_era5_monthly_to_daily.py --config config.yaml
   ```
+  - [nano5] 執行轉換腳本
+  ```bash
+  # 執行前請先修改 config.yaml 裡的路徑參數
+  srun --partition=dev --account=MST111414 \
+  --gpus-per-node=1 --cpus-per-task=12 --ntasks=1 \
+  python3 split_era5_monthly_to_daily.py --config config.yaml
+  ```
+
 ---
 
-### NC轉Zarr格式 : `data_preprocessing/nc_to_zarr/`
+<div style="page-break-after: always;"></div>
 
-1. 請到 `data_preprocessing/nc_to_zarr/config.yaml` 修改以下參數：
+
+
+## NetCDF 轉 Zarr 資料預處理
+### 路徑 : `data_preprocessing/nc_to_zarr/`
+### 設定指南
+
+#### 1. 資料路徑
+在設定檔中配置輸入和輸出路徑：
+
 ```yaml
-# Data paths
-era5-path: # ERA5 NC 小時檔資料夾路徑
-rwrf-path: # RWRF NC 小時檔資料夾路徑
-qpepre-path: # QPEPRE txt 小時檔資料路徑
-output-path: # zarr檔資料夾放置路徑
-
-train-ranges: # 訓練期間
-  - ["2019/08/01", "2019/08/17"]
-
-valid-ranges: # 驗證期間
-  - ["2019/08/18", "2019/08/31"]
-hours: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"]
-
-# Domain configuration
-domain-size: [224, 128]  # [緯度(lat), 經度(long)]
-lon-bounds: [119.75, 122.25]  # 經度的 [min, max]
-lat-bounds: [21.6, 25.6]    # 緯度的 [min, max]
-
-# Processing options
-max-workers: 20 # 平行處理的核心數，可依據CPU核心數調整
+era5-path: "/path/to/ERA5/nc/hourly/data"     # ERA5 NetCDF 小時檔資料夾
+rwrf-path: "/path/to/RWRF/nc/hourly/data"     # RWRF NetCDF 小時檔資料夾
+qpepre-path: "/path/to/obs_1hrRain/txt/data"  # QPEPRE txt 小時檔資料夾
+output-path: "/path/to/output/zarr"           # 輸出 Zarr 資料夾
 ```
-2. 執行轉換腳本
-```bash
-# 執行前請先修改 config.yaml 裡的路徑參數
-python3 nc_to_zarr.py --config config.yaml
+
+#### 2. 時間範圍
+定義訓練和驗證期間：
+
+```yaml
+train-ranges:  # 訓練期間
+  - ["2022/01/01", "2022/01/20"] # 2022/01/01 到 2022/01/20
+
+valid-ranges:  # 驗證期間
+  - ["2022/01/21", "2022/01/31"] # 2022/01/21 到 2022/01/31
 ```
+
+#### 3. 空間範圍
+配置地理區域：
+
+```yaml
+domain-size: [224, 128]          # [緯度點數, 經度點數]
+lon-bounds: [119.75, 122.25]     # [最小經度, 最大經度] 單位：度
+lat-bounds: [21.6, 25.6]         # [最小緯度, 最大緯度] 單位：度
+```
+
+#### 4. 處理選項
+調整平行處理設定：
+
+```yaml
+max-workers: 20  # 平行處理的 CPU 核心數
+                 # 可依據可用的 CPU 核心數調整
+```
+
+<div style="page-break-after: always;"></div>
+
+#### 5. 變數設定
+配置要處理的變數：
+
+**覆寫特定變數列表：**
+```yaml
+era5-vars: "mslp,sp,t2m,u10,v10"      # 逗號分隔的 ERA5 變數
+rwrf-vars: "u10,v10,t2m,sp,msl"       # 逗號分隔的 RWRF 變數
+invariant-vars: "lsm,orog"            # 逗號分隔的不變變數
+```
+
+**或使用 null 來載入完整定義：**
+```yaml
+era5-vars: null      # 使用下方的 era5-variables 列表
+rwrf-vars: null      # 使用下方的 rwrf-variables 列表
+invariant-vars: null # 使用下方的 invariant-variables 列表
+
+era5-variables:
+  - "mslp"
+  - "sp"
+  # ... 新增更多變數
+
+rwrf-variables:
+  - "u10"
+  - "v10"
+  # ... 新增更多變數
+
+invariant-variables:
+  - "lsm"
+  - "orog"
+```
+
+#### 6. log設定
+配置log行為：
+
+```yaml
+log-level: "DEBUG"           # 選項：DEBUG, INFO, WARNING, ERROR
+log-file: "nc_to_zarr.log"   # log檔案名稱
+```
+
+<div style="page-break-after: always;"></div>
+
+## 使用方式
+
+1. 進入 `nc_to_zarr` 目錄：
+
+    ```bash
+    cd data_preprocessing/nc_to_zarr
+    ```
+
+2. 轉換 NetCDF 檔案為 Zarr 格式： 
+
+    a. 一般環境：
+    ```bash
+    python nc_to_zarr.py -c config.yaml
+    ```
+    
+    b. 在nano5上，使用SLURM提交工作：
+    ```bash
+    srun --partition=dev --account=MST111414 \
+    --gpus-per-node=1 --cpus-per-task=12 --ntasks=1 \
+    python3 nc_to_zarr.py -c config_nano5.yaml
+    ```
+
 ---
+
+<div style="page-break-after: always;"></div>
 
 ## Zarr檔案檢視
 ### 使用 `data_preprocessing/print_zarr_info/`
