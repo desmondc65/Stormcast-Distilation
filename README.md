@@ -529,6 +529,8 @@ sbatch train_regression_nano5_multinode.sh
 擴散模型用於生成高品質的氣象預測，需要先訓練好回歸模型。
 
 #### 修改訓練參數
+
+##### 一般環境設定
 請到 `stormcast/train_diffusion.sh` 修改以下參數：
 
 ```bash
@@ -576,13 +578,142 @@ kept_HighRes_channels="all"                                                     
 regression_weights="/home/master/13/dczy/code/stormcast-ncdr/data/Stormcast_test/regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus"
 ```
 
+##### Nano5 單節點設定
+請到 `stormcast/train_diffusion_nano5_single_node.sh` 修改以下參數：
+
+```bash
+# --- SLURM 作業設定 ---
+#SBATCH --job-name=corr_dif           # 工作名稱
+#SBATCH --partition=normal2           # 分區名稱 (normal/normal2/dev)
+#SBATCH --account=MST111414           # 帳號名稱
+#SBATCH --nodes=1                     # 節點數量
+#SBATCH --ntasks-per-node=1           # 每個節點的任務數量
+#SBATCH --cpus-per-task=12            # 每個任務使用的 CPU 核心數
+#SBATCH --gpus-per-node=1             # 每個節點的 GPU 數量
+#SBATCH --time=48:00:00               # 最大執行時間 (小時:分鐘:秒)
+
+# --- 訓練設定 ---
+stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"  # train.py 的路徑
+config="--config-name diffusion.yaml"                                      # 配置檔名稱
+experiment_name="diffusion_ncdr"                                           # 實驗名稱
+training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_diffusion"  # 訓練輸出目錄
+run_id="0"                                                                 # 執行編號
+
+# --- 日誌參數 ---
+print_progress_freq=25     # 每 N 步驟印出訓練進度
+checkpoint_freq=1000       # 每 N 步驟儲存檢查點
+validation_freq=50         # 每 N 步驟進行驗證
+
+# --- 訓練參數 ---
+batch_size=12              # 批次大小
+lr=4E-4                    # 學習率
+lr_rampup_steps=1000       # 學習率暖身步數
+total_train_steps=16000    # 總訓練步數
+clip_grad_norm=-1          # 梯度裁剪閾值，設為 -1 表示停用
+loss='edm'                 # 損失函數類型（擴散模型使用 'edm'）
+
+# --- 驗證參數 ---
+validation_plot_variables="[t2m,u10,v10,qpepre]"  # 要繪製的驗證變數
+
+# --- 可選輸出 ---
+output_nc="true"           # 是否輸出 NetCDF 檔案
+output_nc_freq=5           # 每 N 次驗證輸出一次 NetCDF
+
+# --- 資料集參數 ---
+location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"  # Zarr 資料位置
+HighRes_img_size="[224,128]"                                       # 高解析度影像大小
+exp_train_zarrs="[train]"                                          # 訓練用 Zarr 檔案
+train_dates="[2022/01/01,2022/01/20]"                             # 訓練日期範圍
+exp_valid_zarrs="[valid]"                                          # 驗證用 Zarr 檔案
+valid_dates="[2022/01/21,2022/01/31]"                             # 驗證日期範圍
+kept_LowRes_channels="all"                                         # 保留的低解析度通道
+kept_HighRes_channels="all"                                        # 保留的高解析度通道
+
+# --- 模型參數 ---
+# 【重要】預訓練回歸模型的路徑，用於擴散模型的條件輸入
+regression_weights="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus"
+```
+
+##### Nano5 多節點設定
+請到 `stormcast/train_diffusion_nano5_multinode.sh` 修改以下參數：
+
+```bash
+# --- SLURM 作業設定 ---
+#SBATCH --job-name=corr_dif_mulnode   # 工作名稱
+#SBATCH --partition=normal2           # 分區名稱 (normal/normal2/dev)
+#SBATCH --account=MST111414           # 帳號名稱
+#SBATCH --nodes=2                     # 節點數量 (多節點訓練)
+#SBATCH --ntasks-per-node=1           # 每個節點的任務數量
+#SBATCH --cpus-per-task=12            # 每個任務使用的 CPU 核心數
+#SBATCH --gpus-per-node=2             # 每個節點的 GPU 數量
+#SBATCH --time=48:00:00               # 最大執行時間 (小時:分鐘:秒)
+
+# --- 多節點環境設定 ---
+MASTER_PORT=29500                     # 主節點通訊埠 (可自訂)
+
+# --- 訓練設定 ---
+stormcast_train="/work/jasjou71/code/stormcast-ncdr/stormcast/train.py"  # train.py 的路徑
+config="--config-name diffusion.yaml"                                      # 配置檔名稱
+experiment_name="diffusion_ncdr"                                           # 實驗名稱
+training_output_dir="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_diffusion"  # 訓練輸出目錄
+run_id="0"                                                                 # 執行編號
+
+# --- 日誌參數 ---
+print_progress_freq=25     # 每 N 步驟印出訓練進度
+checkpoint_freq=1000       # 每 N 步驟儲存檢查點
+validation_freq=50         # 每 N 步驟進行驗證
+
+# --- 訓練參數 ---
+batch_size=12              # 批次大小 (多節點可調大)
+lr=4E-4                    # 學習率
+lr_rampup_steps=1000       # 學習率暖身步數
+total_train_steps=400000   # 總訓練步數
+clip_grad_norm=-1          # 梯度裁剪閾值，設為 -1 表示停用
+loss='edm'                 # 損失函數類型（擴散模型使用 'edm'）
+
+# --- 驗證參數 ---
+validation_plot_variables="[t2m,u10,v10,qpepre]"  # 要繪製的驗證變數
+
+# --- 可選輸出 ---
+output_nc="true"           # 是否輸出 NetCDF 檔案
+output_nc_freq=5           # 每 N 次驗證輸出一次 NetCDF
+
+# --- 資料集參數 ---
+location="/work/jasjou71/data/test_1_month_data/stormcast_zarr/"  # Zarr 資料位置
+HighRes_img_size="[224,128]"                                       # 高解析度影像大小
+exp_train_zarrs="[train]"                                          # 訓練用 Zarr 檔案
+train_dates="[2022/01/01,2022/01/20]"                             # 訓練日期範圍
+exp_valid_zarrs="[valid]"                                          # 驗證用 Zarr 檔案
+valid_dates="[2022/01/21,2022/01/31]"                             # 驗證日期範圍
+kept_LowRes_channels="all"                                         # 保留的低解析度通道
+kept_HighRes_channels="all"                                        # 保留的高解析度通道
+
+# --- 模型參數 ---
+# 【重要】預訓練回歸模型的路徑，用於擴散模型的條件輸入
+regression_weights="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus"
+```
+
 #### 執行訓練
+
+##### 一般環境
 ```bash
 # 確保在 stormcast 目錄下
 cd stormcast
 
 # 執行訓練腳本
 ./train_diffusion.sh
+```
+
+##### Nano5 環境
+```bash
+# 確保在 stormcast 目錄下
+cd stormcast
+
+# 單節點訓練
+sbatch train_diffusion_nano5_single_node.sh
+
+# 多節點訓練
+sbatch train_diffusion_nano5_multinode.sh
 ```
 
 #### 訓練輸出
