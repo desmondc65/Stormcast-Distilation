@@ -733,6 +733,8 @@ sbatch train_diffusion_nano5_single_node.sh
 sbatch train_diffusion_nano5_multinode.sh
 ```
 
+<div style="page-break-after: always;"></div>
+
 #### 訓練輸出
 訓練完成後，會在 `training_output_dir/experiment_name/run_id/` 產生以下檔案：
 - `checkpoints_diffusion/`: 模型檢查點檔案
