@@ -6,24 +6,42 @@
 
 
 ## 目錄 (Table of Contents)
+- [訓練流程概述](#訓練流程概述)
 - [專案結構](#專案結構)
 - [StormCast 架構概覽](#stormcast-架構概覽)
 - [虛擬環境設置](#虛擬環境設置)
 - [資料來源與用途](#資料來源與用途-data-sources-and-roles)
 - [資料預處理](#資料預處理)
   - [資料放置](#資料放置)
-  - [NC轉Zarr格式](#nc轉zarr格式--data_preprocessingnc_to_zarr)
+  - [ERA5 月檔轉小時檔](#era5-月檔轉小時檔)
+- [NetCDF 轉 Zarr 資料預處理](#netcdf-轉-zarr-資料預處理)
+  - [設定指南](#設定指南)
+  - [使用方式](#使用方式)
 - [Zarr檔案檢視](#zarr檔案檢視)
 - [Stormcast模型訓練](#stormcast模型訓練)
   - [1. 訓練回歸模型 (Regression Model)](#1-訓練回歸模型-regression-model)
+    - [修改訓練參數](#修改訓練參數)
+    - [執行訓練](#執行訓練)
+    - [訓練輸出](#訓練輸出)
   - [2. 訓練擴散模型 (Diffusion Model)](#2-訓練擴散模型-diffusion-model)
+    - [修改訓練參數](#修改訓練參數-1)
+    - [執行訓練](#執行訓練-1)
+    - [訓練輸出](#訓練輸出-1)
   - [訓練注意事項](#訓練注意事項)
 
 ---
 
+## **訓練流程概述**
+1. 資料預處理：將 ERA5 月尺度 NetCDF 切分為小時檔，並轉換為 Zarr 格式。
+  - [ERA5 NC 月資料集轉換為小時資料集](#era5-月檔轉小時檔)
+  - [NC → Zarr 轉換](#nc轉zarr格式--data_preprocessingnc_to_zarr)
+2. 模型訓練：
+  - [Regression 模型訓練](#1-訓練回歸模型-regression-model)
+  - [Diffusion 模型訓練](#2-訓練擴散模型-diffusion-model)
+
 <div style="page-break-after: always;"></div>
 
-## 專案結構
+## **專案結構**
 
 ```
 stormcast-ncdr/
@@ -56,7 +74,7 @@ stormcast-ncdr/
 
 ---
 
-## StormCast 架構概覽
+## **StormCast 架構概覽**
 
 <img src="images/stormcast.png" alt="StormCast Architecture" width="100%"/>
 
@@ -64,7 +82,7 @@ stormcast-ncdr/
 
 <div style="page-break-after: always;"></div>
 
-## 虛擬環境設置
+## **虛擬環境設置**
 1. 使用conda 建立虛擬環境，並安裝所需套件：
 ```bash
 conda create -n stormcast_env python=3.10 -y
@@ -93,34 +111,33 @@ pip install -e .
 
 <div style="page-break-after: always;"></div>
 
-## 資料來源與用途 (Data Sources and Roles)
+## **資料來源與用途 (Data Sources and Roles)**
 
 本專案採用 **StormCast** 的自迴歸生成架構，整合了**綜觀尺度 (Synoptic Scale)** 與**對流尺度 (Convection-Allowing)** 的資料進行訓練。
 
 資料集依據解析度與用途分為以下兩類：
 
-### 1. 低解析度資料 (Low Resolution)
+### **1. 低解析度資料 (Low Resolution)**
 
 用於提供大範圍的大氣背景場，作為模型預測時的邊界條件與大尺度引導 (Conditioning)。
 
-#### ERA5 (ECMWF Reanalysis v5)
+#### **ERA5 (ECMWF Reanalysis v5)**
 - **角色**: Low Res Input (綜觀狀態 $S_t$)
 - **用途**: 提供全球範圍的綜觀氣象變數（如位勢高度、大尺度風場、溫度等）。在 StormCast 架構中，這些資料被用來捕捉大氣的長波型態與綜觀強迫作用。
 
-### 2. 高解析度資料 (High Resolution)
-
+### **2. 高解析度資料 (High Resolution)**
 這是模型主要學習與預測的目標，包含精細的中尺度 (Mesoscale) 動力過程與降雨資訊。
 
-#### RWRF (Radar-assimilated WRF)
+#### **RWRF (Radar-assimilated WRF)**
 - **角色**: High Res Input/Target (中尺度狀態 $M_t$)
 - **用途**: 來自雷達資料同化的數值模式輸出，提供臺灣區域高解析度的動力與熱力場變數（如垂直風切、邊界層結構等）。
 
-#### QPEPRE (Quantitative Precipitation Estimation)
+#### **QPEPRE (Quantitative Precipitation Estimation)**
 - **角色**: High Res Input/Target (雷達觀測 $M_t$)
 - **用途**: 高解析度的雷達定量降雨估計資料。
 - **整合**: RWRF 與 QPEPRE 會被合併視為完整的中尺度狀態向量。模型在時間點 $t$ 接收這些高解析度資料，並學習預測時間點 $t+1$ 的狀態。
 
-### 資料集總覽
+### **資料集總覽**
 
 | 資料集 (Dataset) | 解析度 (Resolution) | 角色 (Role) | 
 |-----------------|---------------------|-------------|
@@ -132,8 +149,8 @@ pip install -e .
 
 <div style="page-break-after: always;"></div>
 
-## 資料預處理
-### 資料放置
+## **資料預處理**
+### **資料放置**
 Stormcast 分成高解析和低解析的影像資料，請依照以下步驟進行資料預處理：
 1. **高解析資料小時nc檔 (RWRF)**
     - 請把檔案都放在**同一個主資料夾裡**
@@ -155,10 +172,10 @@ Stormcast 分成高解析和低解析的影像資料，請依照以下步驟進�
 
 <div style="page-break-after: always;"></div>
 
-### ERA5月檔轉小時檔
+### **ERA5 月檔轉小時檔**
 - 路徑 : `data_preprocessing/nc_month_to_day/`
 - 如果ERA5為月檔，因月檔案太龐大直接轉換成zarr過程會不穩定
-#### 請先使用 `plit_era5_monthly_to_daily.py` 轉成小時檔
+#### **請先使用 `split_era5_monthly_to_daily.py` 轉成小時檔**
   - 檔名 **必須** 為此格式：var_YYYYMM.nc， var為變數名稱，YYYY為年份，MM為月份，例子：q500_201908.nc
   <img src="images/era5_monthly_to_daily.png" alt="ERA5 Monthly to Daily" width="30%"/>
   ```yaml
@@ -188,11 +205,11 @@ dt_hours: 1 # 資料時間間隔，單位為小時
 
 
 
-## NetCDF 轉 Zarr 資料預處理
-### 路徑 : `data_preprocessing/nc_to_zarr/`
-### 設定指南
+## **NetCDF 轉 Zarr 資料預處理**
+### **路徑 :** `data_preprocessing/nc_to_zarr/`
+### **設定指南**
 
-#### 1. 資料路徑
+#### **1. 資料路徑**
 在設定檔中配置輸入和輸出路徑：
 
 ```yaml
@@ -202,7 +219,7 @@ qpepre-path: "/path/to/obs_1hrRain/txt/data"  # QPEPRE txt 小時檔資料夾
 output-path: "/path/to/output/zarr"           # 輸出 Zarr 資料夾
 ```
 
-#### 2. 時間範圍
+#### **2. 時間範圍**
 定義訓練和驗證期間：
 
 ```yaml
@@ -213,7 +230,7 @@ valid-ranges:  # 驗證期間
   - ["2022/01/21", "2022/01/31"] # 2022/01/21 到 2022/01/31
 ```
 
-#### 3. 空間範圍
+#### **3. 空間範圍**
 配置地理區域：
 
 ```yaml
@@ -222,7 +239,7 @@ lon-bounds: [119.75, 122.25]     # [最小經度, 最大經度] 單位：度
 lat-bounds: [21.6, 25.6]         # [最小緯度, 最大緯度] 單位：度
 ```
 
-#### 4. 處理選項
+#### **4. 處理選項**
 調整平行處理設定：
 
 ```yaml
@@ -232,7 +249,7 @@ max-workers: 20  # 平行處理的 CPU 核心數
 
 <div style="page-break-after: always;"></div>
 
-#### 5. 變數設定
+#### **5. 變數設定**
 配置要處理的變數：
 
 **覆寫特定變數列表：**
@@ -263,7 +280,7 @@ invariant-variables:
   - "orog"
 ```
 
-#### 6. log設定
+#### **6. log設定**
 配置log行為：
 
 ```yaml
@@ -273,7 +290,7 @@ log-file: "nc_to_zarr.log"   # log檔案名稱
 
 <div style="page-break-after: always;"></div>
 
-## 使用方式
+## **使用方式**
 
 1. 進入 `nc_to_zarr` 目錄：
 
@@ -299,8 +316,8 @@ log-file: "nc_to_zarr.log"   # log檔案名稱
 
 <div style="page-break-after: always;"></div>
 
-## Zarr檔案檢視
-### 使用 `data_preprocessing/print_zarr_info/`
+## **Zarr檔案檢視**
+### **使用** `data_preprocessing/print_zarr_info/`
 1. 執行檢視腳本
 ```bash
 # 【需更動】執行腳本，請將 <path to zarr> 替換為欲檢視的 zarr 檔案路徑
@@ -309,19 +326,19 @@ python3 print_zarr_info.py <path to zarr>
 
 2. 使用 `data_preprocessing/plot_zarr/` 進行Zarr資料視覺化
 
-#### 列出所有可用變數
+#### **列出所有可用變數**
 ```bash
 # 查看 Zarr 檔案中所有可用的變數
 python3 plot_zarr.py <zarr檔案路徑> --list-variables
 ```
 
-#### 列出所有時間步
+#### **列出所有時間步**
 ```bash
 # 查看 Zarr 檔案中所有時間步及其有效性
 python3 plot_zarr.py <zarr檔案路徑> --list-times
 ```
 
-#### 繪製特定變數
+#### **繪製特定變數**
 ```bash
 # 繪製 ERA5 500hPa 風場 u 分量，時間索引為 0
 python3 plot_zarr.py <zarr檔案路徑> --source LowRes --variable "u500" --time 0
@@ -334,14 +351,14 @@ python3 plot_zarr.py <zarr檔案路徑> --source HighRes --variable "u10" --time
 
 <div style="page-break-after: always;"></div>
 
-## Stormcast模型訓練
+## **Stormcast模型訓練**
 
-### 1. 訓練回歸模型 (Regression Model)
+### **1. 訓練回歸模型 (Regression Model)**
 回歸模型用於直接預測氣象變數，是擴散模型的基礎。
 
-#### 修改訓練參數
+#### **修改訓練參數**
 
-##### 一般環境設定
+##### **一般環境設定**
 請到 `stormcast/train_regression.sh` 修改以下參數：
 
 ```bash
@@ -387,7 +404,7 @@ kept_HighRes_channels="all"                                                     
 
 <div style="page-break-after: always;"></div>
 
-##### Nano5 單節點設定
+##### **Nano5 單節點設定**
 請到 `stormcast/train_regression_nano5_single_node.sh` 修改以下參數：
 
 ```bash
@@ -442,7 +459,7 @@ kept_HighRes_channels="all"                                        # 保留的�
 <div style="page-break-after: always;"></div>
 
 
-##### Nano5 多節點設定
+##### **Nano5 多節點設定**
 請到 `stormcast/train_regression_nano5_multinode.sh` 修改以下參數：
 
 ```bash
@@ -497,9 +514,9 @@ kept_LowRes_channels="all"                                         # 保留的�
 kept_HighRes_channels="all"                                        # 保留的高解析度通道
 ```
 
-#### 執行訓練
+#### **執行訓練**
 
-##### 一般環境
+##### **一般環境**
 ```bash
 # 確保在 stormcast 目錄下
 cd stormcast
@@ -508,7 +525,7 @@ cd stormcast
 ./train_regression.sh
 ```
 
-##### Nano5 環境
+##### **Nano5 環境**
 ```bash
 # 確保在 stormcast 目錄下
 cd stormcast
@@ -520,7 +537,7 @@ sbatch train_regression_nano5_single_node.sh
 sbatch train_regression_nano5_multinode.sh
 ```
 
-#### 訓練輸出
+#### **訓練輸出**
 訓練完成後，會在 `training_output_dir/experiment_name/run_id/` 產生以下檔案：
 - `checkpoints_regression/`: 模型檢查點檔案
 - `loss_curves.png`: 訓練與驗證損失曲線圖
@@ -537,12 +554,12 @@ sbatch train_regression_nano5_multinode.sh
 <div style="page-break-after: always;"></div>
 
 
-### 2. 訓練擴散模型 (Diffusion Model)
+### **2. 訓練擴散模型 (Diffusion Model)**
 擴散模型用於生成高品質的氣象預測，需要先訓練好回歸模型。
 
-#### 修改訓練參數
+#### **修改訓練參數**
 
-##### 一般環境設定
+##### **一般環境設定**
 請到 `stormcast/train_diffusion.sh` 修改以下參數：
 
 ```bash
@@ -592,7 +609,7 @@ regression_weights="/home/master/13/dczy/code/stormcast-ncdr/data/Stormcast_test
 
 <div style="page-break-after: always;"></div>
 
-##### Nano5 單節點設定
+##### **Nano5 單節點設定**
 請到 `stormcast/train_diffusion_nano5_single_node.sh` 修改以下參數：
 
 ```bash
@@ -651,7 +668,7 @@ regression_weights="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/te
 <div style="page-break-after: always;"></div>
 
 
-##### Nano5 多節點設定
+##### **Nano5 多節點設定**
 請到 `stormcast/train_diffusion_nano5_multinode.sh` 修改以下參數：
 
 ```bash
@@ -710,9 +727,9 @@ kept_HighRes_channels="all"                                        # 保留的�
 regression_weights="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus"
 ```
 
-#### 執行訓練
+#### **執行訓練**
 
-##### 一般環境
+##### **一般環境**
 ```bash
 # 確保在 stormcast 目錄下
 cd stormcast
@@ -721,7 +738,7 @@ cd stormcast
 ./train_diffusion.sh
 ```
 
-##### Nano5 環境
+##### **Nano5 環境**
 ```bash
 # 確保在 stormcast 目錄下
 cd stormcast
@@ -735,7 +752,7 @@ sbatch train_diffusion_nano5_multinode.sh
 
 <div style="page-break-after: always;"></div>
 
-#### 訓練輸出
+#### **訓練輸出**
 訓練完成後，會在 `training_output_dir/experiment_name/run_id/` 產生以下檔案：
 - `checkpoints_diffusion/`: 模型檢查點檔案
 - `loss_curves.png`: 訓練與驗證損失曲線圖
@@ -749,17 +766,17 @@ sbatch train_diffusion_nano5_multinode.sh
 
 ---
 
-### 訓練注意事項
+### **訓練注意事項**
 
-#### 訓練監控
+#### **訓練監控**
 - 訓練過程中會自動產生 `loss_curves.png`，可即時查看訓練進度
 - CSV 檔案記錄詳細的訓練指標，可用於後續分析
 
-#### 檢查點恢復
+#### **檢查點恢復**
 - 訓練會自動從最新的檢查點恢復
 - 若要從特定檢查點開始，請修改配置檔中的 `resume_checkpoint` 參數
 
-#### NetCDF 輸出
+#### **NetCDF 輸出**
 - `output_nc=true` 時會輸出驗證結果的 NetCDF 檔案
 - `output_nc_freq` 控制輸出頻率，避免產生過多檔案
 - NetCDF 檔案可用 `plot_zarr.py` 或其他 NetCDF 工具視覺化
