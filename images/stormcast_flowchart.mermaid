@@ -1,0 +1,58 @@
+
+
+flowchart LR
+  %% 1. Data Sources
+  subgraph Raw_Data ["原始資料來源"]
+    direction TB
+    A["<b>ERA5 NetCDF</b><br/><br/>Low Res / 綜觀尺度 S_t　　　"]
+    B["<b>RWRF NetCDF</b><br/><br/>High Res / 中尺度 M_t　　　"]
+    C["<b>QPEPRE Text/Grid</b><br/><br/>High Res / 雷達觀測 M_t　　　"]
+  end
+
+  %% 2. Preprocessing
+  subgraph Preprocessing ["前處理與 Zarr 轉換"]
+    direction TB
+    A1["<b>插值 ERA5 至</b><br/><br/>高解析度網格　　　"]
+    Z1["<b>儲存為</b><br/><br/>Zarr 格式　　　"]
+    Z2["<b>儲存為</b><br/><br/>Zarr 格式　　　"]
+  end
+
+  %% 3. Autoregressive Dataset Construction
+  subgraph Dataset_Builder ["建立自迴歸資料集"]
+    direction TB
+    Input_S["<b>輸入: 綜觀狀態 S(t)</b><br/><br/>ERA5　　　"]
+    Input_M["<b>輸入: 中尺度狀態 M(t)</b><br/><br/>RWRF + QPEPRE　　　"]
+    Target_M["<b>目標: 中尺度狀態 M(t+1)</b><br/><br/>下一小時 RWRF + QPEPRE　　　"]
+    Combined_Input["<b>合併輸入向量 X(t)</b>　　　"]
+  end
+
+  %% 4. Training Process
+  subgraph Training ["兩階段訓練流程"]
+    direction TB
+    Train_Reg["<b>訓練 Regression UNet</b>　　　"]
+    Reg_CPT["<b>Regression Checkpoint</b><br/><br/>預測 t+1 的平均值 Mean　　　"]
+    Train_Diff["<b>訓練 Diffusion Model</b><br/><br/>EDM　　　"]
+    Note["<b>Diffusion Condition:</b><br/>1. 綜觀狀態 S(t)<br/>2. 中尺度狀態 M(t)<br/>3. 預測平均值 Mean(t+1)<br/><br/><b>優化目標:</b><br/>殘差 Residual r(t+1)　　　"]
+  end
+
+  %% Connections
+  A --> A1
+  A1 --> Z1
+  B --> Z2
+  C --> Z2
+  
+  Z1 --> Input_S
+  Z2 --> Input_M
+  Z2 --> Target_M
+  
+  Input_S --> Combined_Input
+  Input_M --> Combined_Input
+  
+  Combined_Input --> Train_Reg
+  Target_M --> Train_Reg
+  Train_Reg --> Reg_CPT
+  
+  Combined_Input --> Train_Diff
+  Reg_CPT --> Train_Diff
+  Target_M --> Train_Diff
+  Note -.-> Train_Diff
