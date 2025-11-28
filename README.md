@@ -122,7 +122,7 @@ pip install -e .
 用於提供大範圍的大氣背景場，作為模型預測時的邊界條件與大尺度引導 (Conditioning)。
 
 #### **ERA5 (ECMWF Reanalysis v5)**
-- **角色**: Low Res Input (綜觀狀態 $S_t$)
+- **角色**: Low Res Input (低解析度 $S_t$)
 - **用途**: 提供全球範圍的綜觀氣象變數（如位勢高度、大尺度風場、溫度等）。在 StormCast 架構中，這些資料被用來捕捉大氣的長波型態與綜觀強迫作用。
 
 ### **2. 高解析度資料 (High Resolution)**
