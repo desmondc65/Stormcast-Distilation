@@ -113,7 +113,7 @@ pip install -e .
 
 ## **資料來源與用途 (Data Sources and Roles)**
 
-本專案採用 **StormCast** 的自迴歸生成架構，整合了**綜觀尺度 (Synoptic Scale)** 與**對流尺度 (Convection-Allowing)** 的資料進行訓練。
+本專案採用 **StormCast** 的自迴歸生成架構，整合了**低解析度** 與**高解析度** 的資料進行訓練。
 
 資料集依據解析度與用途分為以下兩類：
 
@@ -126,16 +126,16 @@ pip install -e .
 - **用途**: 提供全球範圍的綜觀氣象變數（如位勢高度、大尺度風場、溫度等）。在 StormCast 架構中，這些資料被用來捕捉大氣的長波型態與綜觀強迫作用。
 
 ### **2. 高解析度資料 (High Resolution)**
-這是模型主要學習與預測的目標，包含精細的中尺度 (Mesoscale) 動力過程與降雨資訊。
+這是模型主要學習與預測的目標，包含精細的高解析度動力過程與降雨資訊。
 
 #### **RWRF (Radar-assimilated WRF)**
-- **角色**: High Res Input/Target (中尺度狀態 $M_t$)
+- **角色**: High Res Input/Target (高解析度狀態 $M_t$)
 - **用途**: 來自雷達資料同化的數值模式輸出，提供臺灣區域高解析度的動力與熱力場變數（如垂直風切、邊界層結構等）。
 
 #### **QPEPRE (Quantitative Precipitation Estimation)**
-- **角色**: High Res Input/Target (雷達觀測 $M_t$)
+- **角色**: High Res Input/Target (累積降雨量值 $M_t$)
 - **用途**: 高解析度的雷達定量降雨估計資料。
-- **整合**: RWRF 與 QPEPRE 會被合併視為完整的中尺度狀態向量。模型在時間點 $t$ 接收這些高解析度資料，並學習預測時間點 $t+1$ 的狀態。
+- **整合**: RWRF 與 QPEPRE 會被合併視為完整的高解析度狀態向量。模型在時間點 $t$ 接收這些高解析度資料，並學習預測時間點 $t+1$ 的狀態。
 
 ### **資料集總覽**
 
