@@ -17,6 +17,7 @@ dependencies = [
     "einops>=0.7.0",
     "termcolor>=2.1.1",
     "requests",
+    "pygrib",
     "regex",
     "netCDF4>=1.7.2",
     "omegaconf>=2.3.0",
