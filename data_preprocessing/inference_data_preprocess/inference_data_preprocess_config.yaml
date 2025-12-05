@@ -1,0 +1,107 @@
+# Inference Data Preprocessing Configuration
+# This configuration file is used by to_zarr.py to convert GRIB + RWRF + QPEPRE data to Zarr format
+
+# ---------------------------------------------------------------------------
+# Input Paths
+# ---------------------------------------------------------------------------
+
+# Path to GRIB file (low-resolution input, replaces ERA5 NC files)
+grib-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/2025120300/EC-pangu_2025120300-0.grb
+
+# Path to RWRF NetCDF file (high-resolution input)
+rwrf-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_00:00:00
+
+# Path to QPEPRE precipitation text file
+qpepre-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Rain/qpepre_202512030000-202512030100_1_h.txt
+
+# ---------------------------------------------------------------------------
+# Output Configuration
+# ---------------------------------------------------------------------------
+
+# Output directory for Zarr stores
+output-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/output
+
+# Whether to overwrite existing output files
+overwrite: true
+
+# ---------------------------------------------------------------------------
+# Domain Configuration
+# ---------------------------------------------------------------------------
+
+# Domain size as [height, width] (lat, lon)
+domain-size:
+  - 224
+  - 128
+
+# Longitude bounds as [min, max]
+lon-bounds:
+  - 119.75
+  - 122.25
+
+# Latitude bounds as [min, max]
+lat-bounds:
+  - 21.6
+  - 25.6
+
+# ---------------------------------------------------------------------------
+# Processing Options
+# ---------------------------------------------------------------------------
+
+# Resample mode: "interpolate" for bilinear interpolation
+resample-mode: interpolate
+
+# ---------------------------------------------------------------------------
+# Low-Resolution Variables (from GRIB)
+# Must match training data channel names exactly
+# ---------------------------------------------------------------------------
+
+lowres-variables:
+  # Surface variables
+  - mslp      # Mean sea level pressure
+  - t2m       # 2m temperature
+  - u10       # 10m U-wind
+  - v10       # 10m V-wind
+  # Specific humidity at pressure levels
+  - q1000
+  - q850
+  - q500
+  - q250
+  # Temperature at pressure levels
+  - t1000
+  - t850
+  - t500
+  - t250
+  # U-wind at pressure levels
+  - u1000
+  - u850
+  - u500
+  - u250
+  # V-wind at pressure levels
+  - v1000
+  - v850
+  - v500
+  - v250
+  # Geopotential at pressure levels
+  - z1000
+  - z850
+  - z500
+  - z250
+
+# ---------------------------------------------------------------------------
+# High-Resolution Variables (from RWRF)
+# Must match training data channel names exactly: ['t2m', 'u10', 'v10', 'qpepre']
+# ---------------------------------------------------------------------------
+
+highres-variables:
+  - t2m       # 2m temperature (T2)
+  - u10       # 10m U-wind (U10)
+  - v10       # 10m V-wind (V10)
+  - qpepre    # QPEPRE precipitation
+
+# ---------------------------------------------------------------------------
+# Invariant Variables (from RWRF)
+# ---------------------------------------------------------------------------
+
+invariant-variables:
+  - lsm       # Land-sea mask (LANDMASK in RWRF)
+  - orog      # Orography/terrain height (HGT in RWRF)
