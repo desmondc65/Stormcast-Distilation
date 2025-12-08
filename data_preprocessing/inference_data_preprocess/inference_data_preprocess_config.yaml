@@ -5,8 +5,9 @@
 # Input Paths
 # ---------------------------------------------------------------------------
 
-# Path to GRIB file (low-resolution input, replaces ERA5 NC files)
-grib-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/2025120300/EC-pangu_2025120300-0.grb
+# Folder containing GRIB files (low-resolution input, replaces ERA5 NC files)
+# All .grb files in this folder will be processed in chronological order
+grib-folder: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/dynamic_global
 
 # Path to RWRF NetCDF file (high-resolution input)
 rwrf-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_00:00:00
@@ -19,7 +20,7 @@ qpepre-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_infer
 # ---------------------------------------------------------------------------
 
 # Output directory for Zarr stores
-output-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/output
+output-path: /home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/output_dynamic_global
 
 # Whether to overwrite existing output files
 overwrite: true
@@ -46,6 +47,13 @@ lat-bounds:
 # ---------------------------------------------------------------------------
 # Processing Options
 # ---------------------------------------------------------------------------
+
+# Number of forecast steps to prepare data for (determines how many GRIB files to process)
+# For example, n_steps=12 with dt=6 means process 2 GRIB files (0-5h and 6-11h)
+n-steps: 18
+
+# Hours between each inference timestep (should match dt in inference config)
+dt-hours: 1
 
 # Resample mode: "interpolate" for bilinear interpolation
 resample-mode: interpolate
