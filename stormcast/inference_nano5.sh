@@ -34,8 +34,8 @@ echo "=========================================="
 to_zarr_script="/home/master/13/dczy/code/stormcast-ncdr/data_preprocessing/inference_data_preprocess/to_zarr.py"
 
 # --- 輸入資料路徑 ---
-# GRIB 檔案路徑 (低解析度全球模式資料，例如 EC-Pangu)
-grib_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/2025120300/EC-pangu_2025120300-0.grb"
+# GRIB 檔案路徑資料夾
+grib_folder="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/dynamic_global"
 
 # RWRF NetCDF 檔案路徑 (高解析度區域模式資料)
 rwrf_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_00:00:00"
@@ -83,14 +83,14 @@ overwrite_preprocessing="true"
 
 # --- 執行資料前處理 ---
 echo "執行 to_zarr.py..."
-echo "輸入 GRIB: ${grib_path}"
+echo "輸入 GRIB: ${grib_folder}"
 echo "輸入 RWRF: ${rwrf_path}"
 echo "輸入 QPEPRE: ${qpepre_path}"
 echo "輸出目錄: ${preprocessing_output}"
 echo ""
 
 python ${to_zarr_script} \
-    --grib-path "${grib_path}" \
+    --grib-folder "${grib_folder}" \
     --rwrf-path "${rwrf_path}" \
     --qpepre-path "${qpepre_path}" \
     --output "${preprocessing_output}" \
