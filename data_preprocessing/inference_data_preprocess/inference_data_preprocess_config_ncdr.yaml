@@ -1,17 +1,23 @@
-# Inference Data Preprocessing Configuration
+# Inference Data Preprocessing Configuration - Multi-Timestep Support
 # This configuration file is used by to_zarr.py to convert GRIB + RWRF + QPEPRE data to Zarr format
 
 # ---------------------------------------------------------------------------
 # Input Paths
 # ---------------------------------------------------------------------------
 
-# Path to GRIB file (low-resolution input, replaces ERA5 NC files)
-grib-path: /work/jasjou71/data_ncdr/Global/2025120300/EC-pangu_2025120300-0.grb
+# Folder containing GRIB files (low-resolution input, replaces ERA5 NC files)
+# All .grb files in this folder will be processed in chronological order
+# Example structure:
+#   Global/
+#     ├── 2025120300/EC-pangu_2025120300-0.grb  (for hours 0-5)
+#     ├── 2025120306/EC-pangu_2025120306-0.grb  (for hours 6-11)
+#     └── 2025120312/EC-pangu_2025120312-0.grb  (for hours 12-17)
+grib-folder: /work/jasjou71/data_ncdr/Global
 
-# Path to RWRF NetCDF file (high-resolution input)
+# Path to RWRF NetCDF file (high-resolution input, initial condition only)
 rwrf-path: /work/jasjou71/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_00:00:00
 
-# Path to QPEPRE precipitation text file
+# Path to QPEPRE precipitation text file (initial condition only)
 qpepre-path: /work/jasjou71/data_ncdr/data_ncdr/Rain/qpepre_202512030000-202512030100_1_h.txt
 
 # ---------------------------------------------------------------------------
@@ -46,6 +52,13 @@ lat-bounds:
 # ---------------------------------------------------------------------------
 # Processing Options
 # ---------------------------------------------------------------------------
+
+# Number of forecast steps to prepare data for (determines how many GRIB files to process)
+# For example, n_steps=18 with dt=1 means process 3 GRIB files (0-5h, 6-11h, 12-17h)
+n-steps: 18
+
+# Hours between each inference timestep (should match dt in inference config)
+dt-hours: 1
 
 # Resample mode: "interpolate" for bilinear interpolation
 resample-mode: interpolate
