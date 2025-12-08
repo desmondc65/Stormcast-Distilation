@@ -48,7 +48,6 @@ from utils.nn import build_network_condition_and_target, diffusion_model_forward
 
 logger = PythonLogger("inference_ncdr")
 
-
 def save_multistep_output(
     output_dir: str,
     predictions: List[np.ndarray],
@@ -60,38 +59,29 @@ def save_multistep_output(
     input_timestamp: Optional[np.datetime64] = None,
 ):
     """
-    Save multi-step inference output to separate zarr and NetCDF files for each timestep.
-    
-    Args:
-        output_dir: Directory to save output
-        predictions: List of predicted state arrays, each [C, H, W]
-        channels: List of channel names
-        latitude: Latitude coordinates [H, W]
-        longitude: Longitude coordinates [H, W]
-        timestamps: List of output timestamps
-        input_state: Optional input state for reference [C, H, W]
-        input_timestamp: Optional input timestamp
-        
-    Returns:
-        Tuple of (list of zarr paths, list of nc paths)
+    Save multi-step inference output to separate zarr, NetCDF, and GRIB files.
     """
     os.makedirs(output_dir, exist_ok=True)
     
     n_steps = len(predictions)
     height, width = predictions[0].shape[1], predictions[0].shape[2]
     
+    # --- 1. Define GRIB Mapping ---
+    CHANNEL_TO_GRIB_ID = {
+        "t2m": 167,     # 2 metre temperature
+        "u10": 165,     # 10 metre U wind component
+        "v10": 166,     # 10 metre V wind component
+    }
+    
     zarr_paths = []
     nc_paths = []
     grb_paths = []
     
-    # Save each timestep to separate files
     for step_idx, (prediction, timestamp) in enumerate(zip(predictions, timestamps)):
         step_num = step_idx + 1
-        
-        # Format timestamp for filename (e.g., 2024010112 for 2024-01-01 12:00)
         ts_str = np.datetime_as_string(timestamp, unit='h').replace('-', '').replace('T', '').replace(':', '')[:10]
         
-        # Create dataset for this timestep
+        # Create base dataset
         ds = xr.Dataset(
             coords={
                 "time": [timestamp],
@@ -101,72 +91,76 @@ def save_multistep_output(
                 "longitude": (["y", "x"], longitude),
             },
             attrs={
-                "description": f"StormCast NCDR inference output - step {step_num}",
+                "description": f"StormCast output - step {step_num}",
                 "step": step_num,
-                "created": datetime.now().isoformat(),
             }
         )
         
-        # Add per-channel variables
+        # Add variables and assign GRIB IDs
         for i, ch in enumerate(channels):
-            ds[ch] = (["time", "y", "x"], prediction[np.newaxis, i, :, :])
-            ds[ch].attrs["channel_index"] = i
-        
-        # Save to zarr
+            # Create DataArray
+            da = xr.DataArray(
+                prediction[np.newaxis, i, :, :],
+                coords={"time": [timestamp], "y": np.arange(height), "x": np.arange(width)},
+                dims=["time", "y", "x"]
+            )
+            
+            # --- Apply GRIB Codes ---
+            if ch in CHANNEL_TO_GRIB_ID:
+                da.attrs['GRIB_paramId'] = CHANNEL_TO_GRIB_ID[ch]
+                da.attrs['GRIB_shortName'] = ch
+                # Optional: Add units if known (helps some readers)
+                if ch == "t2m": da.attrs['units'] = "K"
+                if ch == "qpepre": da.attrs['units'] = "m" 
+                if ch in ["u10", "v10"]: da.attrs['units'] = "m s**-1"
+            else:
+                # Fallback to Temperature (167) to prevent crashes, but warn user
+                print(f"Warning: Channel '{ch}' not found in GRIB map. Defaulting to 167 (t2m).")
+                da.attrs['GRIB_paramId'] = 167
+            
+            ds[ch] = da
+
+        # Save to Zarr/NetCDF (standard)
         zarr_path = os.path.join(output_dir, "zarr", f"step_{step_num:02d}_{ts_str}.zarr")
         ds.to_zarr(zarr_path, mode="w", consolidated=True)
         zarr_paths.append(zarr_path)
-        
-        # Save to NetCDF
+
         nc_path = os.path.join(output_dir, "NetCDF", f"step_{step_num:02d}_{ts_str}.nc")
         os.makedirs(os.path.dirname(nc_path), exist_ok=True)
         ds.to_netcdf(nc_path, format="NETCDF4")
         nc_paths.append(nc_path)
 
-        #Save to GRIB (New)
+        # --- Save to GRIB (Flip to North-to-South) ---
         grb_path = os.path.join(output_dir, "GRIB", f"step_{step_num:02d}_{ts_str}.grb")
         os.makedirs(os.path.dirname(grb_path), exist_ok=True)
         
-        # 1. Get Dimensions
-        nj = ds.sizes['y']
-        ni = ds.sizes['x']
-
-        # 2. Calculate Geometry from Coordinate Arrays
-        # We access the numpy arrays directly to get corners and increments.
-        # .item() ensures we pass native Python floats, which GRIB libraries prefer.
-        lat_first = latitude[0, 0].item()
-        lon_first = longitude[0, 0].item()
-        lat_last  = latitude[-1, -1].item()
-        lon_last  = longitude[-1, -1].item()
+        # Flip the dataset so latitude decreases (North -> South)
+        ds_grib = ds.isel(y=slice(None, None, -1))
         
-        # Calculate increments (dx, dy) by checking the distance between adjacent pixels
-        # Assumes a regular grid
-        dx = abs(longitude[0, 1] - longitude[0, 0]).item()
-        dy = abs(latitude[1, 0] - latitude[0, 0]).item()
+        # Calculate Geometry from FLIPPED coordinates
+        lat_first = ds_grib.latitude[0, 0].item()
+        lon_first = ds_grib.longitude[0, 0].item()
+        lat_last  = ds_grib.latitude[-1, -1].item()
+        lon_last  = ds_grib.longitude[-1, -1].item()
+        dx = abs(ds_grib.longitude[0, 1] - ds_grib.longitude[0, 0]).item()
+        dy = abs(ds_grib.latitude[1, 0] - ds_grib.latitude[0, 0]).item()
         
         safe_grib_keys = {
-            'gridType': 'regular_ll',   # Regular Lat/Lon Grid
+            'gridType': 'regular_ll',
             'stepType': 'instant',
-            
-            # DIMENSIONS (Fixes the "ValueError: cannot reshape" crash)
-            'Ni': ni, 
-            'Nj': nj,
-            
-            # GEOMETRY (Fixes the Lat/Lon Range metadata)
+            'Ni': ds_grib.sizes['x'], 
+            'Nj': ds_grib.sizes['y'],
             'latitudeOfFirstGridPointInDegrees': lat_first,
             'longitudeOfFirstGridPointInDegrees': lon_first,
             'latitudeOfLastGridPointInDegrees': lat_last,
             'longitudeOfLastGridPointInDegrees': lon_last,
             'iDirectionIncrementInDegrees': dx,
             'jDirectionIncrementInDegrees': dy,
-            
-            'jScansPositively': 1,  # Tells GRIB to scan South -> North (row 0 is bottom)
-            'iScansPositively': 1,  # Tells GRIB to scan West -> East (col 0 is left)
+            'jScansPositively': 0, # North -> South (Correct for GRIB)
+            'iScansPositively': 1, # West -> East
         }
         
-        # # FIX 2: Pass grib_keys to the function
-        to_grib(ds, grb_path, grib_keys=safe_grib_keys)
-        # ds.to_netcdf(grb_path, engine='cfgrib')
+        to_grib(ds_grib, grb_path, grib_keys=safe_grib_keys)
         grb_paths.append(grb_path)
 
     # Save input reference separately
@@ -188,8 +182,8 @@ def save_multistep_output(
         for i, ch in enumerate(channels):
             ds_input[ch] = (["time", "y", "x"], input_state[np.newaxis, i, :, :])
         
-        ds_input.to_netcdf(os.path.join(output_dir, f"step_00_input_{ts_str}.nc"))
-        ds_input.to_zarr(os.path.join(output_dir, f"step_00_input_{ts_str}.zarr"), mode="w", consolidated=True)
+        ds_input.to_netcdf(os.path.join(output_dir, "NetCDF", f"step_00_input_{ts_str}.nc"))
+        ds_input.to_zarr(os.path.join(output_dir, "zarr", f"step_00_input_{ts_str}.zarr"), mode="w", consolidated=True)
     
     return zarr_paths, nc_paths, grb_paths
 
