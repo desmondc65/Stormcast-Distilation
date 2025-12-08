@@ -40,20 +40,27 @@ if __package__ in {None, ""}:
         DEFAULT_ERA5_VARIABLES,
         VARIABLE_CONFIGS,
         ERA5WorkerState,
+        ERA5SharedIndexWorkerState,
         _era5_level_selection,
         _era5_worker,
         _era5_worker_init,
+        _era5_shared_index_worker,
+        _era5_shared_index_worker_init,
         _select_time_index,
     )
     from rwrf import (
         DEFAULT_INVARIANTS,
         DEFAULT_PRES_IDX,
         DEFAULT_RWRF_VARIABLES,
+        LEVEL_DIM_NAMES_LOWER,
         RWRFWorkerState,
+        RWRFSharedIndexWorkerState,
         resolve_variable,
         _extract_qpepre_keys,
         _rwrf_worker,
         _rwrf_worker_init,
+        _rwrf_shared_index_worker,
+        _rwrf_shared_index_worker_init,
     )
 else:
     from .common import (
@@ -72,20 +79,27 @@ else:
         DEFAULT_ERA5_VARIABLES,
         VARIABLE_CONFIGS,
         ERA5WorkerState,
+        ERA5SharedIndexWorkerState,
         _era5_level_selection,
         _era5_worker,
         _era5_worker_init,
+        _era5_shared_index_worker,
+        _era5_shared_index_worker_init,
         _select_time_index,
     )
     from .rwrf import (
         DEFAULT_INVARIANTS,
         DEFAULT_PRES_IDX,
         DEFAULT_RWRF_VARIABLES,
+        LEVEL_DIM_NAMES_LOWER,
         RWRFWorkerState,
+        RWRFSharedIndexWorkerState,
         resolve_variable,
         _extract_qpepre_keys,
         _rwrf_worker,
         _rwrf_worker_init,
+        _rwrf_shared_index_worker,
+        _rwrf_shared_index_worker_init,
     )
 
 logger = logging.getLogger("nc_to_zarr")
@@ -110,6 +124,12 @@ def merge_config_with_args(cfg: Dict, args: argparse.Namespace) -> Dict:
         if value is None:
             continue
         merged[key.replace("_", "-")] = value
+    
+    # Handle --no-shared-index flag
+    if merged.get("no-shared-index"):
+        merged["use-shared-index"] = False
+        del merged["no-shared-index"]
+    
     return merged
 
 
@@ -227,6 +247,10 @@ class NCToZarrPipeline:
         self._qpepre_index: Dict[str, pathlib.Path] = {}
         self._rwrf_slice_cache: Optional[Tuple[slice, slice, np.ndarray, np.ndarray]] = None
         self._invariants_written = False
+        self._shared_index_file: Optional[pathlib.Path] = None  # Path to shared index JSON file
+        
+        # Use shared index optimization for multiprocessing (avoids pickle serialization overhead)
+        self.use_shared_index = bool(config.get("use-shared-index", True))
 
         logger.info(
             "Pipeline init | domain %s | lat[%s,%s] lon[%s,%s]",
@@ -487,6 +511,61 @@ class NCToZarrPipeline:
             self._qpepre_index.setdefault(start_key, path)
             self._qpepre_index.setdefault(end_key, path)
         logger.info("Indexed %d QPEPRE files", len(self._qpepre_index))
+
+    # ------------------------------------------------------------------
+    # Shared index file management (optimization to avoid pickle serialization)
+    # ------------------------------------------------------------------
+
+    def _create_shared_index_file(self) -> pathlib.Path:
+        """Create a JSON file with all indices that workers can read.
+        
+        This avoids the overhead of pickle-serializing large index dictionaries
+        to each worker process. Workers only receive a file path (~50 bytes)
+        and load the index from the file when needed.
+        
+        Returns:
+            Path to the shared index JSON file.
+        """
+        if self._shared_index_file is not None and self._shared_index_file.exists():
+            return self._shared_index_file
+        
+        # Build indexes if not already built
+        self._build_era5_index()
+        self._build_rwrf_index()
+        self._build_qpepre_index()
+        
+        # Create combined index with string paths
+        index_data = {
+            "era5": {
+                var: {k: str(path) for k, path in files.items()}
+                for var, files in self._era5_index.items()
+            },
+            "rwrf": {k: str(v) for k, v in self._rwrf_index.items()},
+            "qpepre": {k: str(v) for k, v in self._qpepre_index.items()},
+        }
+        
+        # Write to a file in the output directory
+        index_file = self.output_base / ".shared_index.json"
+        with open(index_file, "w") as f:
+            json.dump(index_data, f)
+        
+        self._shared_index_file = index_file
+        file_size_mb = index_file.stat().st_size / 1024 / 1024
+        total_entries = (
+            sum(len(files) for files in self._era5_index.values()) +
+            len(self._rwrf_index) +
+            len(self._qpepre_index)
+        )
+        logger.info("Created shared index file: %s (%.2f MB, %d entries)", 
+                    index_file, file_size_mb, total_entries)
+        return index_file
+    
+    def _cleanup_shared_index(self) -> None:
+        """Remove the shared index file."""
+        if self._shared_index_file is not None and self._shared_index_file.exists():
+            self._shared_index_file.unlink()
+            logger.info("Cleaned up shared index file")
+            self._shared_index_file = None
 
     def _resolve_rwrf_path(self, dt: datetime) -> Optional[pathlib.Path]:
         if not self._rwrf_index:
@@ -1079,26 +1158,47 @@ class NCToZarrPipeline:
         if use_pool:
             logger.info("LowRes %s: using %d worker processes for %d valid timesteps", 
                         split_name, self.max_workers, len(valid_datetimes))
-            self._build_era5_index()
-            state = ERA5WorkerState(
-                era5_index={var: {k: str(path) for k, path in files.items()} for var, files in self._era5_index.items()},
-                domain_size=self.domain_size,
-                lon_bounds=(self.lon_min, self.lon_max),
-                lat_bounds=(self.lat_min, self.lat_max),
-                resample_mode=self.resample_mode,
-                pres_idx=self.pres_idx,
-            )
+            
+            # Choose between shared index (optimized) or traditional approach
+            if self.use_shared_index:
+                # Create shared index file - workers read from file instead of receiving pickled dict
+                index_file = self._create_shared_index_file()
+                state = ERA5SharedIndexWorkerState(
+                    index_file_path=str(index_file),
+                    domain_size=self.domain_size,
+                    lon_bounds=(self.lon_min, self.lon_max),
+                    lat_bounds=(self.lat_min, self.lat_max),
+                    resample_mode=self.resample_mode,
+                    pres_idx=self.pres_idx,
+                )
+                worker_init = _era5_shared_index_worker_init
+                worker_func = _era5_shared_index_worker
+                logger.info("LowRes %s: using SHARED INDEX optimization (avoids pickle serialization)", split_name)
+            else:
+                # Traditional approach - serialize full index to each worker
+                self._build_era5_index()
+                state = ERA5WorkerState(
+                    era5_index={var: {k: str(path) for k, path in files.items()} for var, files in self._era5_index.items()},
+                    domain_size=self.domain_size,
+                    lon_bounds=(self.lon_min, self.lon_max),
+                    lat_bounds=(self.lat_min, self.lat_max),
+                    resample_mode=self.resample_mode,
+                    pres_idx=self.pres_idx,
+                )
+                worker_init = _era5_worker_init
+                worker_func = _era5_worker
+            
             ctx = get_fork_context()
             executor_kwargs = dict(
                 max_workers=self.max_workers,
-                initializer=_era5_worker_init,
+                initializer=worker_init,
                 initargs=(state,),
             )
             if ctx is not None:
                 executor_kwargs["mp_context"] = ctx
             with ProcessPoolExecutor(**executor_kwargs) as executor:
                 futures = {
-                    executor.submit(_era5_worker, dt, tuple(channels)): dt
+                    executor.submit(worker_func, dt, tuple(channels)): dt
                     for dt in valid_datetimes
                 }
                 completed = 0
@@ -1225,31 +1325,55 @@ class NCToZarrPipeline:
         if use_pool:
             logger.info("HighRes %s: using %d worker processes for %d valid timesteps", 
                         split_name, self.max_workers, len(valid_datetimes))
-            self._build_rwrf_index()
-            self._build_qpepre_index()
-            state = RWRFWorkerState(
-                rwrf_index={k: str(v) for k, v in self._rwrf_index.items()},
-                qpepre_index={k: str(v) for k, v in self._qpepre_index.items()},
-                domain_size=self.domain_size,
-                lon_min=self.lon_min,
-                lon_max=self.lon_max,
-                lat_min=self.lat_min,
-                lat_max=self.lat_max,
-                resample_mode=self.resample_mode,
-                pres_idx=self.pres_idx,
-                rwrf_variables=tuple(channels),
-            )
+            
+            # Choose between shared index (optimized) or traditional approach
+            if self.use_shared_index:
+                # Create shared index file - workers read from file instead of receiving pickled dict
+                index_file = self._create_shared_index_file()
+                state = RWRFSharedIndexWorkerState(
+                    index_file_path=str(index_file),
+                    domain_size=self.domain_size,
+                    lon_min=self.lon_min,
+                    lon_max=self.lon_max,
+                    lat_min=self.lat_min,
+                    lat_max=self.lat_max,
+                    resample_mode=self.resample_mode,
+                    pres_idx=self.pres_idx,
+                    rwrf_variables=tuple(channels),
+                )
+                worker_init = _rwrf_shared_index_worker_init
+                worker_func = _rwrf_shared_index_worker
+                logger.info("HighRes %s: using SHARED INDEX optimization (avoids pickle serialization)", split_name)
+            else:
+                # Traditional approach - serialize full index to each worker
+                self._build_rwrf_index()
+                self._build_qpepre_index()
+                state = RWRFWorkerState(
+                    rwrf_index={k: str(v) for k, v in self._rwrf_index.items()},
+                    qpepre_index={k: str(v) for k, v in self._qpepre_index.items()},
+                    domain_size=self.domain_size,
+                    lon_min=self.lon_min,
+                    lon_max=self.lon_max,
+                    lat_min=self.lat_min,
+                    lat_max=self.lat_max,
+                    resample_mode=self.resample_mode,
+                    pres_idx=self.pres_idx,
+                    rwrf_variables=tuple(channels),
+                )
+                worker_init = _rwrf_worker_init
+                worker_func = _rwrf_worker
+            
             ctx = get_fork_context()
             executor_kwargs = dict(
                 max_workers=self.max_workers,
-                initializer=_rwrf_worker_init,
+                initializer=worker_init,
                 initargs=(state,),
             )
             if ctx is not None:
                 executor_kwargs["mp_context"] = ctx
             with ProcessPoolExecutor(**executor_kwargs) as executor:
                 futures = {
-                    executor.submit(_rwrf_worker, dt): dt
+                    executor.submit(worker_func, dt): dt
                     for dt in valid_datetimes
                 }
                 completed = 0
@@ -1385,6 +1509,9 @@ class NCToZarrPipeline:
             if not self.skip_highres:
                 self.process_highres(split_name, datetimes, highres_store, valid_mask=valid_mask)
             self._report_split_validity(split_name, lowres_store, highres_store)
+        
+        # Cleanup shared index file if used
+        self._cleanup_shared_index()
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -1427,6 +1554,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-rwrf", action="store_true", default=None)
     parser.add_argument("--compute-stats", action="store_true", default=None)
     parser.add_argument("--overwrite", action="store_true", default=None)
+    parser.add_argument("--use-shared-index", action="store_true", default=None,
+                        help="Use shared index file for multiprocessing (avoids pickle serialization overhead)")
+    parser.add_argument("--no-shared-index", action="store_true", default=None,
+                        help="Disable shared index optimization (use traditional pickle serialization)")
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     parser.add_argument("--log-file")
     return parser

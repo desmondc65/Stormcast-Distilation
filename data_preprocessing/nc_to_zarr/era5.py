@@ -157,12 +157,135 @@ class ERA5WorkerState:
     pres_idx: Dict[int, int]
 
 
+@dataclass(frozen=True)
+class ERA5SharedIndexWorkerState:
+    """Lightweight worker state that references a shared index file instead of copying data."""
+    index_file_path: str  # Path to JSON index file - only ~50 bytes to serialize
+    domain_size: Tuple[int, int]
+    lon_bounds: Tuple[float, float]
+    lat_bounds: Tuple[float, float]
+    resample_mode: str
+    pres_idx: Dict[int, int]
+
+
 _ERA5_WORKER_STATE: ERA5WorkerState | None = None
+_ERA5_SHARED_INDEX_CACHE: Dict[str, Dict[str, str]] | None = None
+_ERA5_SHARED_INDEX_STATE: ERA5SharedIndexWorkerState | None = None
 
 
 def _era5_worker_init(state: ERA5WorkerState) -> None:
     global _ERA5_WORKER_STATE
     _ERA5_WORKER_STATE = state
+
+
+def _era5_shared_index_worker_init(state: ERA5SharedIndexWorkerState) -> None:
+    """Initialize worker with shared index state (loads index from file on first use)."""
+    global _ERA5_SHARED_INDEX_STATE, _ERA5_SHARED_INDEX_CACHE
+    _ERA5_SHARED_INDEX_STATE = state
+    _ERA5_SHARED_INDEX_CACHE = None  # Will be lazily loaded
+
+
+def _load_era5_shared_index() -> Dict[str, Dict[str, str]]:
+    """Load ERA5 index from shared JSON file (cached after first load)."""
+    global _ERA5_SHARED_INDEX_CACHE
+    if _ERA5_SHARED_INDEX_CACHE is not None:
+        return _ERA5_SHARED_INDEX_CACHE
+    if _ERA5_SHARED_INDEX_STATE is None:
+        raise RuntimeError("ERA5 shared index state not initialized")
+    import json
+    with open(_ERA5_SHARED_INDEX_STATE.index_file_path, "r") as f:
+        data = json.load(f)
+    _ERA5_SHARED_INDEX_CACHE = data.get("era5", {})
+    return _ERA5_SHARED_INDEX_CACHE
+
+
+def _era5_shared_index_worker(dt: datetime, channels: Sequence[str]):
+    """ERA5 worker using shared index file instead of copied dictionary."""
+    if _ERA5_SHARED_INDEX_STATE is None:
+        raise RuntimeError("ERA5 shared index state not initialized")
+    
+    era5_index = _load_era5_shared_index()
+    state = _ERA5_SHARED_INDEX_STATE
+    
+    results: Dict[str, np.ndarray] = {}
+    lon_template: Optional[np.ndarray] = None
+    lat_template: Optional[np.ndarray] = None
+    
+    for var in channels:
+        # Resolve path from shared index
+        cache = era5_index.get(var, {})
+        path_str = None
+        for key in (
+            dt.strftime("%Y%m%d%H"),
+            dt.strftime("%Y%m%d") + str(dt.hour),
+            dt.strftime("%Y%m"),
+        ):
+            path_str = cache.get(key)
+            if path_str:
+                break
+        
+        if path_str is None:
+            continue
+        
+        path = pathlib.Path(path_str)
+        if not path.exists():
+            continue
+        
+        # Process the file (same logic as _era5_worker_single)
+        cfg = VARIABLE_CONFIGS.get(var)
+        nc_var = cfg.nc_var_name if cfg else var
+        
+        with Dataset(path, "r") as ds:
+            if nc_var not in ds.variables:
+                continue
+            
+            lat_var = ds.variables.get("latitude") or ds.variables.get("lat")
+            lon_var = ds.variables.get("longitude") or ds.variables.get("lon")
+            if lat_var is None or lon_var is None:
+                continue
+            
+            lat_arr = np.asarray(lat_var[:])
+            lon_arr = np.asarray(lon_var[:])
+            
+            lat_slice_idx = search_bounds_1d(lat_arr, state.lat_bounds[0], state.lat_bounds[1])
+            lon_slice_idx = search_bounds_1d(lon_arr, state.lon_bounds[0], state.lon_bounds[1])
+            lat_slice = slice(lat_slice_idx[0], lat_slice_idx[1] + 1)
+            lon_slice = slice(lon_slice_idx[0], lon_slice_idx[1] + 1)
+            lat_sel = lat_arr[lat_slice]
+            lon_sel = lon_arr[lon_slice]
+            
+            if lat_sel.size == 0 or lon_sel.size == 0:
+                continue
+            
+            time_var = ds.variables.get("time") or ds.variables.get("valid_time")
+            time_idx = _select_time_index(time_var, dt)
+            var_obj = ds.variables[nc_var]
+            level_idx, level_dim = _era5_level_selection(ds, var_obj, var, state.pres_idx)
+            
+            slices = [slice(None)] * var_obj.ndim
+            dims = var_obj.dimensions
+            if time_var is not None:
+                for name in ("time", "valid_time"):
+                    if name in dims:
+                        slices[dims.index(name)] = time_idx
+                        break
+            if level_idx is not None and level_dim is not None:
+                slices[dims.index(level_dim)] = level_idx
+            slices[-2] = lat_slice
+            slices[-1] = lon_slice
+            
+            data = np.asarray(var_obj[tuple(slices)], dtype=np.float32)
+            data = np.squeeze(data)
+            lon_grid, lat_grid = np.meshgrid(lon_sel, lat_sel)
+            data_rs, lon_rs, lat_rs = resize_to_domain(data, lon_grid, lat_grid, state.domain_size, state.resample_mode)
+            data_rs = np.squeeze(np.asarray(data_rs, dtype=np.float32))
+            
+            results[var] = data_rs
+            if lon_template is None:
+                lon_template = lon_rs.astype(np.float32)
+                lat_template = lat_rs.astype(np.float32)
+    
+    return dt, results, lon_template, lat_template
 
 
 def _era5_worker(dt: datetime, channels: Sequence[str]):
