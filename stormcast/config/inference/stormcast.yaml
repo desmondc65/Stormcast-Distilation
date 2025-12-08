@@ -30,7 +30,7 @@ diffusion_checkpoint: /home/master/13/dczy/code/stormcast-ncdr/data/StormCast_na
 # Inference settings
 # ---------------------------------------------------------------------------
 # For single-timestep inference, n_steps=1 means predict t+1 from t
-n_steps: 6
+n_steps: 9
 
 # Time increment per step (hours)
 dt_hours: 1
