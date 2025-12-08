@@ -164,12 +164,160 @@ class RWRFWorkerState:
     rwrf_variables: Sequence[str]
 
 
+@dataclass(frozen=True)
+class RWRFSharedIndexWorkerState:
+    """Lightweight worker state that references a shared index file instead of copying data."""
+    index_file_path: str  # Path to JSON index file - only ~50 bytes to serialize
+    domain_size: Tuple[int, int]
+    lon_min: float
+    lon_max: float
+    lat_min: float
+    lat_max: float
+    resample_mode: str
+    pres_idx: Dict[int, int]
+    rwrf_variables: Sequence[str]
+
+
 _RWRF_WORKER_STATE: RWRFWorkerState | None = None
+_RWRF_SHARED_INDEX_CACHE: Dict[str, Dict[str, str]] | None = None
+_RWRF_SHARED_INDEX_STATE: RWRFSharedIndexWorkerState | None = None
 
 
 def _rwrf_worker_init(state: RWRFWorkerState) -> None:
     global _RWRF_WORKER_STATE
     _RWRF_WORKER_STATE = state
+
+
+def _rwrf_shared_index_worker_init(state: RWRFSharedIndexWorkerState) -> None:
+    """Initialize worker with shared index state (loads index from file on first use)."""
+    global _RWRF_SHARED_INDEX_STATE, _RWRF_SHARED_INDEX_CACHE
+    _RWRF_SHARED_INDEX_STATE = state
+    _RWRF_SHARED_INDEX_CACHE = None  # Will be lazily loaded
+
+
+def _load_rwrf_shared_index() -> Dict[str, Dict[str, str]]:
+    """Load RWRF/QPEPRE index from shared JSON file (cached after first load)."""
+    global _RWRF_SHARED_INDEX_CACHE
+    if _RWRF_SHARED_INDEX_CACHE is not None:
+        return _RWRF_SHARED_INDEX_CACHE
+    if _RWRF_SHARED_INDEX_STATE is None:
+        raise RuntimeError("RWRF shared index state not initialized")
+    import json
+    with open(_RWRF_SHARED_INDEX_STATE.index_file_path, "r") as f:
+        data = json.load(f)
+    _RWRF_SHARED_INDEX_CACHE = data
+    return _RWRF_SHARED_INDEX_CACHE
+
+
+def _rwrf_shared_index_worker(dt: datetime):
+    """RWRF worker using shared index file instead of copied dictionary."""
+    if _RWRF_SHARED_INDEX_STATE is None:
+        raise RuntimeError("RWRF shared index state not initialized")
+    
+    index_data = _load_rwrf_shared_index()
+    rwrf_index = index_data.get("rwrf", {})
+    qpepre_index = index_data.get("qpepre", {})
+    state = _RWRF_SHARED_INDEX_STATE
+    
+    # Resolve RWRF path
+    key = dt.strftime("%Y-%m-%d_%H")
+    path_str = rwrf_index.get(key)
+    
+    if path_str is None:
+        return dt, {}, None, None
+    
+    path = pathlib.Path(path_str)
+    if not path.exists():
+        return dt, {}, None, None
+    
+    results: Dict[str, np.ndarray] = {}
+    lon_template: Optional[np.ndarray] = None
+    lat_template: Optional[np.ndarray] = None
+    
+    with Dataset(path, "r") as ds:
+        # Get slices
+        lat = np.asarray(ds.variables["XLAT"][0, :, 0])
+        lon = np.asarray(ds.variables["XLONG"][0, 0, :])
+        lat_idx = search_bounds_1d(lat, state.lat_min, state.lat_max)
+        lon_idx = search_bounds_1d(lon, state.lon_min, state.lon_max)
+        lat_slice = slice(lat_idx[0], lat_idx[1] + 1)
+        lon_slice = slice(lon_idx[0], lon_idx[1] + 1)
+        lat_sel = lat[lat_slice]
+        lon_sel = lon[lon_slice]
+        lon_grid, lat_grid = np.meshgrid(lon_sel, lat_sel)
+        
+        # Get time index
+        times_var = ds.variables.get("Times")
+        time_idx = 0
+        if times_var is not None:
+            values = [b"".join(row).decode("utf-8").strip() for row in times_var[:]]
+            dt_array = np.array([np.datetime64(val.replace("_", "T")) for val in values])
+            target64 = np.datetime64(dt.strftime("%Y-%m-%dT%H"))
+            time_idx = int(np.argmin(np.abs(dt_array - target64)))
+        
+        for logical in state.rwrf_variables:
+            if logical == "qpepre":
+                continue  # Handle separately
+            
+            nc_name, modifier = resolve_variable(logical)
+            if nc_name not in ds.variables:
+                continue
+            
+            var = ds.variables[nc_name]
+            slices = [slice(None)] * var.ndim
+            dims = var.dimensions
+            
+            if "Time" in dims:
+                slices[dims.index("Time")] = time_idx
+            elif "time" in dims:
+                slices[dims.index("time")] = time_idx
+            
+            level_idx = state.pres_idx.get(int(logical[1:])) if logical[1:].isdigit() else None
+            if level_idx is not None:
+                for dim_name in dims:
+                    if dim_name.lower() in LEVEL_DIM_NAMES_LOWER:
+                        dim_idx = dims.index(dim_name)
+                        if level_idx < var.shape[dim_idx]:
+                            slices[dim_idx] = level_idx
+                        break
+            
+            slices[-2] = lat_slice
+            slices[-1] = lon_slice
+            data = np.asarray(var[tuple(slices)], dtype=np.float32)
+            data = np.squeeze(modifier(data))
+            data_rs, lon_rs, lat_rs = resize_to_domain(data, lon_grid, lat_grid, state.domain_size, state.resample_mode)
+            data_rs = np.squeeze(np.asarray(data_rs, dtype=np.float32))
+            results[logical] = data_rs
+            lon_template = lon_rs.astype(np.float32)
+            lat_template = lat_rs.astype(np.float32)
+    
+    # Handle QPEPRE
+    if "qpepre" in state.rwrf_variables and "qpepre" not in results:
+        end_key = dt.strftime("%Y%m%d%H%M")
+        start_key = (dt - timedelta(hours=1)).strftime("%Y%m%d%H%M")
+        qpe_path_str = qpepre_index.get(end_key) or qpepre_index.get(start_key)
+        if qpe_path_str:
+            qpe_path = pathlib.Path(qpe_path_str)
+            if qpe_path.exists():
+                raw = np.loadtxt(qpe_path, dtype=np.float32)
+                if raw.ndim == 1:
+                    raw = raw.reshape(1, -1)
+                _, lon_vals, lat_vals, rain_vals = raw.T
+                lat_unique = np.unique(lat_vals)
+                lon_unique = np.unique(lon_vals)
+                val_grid = np.full((lat_unique.size, lon_unique.size), np.nan, dtype=np.float32)
+                lat_to_idx = {v: i for i, v in enumerate(lat_unique)}
+                lon_to_idx = {v: i for i, v in enumerate(lon_unique)}
+                for lon_v, lat_v, rain in zip(lon_vals, lat_vals, rain_vals):
+                    val_grid[lat_to_idx[lat_v], lon_to_idx[lon_v]] = rain
+                qpe_lon_grid, qpe_lat_grid = np.meshgrid(lon_unique, lat_unique)
+                data_rs, lon_rs, lat_rs = resize_to_domain(val_grid, qpe_lon_grid, qpe_lat_grid, state.domain_size, state.resample_mode)
+                results["qpepre"] = np.asarray(data_rs, dtype=np.float32)
+                if lon_template is None:
+                    lon_template = lon_rs.astype(np.float32)
+                    lat_template = lat_rs.astype(np.float32)
+    
+    return dt, results, lon_template, lat_template
 
 
 def _rwrf_worker(dt: datetime):

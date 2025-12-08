@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Dataset configuration for single-timestep inference
+# Uses the simplified InferenceDataset loader
+
+name: data_loader_inference.InferenceDataset  # Inference-specific dataset class
+
+# Path to the preprocessed inference data (output from to_zarr.py)
+location: '/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/output'
+
+# Domain size (must match the data)
+HighRes_img_size: [224, 128]
+
+# Invariant quantities to include
+invariants: ["lsm", "orog"]
+
+# Channel selection (matching inference_data_preprocess_config.yaml)
+# LowRes channels from GRIB: 24 channels
+# Available: ['mslp', 't2m', 'u10', 'v10', 'q1000', 'q850', 'q500', 'q250', 
+#             't1000', 't850', 't500', 't250', 'u1000', 'u850', 'u500', 'u250', 
+#             'v1000', 'v850', 'v500', 'v250', 'z1000', 'z850', 'z500', 'z250']
+kept_LowRes_channels: all
+
+# HighRes channels from RWRF: 4 channels  
+# Available: ['t2m', 'u10', 'v10', 'qpepre']
+kept_HighRes_channels: all
+
+# Variables for diffusion model (subset of HighRes channels)
+diffusion_channels: ['t2m', 'u10', 'v10', 'qpepre']
