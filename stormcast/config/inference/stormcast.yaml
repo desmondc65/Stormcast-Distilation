@@ -14,23 +14,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ---------------------------------------------------------------------------
 # General inference config items
-outdir: 'rundir' # Root path under which to save inference outputs
-experiment_name: 'stormcast-inference' # Name for the inference experiment being run
-run_id: 0 # Unique identifier for the inference run
-rundir: ./${inference.outdir}/${inference.experiment_name}/${inference.run_id} # Path where experiement outputs will be saved
-regression_checkpoint: stormcast_checkpoints/regression/StormCastUNet.0.0.mdlus
-diffusion_checkpoint: stormcast_checkpoints/diffusion/EDMPrecond.0.0.mdlus
+# ---------------------------------------------------------------------------
+outdir: '/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/inference_output'
+experiment_name: 'stormcast-ncdr-inference'
+run_id: 0
+rundir: ${inference.outdir}/${inference.experiment_name}/${inference.run_id}
 
-# Initial and lead times
-initial_time: "2022-11-04T21:00:00" # datetime to intialize forecast with (YYYY-MM-DDTHH:MM:SS)
-                                    # note minimum time resolution of HRRR data is 1hr
-n_steps: 12 # number of steps (in units of 1hr timesteps) to forecast
+# Model checkpoints
+regression_checkpoint: /home/master/13/dczy/code/stormcast-ncdr/data/StormCast_nano5_same_6hrs/exp_3_reg_L_24_H_4_train_2_5_years_6hrs_same/1/checkpoints_regression/StormCastUNet.0.3000.mdlus
+diffusion_checkpoint: /home/master/13/dczy/code/stormcast-ncdr/data/StormCast_nano5_same_6hrs/exp_3_dif_L_24_H_4_train_2_5_years_6hrs_same/1/checkpoints_diffusion/EDMPrecond.0.15000.mdlus
 
-# I/O
-plot_var_state: "refc" # state variable to plot
-plot_var_background: "t2m" # background variable to plot
-output_state_channels: [] # state variables to save to disk (empty list == all channels saved)
-save_vertical_vars: ["u", "v", "t", "q", "z", "p", "w"] # variables with multiple vertical levels
-save_vertical_levels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "13", "15", "20", "25", "30", "35", "40"] # level names for vertical variables
-save_horizontal_vars: ["msl", "refc", "u10m", "v10m"] # single-level variables
+# ---------------------------------------------------------------------------
+# Inference settings
+# ---------------------------------------------------------------------------
+# For single-timestep inference, n_steps=1 means predict t+1 from t
+n_steps: 6
+
+# Time increment per step (hours)
+dt_hours: 1
+
+# ---------------------------------------------------------------------------
+# I/O - Variable names matching inference_data_preprocess_config.yaml
+# ---------------------------------------------------------------------------
+
+# State variables (HighRes output from RWRF)
+# Available: ['t2m', 'u10', 'v10', 'qpepre']
+plot_var_state: "t2m"          # state variable to plot
+output_state_channels: []       # state variables to save (empty == all channels)
+
+# Background variables (LowRes from GRIB)
+# Available: ['mslp', 't2m', 'u10', 'v10', 'q1000', 'q850', 'q500', 'q250',
+#             't1000', 't850', 't500', 't250', 'u1000', 'u850', 'u500', 'u250',
+#             'v1000', 'v850', 'v500', 'v250', 'z1000', 'z850', 'z500', 'z250']
+plot_var_background: "t2m"     # background variable to plot
+
+# Output format settings
+output_format: "zarr"          # "zarr" or "netcdf"
+
+# Variables for output (matching HighRes channels)
+save_horizontal_vars: ["t2m", "u10", "v10", "qpepre"]
+
+# For backward compatibility (not used in NCDR inference)
+save_vertical_vars: []
+save_vertical_levels: []
