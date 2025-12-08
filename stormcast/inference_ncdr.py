@@ -34,6 +34,7 @@ import os
 import hydra
 import torch
 import numpy as np
+from cfgrib.xarray_to_grib import to_grib
 import xarray as xr
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -81,6 +82,7 @@ def save_multistep_output(
     
     zarr_paths = []
     nc_paths = []
+    grb_paths = []
     
     # Save each timestep to separate files
     for step_idx, (prediction, timestamp) in enumerate(zip(predictions, timestamps)):
@@ -111,15 +113,36 @@ def save_multistep_output(
             ds[ch].attrs["channel_index"] = i
         
         # Save to zarr
-        zarr_path = os.path.join(output_dir, f"step_{step_num:02d}_{ts_str}.zarr")
+        zarr_path = os.path.join(output_dir, "zarr", f"step_{step_num:02d}_{ts_str}.zarr")
         ds.to_zarr(zarr_path, mode="w", consolidated=True)
         zarr_paths.append(zarr_path)
         
         # Save to NetCDF
-        nc_path = os.path.join(output_dir, f"step_{step_num:02d}_{ts_str}.nc")
+        nc_path = os.path.join(output_dir, "NetCDF", f"step_{step_num:02d}_{ts_str}.nc")
+        os.makedirs(os.path.dirname(nc_path), exist_ok=True)
         ds.to_netcdf(nc_path, format="NETCDF4")
         nc_paths.append(nc_path)
-    
+
+        #Save to GRIB (New)
+        grb_path = os.path.join(output_dir, "GRIB", f"step_{step_num:02d}_{ts_str}.grb")
+        os.makedirs(os.path.dirname(grb_path), exist_ok=True)
+        
+        nj = ds.sizes['y'] # Height (rows)
+        ni = ds.sizes['x'] # Width (cols)
+
+        # 2. Explicitly set Ni and Nj in the keys
+        safe_grib_keys = {
+            'gridType': 'regular_ll',
+            'stepType': 'instant',
+            'Ni': ni, 
+            'Nj': nj, 
+        }
+        
+        # # FIX 2: Pass grib_keys to the function
+        to_grib(ds, grb_path, grib_keys=safe_grib_keys)
+        # ds.to_netcdf(grb_path, engine='cfgrib')
+        grb_paths.append(grb_path)
+
     # Save input reference separately
     if input_state is not None and input_timestamp is not None:
         ts_str = np.datetime_as_string(input_timestamp, unit='h').replace('-', '').replace('T', '').replace(':', '')[:10]
@@ -142,7 +165,7 @@ def save_multistep_output(
         ds_input.to_netcdf(os.path.join(output_dir, f"step_00_input_{ts_str}.nc"))
         ds_input.to_zarr(os.path.join(output_dir, f"step_00_input_{ts_str}.zarr"), mode="w", consolidated=True)
     
-    return zarr_paths, nc_paths
+    return zarr_paths, nc_paths, grb_paths
 
 
 def run_single_step_inference(
@@ -298,19 +321,41 @@ def main(cfg: DictConfig) -> None:
     
     # Run multi-step inference
     logger0.info(f"Running {n_steps}-step autoregressive inference...")
+    logger0.info(f"LowRes data will be updated every 6 hours (steps 0-5, 6-11, 12-17, ...)")
     
     predictions = []
     timestamps = []
     current_state = state  # Start with initial state (normalized)
+    current_background = background  # Start with initial LowRes
     
     for step in range(n_steps):
         step_num = step + 1
-        logger0.info(f"Step {step_num}/{n_steps}...")
+        forecast_hour = step_num * dt_hours
+        
+        # Get LowRes timestep info for logging
+        lowres_idx, lowres_ts = dataset.get_LowRes_timestep_info(step, dt_hours)
+        
+        # Describe the HighRes input source for this step
+        if step == 0:
+            highres_source = "initial RWRF (t=0)"
+        else:
+            prev_hour = step * dt_hours
+            highres_source = f"predicted from hour {prev_hour} (autoregressive)"
+        
+        logger0.info(f"Step {step_num}/{n_steps} (predicting hour {forecast_hour}):")
+        logger0.info(f"  LowRes input (Global): timestep {lowres_idx} [{lowres_ts}]")
+        logger0.info(f"  HighRes input: {highres_source}")
+        
+        # Update LowRes background every 6 hours if multi-timestep data available
+        if step > 0 and (step * dt_hours) % 6 == 0:
+            current_background = dataset.get_LowRes_for_timestep(step, dt_hours).to(device).unsqueeze(0)
+            logger0.info(f"  → Updated LowRes background for hour {forecast_hour}")
+            logger0.info(f"  → Switched to new LowRes timestep")
         
         # Run single step inference
         predicted_state = run_single_step_inference(
-            background=background,  # Same LowRes for all steps
-            state=current_state,    # Use current HighRes state
+            background=current_background,  # Use appropriate LowRes for this time window
+            state=current_state,             # Use current HighRes state
             invariant_tensor=invariant_tensor,
             regression_model=regression_model,
             diffusion_model=diffusion_model,
@@ -345,7 +390,7 @@ def main(cfg: DictConfig) -> None:
     # Save outputs (separate zarr and nc for each timestep)
     logger0.info("Saving outputs to separate zarr and NetCDF files for each timestep...")
     
-    zarr_paths, nc_paths = save_multistep_output(
+    zarr_paths, nc_paths, grb_paths = save_multistep_output(
         output_dir=cfg.inference.rundir,
         predictions=predictions,
         channels=state_channels,
@@ -356,7 +401,7 @@ def main(cfg: DictConfig) -> None:
         input_timestamp=input_timestamp,
     )
     
-    logger0.info(f"Saved {len(zarr_paths)} zarr files and {len(nc_paths)} NetCDF files")
+    logger0.info(f"Saved {len(zarr_paths)} zarr files, {len(nc_paths)} NetCDF files, and {len(grb_paths)} GRIB files")
     for zp, ncp in zip(zarr_paths, nc_paths):
         logger0.info(f"  {os.path.basename(zp)}")
     
