@@ -17,12 +17,16 @@
 # =============================================================================
 
 # --- 環境設定 ---
+export NPROC=$SLURM_GPUS_ON_NODE
+
+# --- 環境設定 ---
 # 初始化 Conda (Slurm 腳本的標準方法)
 
 ml load miniconda3
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
+
 
 # =============================================================================
 # 第一部分：資料前處理 (to_zarr.py)
@@ -100,7 +104,8 @@ echo "輸入 QPEPRE: ${qpepre_path}"
 echo "輸出目錄: ${preprocessing_output}"
 echo ""
 
-python ${to_zarr_script} \
+srun --mpi=pmix bash -lc "
+torchrun --standalone --nnodes=${SLURM_JOB_NUM_NODES} --nproc_per_node=${NPROC} ${to_zarr_script} \
     --grib-folder "${grib_folder}" \
     --rwrf-path "${rwrf_path}" \
     --qpepre-path "${qpepre_path}" \
@@ -116,6 +121,7 @@ python ${to_zarr_script} \
     --n-steps ${n_steps} \
     --dt-hours ${dt_hours} \
     $([ "${overwrite_preprocessing}" = "true" ] && echo "--overwrite")
+"
 
 # 檢查前處理是否成功
 if [ $? -ne 0 ]; then
@@ -194,7 +200,8 @@ echo "預報步數: ${n_steps}"
 echo "輸出目錄: ${FINAL_OUTPUT_DIR}"
 echo ""
 
-python ${inference_script} \
+srun --mpi=pmix bash -lc "
+torchrun --standalone --nnodes=${SLURM_JOB_NUM_NODES} --nproc_per_node=${NPROC} ${inference_script} \
     ++inference.rundir="${FINAL_OUTPUT_DIR}" \
     ++inference.regression_checkpoint="${regression_checkpoint}" \
     ++inference.diffusion_checkpoint="${diffusion_checkpoint}" \
@@ -214,6 +221,7 @@ python ${inference_script} \
     ++sampler.S_min=${S_min} \
     ++sampler.S_max=${S_max} \
     ++sampler.S_noise=${S_noise}
+"
 
 # 檢查推論是否成功
 if [ $? -ne 0 ]; then
@@ -254,11 +262,13 @@ if [ "${enable_visualization}" = "true" ]; then
     echo "圖片儲存目錄: ${plot_save_dir}"
     echo ""
     
-    python ${plotting_script} \
+srun --mpi=pmix bash -lc "
+torchrun --standalone --nnodes=${SLURM_JOB_NUM_NODES} --nproc_per_node=${NPROC} ${plotting_script} \
         --output_dir "${inference_results_dir}" \
         --save_dir "${plot_save_dir}" \
         ${include_input}
-    
+"
+
     if [ $? -eq 0 ]; then
         echo "結果視覺化完成"
         echo "圖片已儲存至: ${plot_save_dir}"
