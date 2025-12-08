@@ -18,11 +18,14 @@ import importlib
 import pkgutil
 
 from .dataset import StormCastDataset
+import os
 
 
 # Find StormCastDataset implementations found in files in the datasets directory
 # and list them by module and name in the dataset_classes dict
-dataset_modules = pkgutil.iter_modules(["datasets"])
+# Use __file__ to get the directory of this module
+datasets_dir = os.path.dirname(__file__)
+dataset_modules = pkgutil.iter_modules([datasets_dir])
 dataset_modules = [mod.name for mod in dataset_modules if mod.name != "dataset"]
 dataset_classes = {}
 for mod_name in dataset_modules:
