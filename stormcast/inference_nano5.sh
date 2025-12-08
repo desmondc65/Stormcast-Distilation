@@ -18,6 +18,9 @@
 
 # --- 環境設定 ---
 # 初始化 Conda (Slurm 腳本的標準方法)
+
+ml load miniconda3
+
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
 
