@@ -127,15 +127,41 @@ def save_multistep_output(
         grb_path = os.path.join(output_dir, "GRIB", f"step_{step_num:02d}_{ts_str}.grb")
         os.makedirs(os.path.dirname(grb_path), exist_ok=True)
         
-        nj = ds.sizes['y'] # Height (rows)
-        ni = ds.sizes['x'] # Width (cols)
+        # 1. Get Dimensions
+        nj = ds.sizes['y']
+        ni = ds.sizes['x']
 
-        # 2. Explicitly set Ni and Nj in the keys
+        # 2. Calculate Geometry from Coordinate Arrays
+        # We access the numpy arrays directly to get corners and increments.
+        # .item() ensures we pass native Python floats, which GRIB libraries prefer.
+        lat_first = latitude[0, 0].item()
+        lon_first = longitude[0, 0].item()
+        lat_last  = latitude[-1, -1].item()
+        lon_last  = longitude[-1, -1].item()
+        
+        # Calculate increments (dx, dy) by checking the distance between adjacent pixels
+        # Assumes a regular grid
+        dx = abs(longitude[0, 1] - longitude[0, 0]).item()
+        dy = abs(latitude[1, 0] - latitude[0, 0]).item()
+        
         safe_grib_keys = {
-            'gridType': 'regular_ll',
+            'gridType': 'regular_ll',   # Regular Lat/Lon Grid
             'stepType': 'instant',
+            
+            # DIMENSIONS (Fixes the "ValueError: cannot reshape" crash)
             'Ni': ni, 
-            'Nj': nj, 
+            'Nj': nj,
+            
+            # GEOMETRY (Fixes the Lat/Lon Range metadata)
+            'latitudeOfFirstGridPointInDegrees': lat_first,
+            'longitudeOfFirstGridPointInDegrees': lon_first,
+            'latitudeOfLastGridPointInDegrees': lat_last,
+            'longitudeOfLastGridPointInDegrees': lon_last,
+            'iDirectionIncrementInDegrees': dx,
+            'jDirectionIncrementInDegrees': dy,
+            
+            'jScansPositively': 1,  # Tells GRIB to scan South -> North (row 0 is bottom)
+            'iScansPositively': 1,  # Tells GRIB to scan West -> East (col 0 is left)
         }
         
         # # FIX 2: Pass grib_keys to the function

@@ -138,7 +138,7 @@ inference_script="/home/master/13/dczy/code/stormcast-ncdr/stormcast/inference_n
 
 
 # 輸出資料夾路徑
-FINAL_OUTPUT_DIR="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/n_16_output_test7"
+FINAL_OUTPUT_DIR="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/n_16_output_test8"
 
 # 確保該資料夾存在
 mkdir -p "${FINAL_OUTPUT_DIR}"
