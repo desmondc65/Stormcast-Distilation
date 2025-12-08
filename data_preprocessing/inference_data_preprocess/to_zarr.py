@@ -998,6 +998,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Latitude bounds as [min, max]",
     )
     parser.add_argument(
+        "--lowres-variables",
+        type=str,
+        help="Comma-separated list of low-resolution variables (e.g., 'mslp,t2m,u10,v10,...'). "
+             "If not specified, uses default set matching training data.",
+    )
+    parser.add_argument(
+        "--highres-variables",
+        type=str,
+        help="Comma-separated list of high-resolution variables (e.g., 't2m,u10,v10,qpepre'). "
+             "If not specified, uses default set matching training data.",
+    )
+    parser.add_argument(
+        "--invariant-variables",
+        type=str,
+        help="Comma-separated list of invariant variables (e.g., 'lsm,orog'). "
+             "If not specified, uses default set.",
+    )
+    parser.add_argument(
+        "--resample-mode",
+        type=str,
+        default="interpolate",
+        choices=["interpolate", "nearest"],
+        help="Resample mode for regridding (default: interpolate for bilinear interpolation)",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         default=True,
@@ -1040,6 +1065,19 @@ def main():
         config.lon_bounds = tuple(args.lon_bounds)
     if args.lat_bounds:
         config.lat_bounds = tuple(args.lat_bounds)
+    
+    # Parse variable lists from comma-separated strings
+    if args.lowres_variables:
+        config.lowres_variables = [v.strip() for v in args.lowres_variables.split(',') if v.strip()]
+    if args.highres_variables:
+        config.highres_variables = [v.strip() for v in args.highres_variables.split(',') if v.strip()]
+    if args.invariant_variables:
+        config.invariant_variables = [v.strip() for v in args.invariant_variables.split(',') if v.strip()]
+    
+    # Set resample mode
+    if args.resample_mode:
+        config.resample_mode = args.resample_mode
+    
     config.overwrite = args.overwrite
     
     # Parse timestamp
