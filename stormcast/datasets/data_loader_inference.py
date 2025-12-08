@@ -148,6 +148,9 @@ class InferenceDataset(StormCastDataset):
             else:
                 raise FileNotFoundError(f"No HighRes zarr found in {self.location}/HighRes")
         
+        # Support for multi-timestep LowRes data
+        self.multi_timestep_lowres = False
+        
         self.logger0.info(f"Loading LowRes from: {lowres_zarr_path}")
         self.logger0.info(f"Loading HighRes from: {highres_zarr_path}")
         
@@ -165,11 +168,22 @@ class InferenceDataset(StormCastDataset):
         self.HighRes_lat = self.ds_HighRes.latitude
         self.HighRes_lon = self.ds_HighRes.longitude
         
-        # Extract timestamp (should be single timestep)
-        self.timestamps = self.ds_LowRes.time.values
-        if len(self.timestamps) != 1:
-            self.logger0.warning(f"Expected 1 timestamp, got {len(self.timestamps)}. Using first.")
-        self.timestamp = self.timestamps[0]
+        # Extract timestamps
+        self.LowRes_timestamps = self.ds_LowRes.time.values
+        self.HighRes_timestamps = self.ds_HighRes.time.values
+        
+        # Check if we have multi-timestep LowRes data
+        if len(self.LowRes_timestamps) > 1:
+            self.multi_timestep_lowres = True
+            self.logger0.info(f"Multi-timestep LowRes data detected: {len(self.LowRes_timestamps)} timesteps")
+            self.logger0.info(f"LowRes timesteps: {self.LowRes_timestamps}")
+        else:
+            self.logger0.info("Single-timestep LowRes data")
+        
+        # Base timestamp (from HighRes, which is always single timestep initial condition)
+        if len(self.HighRes_timestamps) != 1:
+            self.logger0.warning(f"Expected 1 HighRes timestamp, got {len(self.HighRes_timestamps)}. Using first.")
+        self.timestamp = self.HighRes_timestamps[0]
 
     def background_channels(self):
         """Metadata for the background channels (LowRes)."""
@@ -250,17 +264,69 @@ class InferenceDataset(StormCastDataset):
     def _get_LowRes(self, time_idx: int = 0):
         """Get normalized LowRes data at given time index."""
         inp_field = self.ds_LowRes.sel(
-            time=self.timestamps[time_idx], 
+            time=self.LowRes_timestamps[time_idx], 
             channel=self.kept_LowRes_channels
         ).LowRes.values.copy()
         
         inp = self.normalize_background(inp_field)
         return torch.as_tensor(inp, dtype=torch.float32)
+    
+    def get_LowRes_for_timestep(self, forecast_step: int, dt_hours: int = 1):
+        """
+        Get LowRes data for a specific forecast timestep.
+        
+        For multi-timestep LowRes data, selects the appropriate LowRes based on
+        6-hour intervals. Inference loop uses step=0,1,2,... which produces outputs
+        at hours 1,2,3,... (step+1). For example with dt_hours=1:
+        - forecast_step 0-5 (hours 1-6) -> LowRes timestep 0 (covers 0-5h) until hour 6
+        - forecast_step 6-11 (hours 7-12) -> LowRes timestep 1 (covers 6-11h)
+        - etc.
+        
+        Args:
+            forecast_step: The forecast step number from inference loop (0, 1, 2, ...)
+            dt_hours: Hours per forecast step (default: 1)
+            
+        Returns:
+            Normalized LowRes tensor [C, H, W]
+        """
+        if not self.multi_timestep_lowres:
+            # Single timestep mode - always return the same LowRes
+            return self._get_LowRes(0)
+        
+        # Calculate which LowRes timestep to use (one per 6 hours)
+        lowres_dt = 6  # LowRes data available every 6 hours
+        forecast_hour = forecast_step * dt_hours
+        lowres_idx = forecast_hour // lowres_dt
+        
+        # Clamp to available range
+        lowres_idx = min(lowres_idx, len(self.LowRes_timestamps) - 1)
+        
+        return self._get_LowRes(lowres_idx)
+    
+    def get_LowRes_timestep_info(self, forecast_step: int, dt_hours: int = 1):
+        """
+        Get information about which LowRes timestep will be used.
+        
+        Returns:
+            Tuple of (lowres_idx, lowres_timestamp_str) or (0, 'single') for single-timestep mode
+        """
+        if not self.multi_timestep_lowres:
+            return 0, 'single-timestep'
+        
+        lowres_dt = 6
+        forecast_hour = forecast_step * dt_hours
+        lowres_idx = forecast_hour // lowres_dt
+        lowres_idx = min(lowres_idx, len(self.LowRes_timestamps) - 1)
+        
+        timestamp_str = str(self.LowRes_timestamps[lowres_idx])
+        return lowres_idx, timestamp_str
 
     def _get_HighRes(self, time_idx: int = 0):
         """Get normalized HighRes data at given time index."""
+        # For inference, we only have one HighRes timestep (initial condition)
+        # self.timestamp is a scalar, not an array
         inp_field = self.ds_HighRes.sel(
-            time=self.timestamps[time_idx],
+            time=self.timestamp,
             channel=self.kept_HighRes_channels
         ).HighRes.values.copy()
         
@@ -277,7 +343,9 @@ class InferenceDataset(StormCastDataset):
                 - state: HighRes data (normalized) - only input, no target
                 - timestamp: datetime of the data
         """
-        time_idx = min(idx, len(self.timestamps) - 1)
+        # For inference, we only have one HighRes timestep (initial condition)
+        # Always use index 0 for HighRes, but LowRes might have multiple timesteps
+        time_idx = 0
         
         lowres = self._get_LowRes(time_idx)
         highres = self._get_HighRes(time_idx)
