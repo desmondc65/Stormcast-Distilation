@@ -31,25 +31,26 @@ echo "開始資料前處理流程"
 echo "=========================================="
 
 # --- 前處理腳本路徑 ---
-to_zarr_script="/home/master/13/dczy/code/stormcast-ncdr/data_preprocessing/inference_data_preprocess/to_zarr.py"
+to_zarr_script="/work/jasjou71/code/stormcast-ncdr/data_preprocessing/inference_data_preprocess/to_zarr.py"
 
 # --- 輸入資料路徑 ---
-# GRIB 檔案路徑資料夾
-grib_folder="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/dynamic_global"
+# GRIB 檔案路徑資料夾 (低解析度全球模式資料，例如 EC-Pangu)
+grib_folder="/work/jasjou71/data_ncdr/Global/dynamic_global_test"
 
 # RWRF NetCDF 檔案路徑 (高解析度區域模式資料)
-rwrf_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_00:00:00"
+rwrf_path="/work/jasjou71/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_00:00:00"
 
 # QPEPRE 降水文字檔路徑
-qpepre_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Rain/qpepre_202512030000-202512030100_1_h.txt"
+qpepre_path="/work/jasjou71/data_ncdr/Rain/qpepre_202512030000-202512030100_1_h.txt"
 
 # --- 前處理輸出路徑 ---
 # Zarr 資料集輸出目錄
-preprocessing_output="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/output"
+preprocessing_output="/work/jasjou71/data_ncdr/output_test"
 
 # --- 時間戳記設定 ---
 # 輸入資料的時間戳記 (格式：YYYY-MM-DDTHH:MM:SS)
 input_timestamp="2025-12-03T00:00:00"
+
 
 # --- 區域範圍設定 ---
 # 網格大小 [高度, 寬度] (緯度, 經度方向的格點數)
@@ -63,6 +64,13 @@ lon_max=122.25
 # 緯度範圍 [最小, 最大]
 lat_min=21.6
 lat_max=25.6
+
+# --- 推論參數設定 ---
+# 預報步數 (例如：6 表示預報 t+1 到 t+6)
+n_steps=15
+
+# 每步時間間隔 (小時)
+dt_hours=1
 
 # --- 變數設定 ---
 # 低解析度變數 (必須與訓練資料一致)
@@ -83,7 +91,7 @@ overwrite_preprocessing="true"
 
 # --- 執行資料前處理 ---
 echo "執行 to_zarr.py..."
-echo "輸入 GRIB: ${grib_folder}"
+echo "輸入 GRIB 資料夾: ${grib_folder}"
 echo "輸入 RWRF: ${rwrf_path}"
 echo "輸入 QPEPRE: ${qpepre_path}"
 echo "輸出目錄: ${preprocessing_output}"
@@ -102,6 +110,8 @@ python ${to_zarr_script} \
     --highres-variables ${highres_vars} \
     --invariant-variables ${invariant_vars} \
     --resample-mode ${resample_mode} \
+    --n-steps ${n_steps} \
+    --dt-hours ${dt_hours} \
     $([ "${overwrite_preprocessing}" = "true" ] && echo "--overwrite")
 
 # 檢查前處理是否成功
@@ -124,31 +134,27 @@ echo "開始模型推論流程"
 echo "=========================================="
 
 # --- 推論腳本路徑 ---
-inference_script="/home/master/13/dczy/code/stormcast-ncdr/stormcast/inference_ncdr.py"
+inference_script="/work/jasjou71/code/stormcast-ncdr/stormcast/inference_ncdr.py"
 
-# --- 推論輸出設定 ---
-# 推論結果輸出根目錄
-inference_output_dir="/home/master/13/dczy/code/stormcast-ncdr/output/inference_results"
 
-# 實驗名稱
-experiment_name="stormcast_ncdr_inference"
-
-# 執行編號
-run_id="0"
+# 輸出資料夾路徑
+FINAL_OUTPUT_DIR="/work/jasjou71/data_ncdr/n_16_inference_output"
+# 確保該資料夾存在
+mkdir -p "${FINAL_OUTPUT_DIR}"
 
 # --- 模型 Checkpoint 路徑 ---
 # 迴歸模型權重檔案路徑
-regression_checkpoint="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_regression/regression_ncdr/run_0/checkpoints_regression/StormCastUNet.0.1000.mdlus"
+regression_checkpoint="/work/jasjou71/data_ncdr/6hr_checkpoints/StormCastUNet.0.3000.mdlus"
 
 # 擴散模型權重檔案路徑
-diffusion_checkpoint="/work/jasjou71/code/stormcast-ncdr/stormcast/nano5_output/test_1_month_diffusion/diffusion_ncdr/run_0/checkpoints_diffusion/EDMPrecond.0.1000.mdlus"
+diffusion_checkpoint="/work/jasjou71/data_ncdr/6hr_checkpoints/EDMPrecond.0.15000.mdlus"
 
-# --- 推論參數設定 ---
-# 預報步數 (例如：6 表示預報 t+1 到 t+6)
-n_steps=6
+# # --- 推論參數設定 ---
+# # 預報步數 (例如：6 表示預報 t+1 到 t+6)
+# n_steps=9
 
-# 每步時間間隔 (小時)
-dt_hours=1
+# # 每步時間間隔 (小時)
+# dt_hours=1
 
 # --- 資料集參數 ---
 # Zarr 資料集位置 (使用前處理輸出目錄)
@@ -182,13 +188,11 @@ echo "資料集位置: ${dataset_location}"
 echo "迴歸模型: ${regression_checkpoint}"
 echo "擴散模型: ${diffusion_checkpoint}"
 echo "預報步數: ${n_steps}"
-echo "輸出目錄: ${inference_output_dir}/${experiment_name}/${run_id}"
+echo "輸出目錄: ${FINAL_OUTPUT_DIR}"
 echo ""
 
 python ${inference_script} \
-    ++inference.outdir="${inference_output_dir}" \
-    ++inference.experiment_name="${experiment_name}" \
-    ++inference.run_id="${run_id}" \
+    ++inference.rundir="${FINAL_OUTPUT_DIR}" \
     ++inference.regression_checkpoint="${regression_checkpoint}" \
     ++inference.diffusion_checkpoint="${diffusion_checkpoint}" \
     ++inference.n_steps=${n_steps} \
@@ -223,7 +227,7 @@ echo ""
 # =============================================================================
 
 # 是否執行視覺化 (設為 true 以啟用)
-enable_visualization="false"
+enable_visualization="true"
 
 if [ "${enable_visualization}" = "true" ]; then
     echo "=========================================="
@@ -231,13 +235,13 @@ if [ "${enable_visualization}" = "true" ]; then
     echo "=========================================="
     
     # 視覺化腳本路徑
-    plotting_script="/home/master/13/dczy/code/stormcast-ncdr/data_preprocessing/inference_data_preprocess/prediction_plotting.py"
+    plotting_script="/work/jasjou71/code/stormcast-ncdr/data_preprocessing/inference_data_preprocess/prediction_plotting.py"
     
     # 推論輸出目錄 (包含 NetCDF 檔案)
-    inference_results_dir="${inference_output_dir}/${experiment_name}/${run_id}"
+    inference_results_dir="${FINAL_OUTPUT_DIR}/NetCDF"
     
     # 圖片儲存目錄
-    plot_save_dir="${inference_results_dir}/plots"
+    plot_save_dir="${FINAL_OUTPUT_DIR}/plots"
     
     # 是否包含輸入資料
     include_input="--include_input"
@@ -270,7 +274,7 @@ echo "=========================================="
 echo "推論流程全部完成"
 echo "=========================================="
 echo "前處理輸出: ${preprocessing_output}"
-echo "推論結果輸出: ${inference_output_dir}/${experiment_name}/${run_id}"
+echo "推論結果輸出: ${FINAL_OUTPUT_DIR}"
 echo ""
 echo "輸出檔案包含："
 echo "  - step_XX_YYYYMMDDHH.zarr  (Zarr 格式)"
