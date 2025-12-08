@@ -30,6 +30,7 @@ dependencies = [
     "tensorboard>=2.14",
     "setuptools>=77.0.3",
     "torch",
+    "cfgrib",
     "tqdm>=4.60.0",
     "psutil>=6.0.0",
     "pytest",
