@@ -230,12 +230,16 @@ def infer_timestamp_from_config(config: "InferenceConfig") -> Optional[datetime]
 class InferenceConfig:
     """Configuration for inference data preprocessing."""
     # Input paths
-    grib_path: Optional[pathlib.Path] = None
+    grib_folder: Optional[pathlib.Path] = None  # Folder containing multiple GRIB files
     rwrf_path: Optional[pathlib.Path] = None
     qpepre_path: Optional[pathlib.Path] = None
     
     # Output path
     output_path: pathlib.Path = field(default_factory=lambda: pathlib.Path("./output"))
+    
+    # Inference settings
+    n_steps: int = 12  # Number of forecast timesteps to prepare data for
+    dt_hours: int = 1  # Hours between each inference timestep
     
     # Domain configuration
     domain_size: Tuple[int, int] = (224, 128)  # (lat, lon)
@@ -259,10 +263,12 @@ class InferenceConfig:
         with open(path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         return cls(
-            grib_path=pathlib.Path(cfg["grib-path"]) if cfg.get("grib-path") else None,
+            grib_folder=pathlib.Path(cfg["grib-folder"]) if cfg.get("grib-folder") else None,
             rwrf_path=pathlib.Path(cfg["rwrf-path"]) if cfg.get("rwrf-path") else None,
             qpepre_path=pathlib.Path(cfg["qpepre-path"]) if cfg.get("qpepre-path") else None,
             output_path=pathlib.Path(cfg.get("output-path", "./output")),
+            n_steps=cfg.get("n-steps", 12),
+            dt_hours=cfg.get("dt-hours", 1),
             domain_size=tuple(cfg.get("domain-size", [224, 128])),
             lon_bounds=tuple(cfg.get("lon-bounds", [119.75, 122.25])),
             lat_bounds=tuple(cfg.get("lat-bounds", [21.6, 25.6])),
@@ -723,6 +729,37 @@ def write_invariants(
 
 
 # ---------------------------------------------------------------------------
+# GRIB file discovery and sorting
+# ---------------------------------------------------------------------------
+
+def discover_grib_files(grib_folder: pathlib.Path) -> List[Tuple[pathlib.Path, datetime]]:
+    """
+    Discover all .grb files in a folder and extract their timestamps.
+    
+    Returns:
+        List of (file_path, timestamp) tuples, sorted by timestamp
+    """
+    grib_files = []
+    
+    # Search for all .grb files recursively
+    for grb_file in grib_folder.rglob("*.grb"):
+        timestamp = extract_timestamp_from_path(grb_file)
+        if timestamp is not None:
+            grib_files.append((grb_file, timestamp))
+        else:
+            logger.warning(f"Could not extract timestamp from {grb_file}, skipping")
+    
+    # Sort by timestamp
+    grib_files.sort(key=lambda x: x[1])
+    
+    logger.info(f"Found {len(grib_files)} GRIB files in {grib_folder}")
+    for grb_file, ts in grib_files:
+        logger.info(f"  {ts}: {grb_file.name}")
+    
+    return grib_files
+
+
+# ---------------------------------------------------------------------------
 # Main processing function
 # ---------------------------------------------------------------------------
 
@@ -866,6 +903,172 @@ def process_single_hour(
     logger.info("Processing complete. Output written to: %s", output_base)
 
 
+def process_multi_timestep(
+    config: InferenceConfig,
+) -> None:
+    """
+    Process multiple GRIB files for multi-timestep inference.
+    
+    Creates a LowRes zarr with multiple timesteps (one per 6 hours),
+    HighRes zarr with single timestep (initial condition),
+    and invariants zarr.
+    
+    Args:
+        config: Processing configuration with grib_folder, n_steps, dt_hours
+    """
+    if not config.grib_folder or not config.grib_folder.exists():
+        raise ValueError(f"GRIB folder does not exist: {config.grib_folder}")
+    
+    # Discover all GRIB files in folder
+    grib_files = discover_grib_files(config.grib_folder)
+    if not grib_files:
+        raise ValueError(f"No GRIB files found in {config.grib_folder}")
+    
+    # Calculate how many LowRes timesteps we need
+    # Inference outputs are at hours 1, 2, 3, ..., n_steps (starting from +1)
+    # We need LowRes data up to and including hour n_steps
+    # For n_steps with dt_hours=1, we need one LowRes per 6 hours
+    # e.g., n_steps=6, dt=1 -> outputs at hours 1-6, need 2 LowRes files (0-5h, 6-11h)
+    # e.g., n_steps=12, dt=1 -> outputs at hours 1-12, need 3 LowRes files (0-5h, 6-11h, 12-17h)
+    lowres_dt = 6  # Low-resolution data timestep (6 hours)
+    max_forecast_hour = config.n_steps * config.dt_hours
+    # Add 1 because we need data for the transition at hour 6, 12, 18, etc.
+    num_lowres_needed = (max_forecast_hour // lowres_dt) + 1
+    
+    logger.info(f"Processing for {config.n_steps} inference steps with dt={config.dt_hours}h")
+    logger.info(f"Need {num_lowres_needed} LowRes timesteps (one per {lowres_dt}h)")
+    
+    if len(grib_files) < num_lowres_needed:
+        logger.warning(
+            f"Only {len(grib_files)} GRIB files found, but need {num_lowres_needed}. "
+            f"Will process available files only."
+        )
+        num_lowres_needed = len(grib_files)
+    
+    # Use first GRIB file timestamp as base
+    base_timestamp = grib_files[0][1]
+    logger.info(f"Base timestamp: {base_timestamp}")
+    
+    output_base = config.output_path
+    output_base.mkdir(parents=True, exist_ok=True)
+    
+    H, W = config.domain_size
+    
+    # Process all needed GRIB files for LowRes
+    logger.info("Processing LowRes data from GRIB files...")
+    lowres_channels = None
+    lowres_lon = None
+    lowres_lat = None
+    lowres_cube_list = []
+    time_coords = []
+    
+    for i in range(num_lowres_needed):
+        grib_path, grib_timestamp = grib_files[i]
+        logger.info(f"Processing LowRes timestep {i}: {grib_timestamp} from {grib_path.name}")
+        
+        lowres_data, lon_grid, lat_grid = process_grib_file(grib_path, config)
+        
+        if lowres_channels is None:
+            lowres_channels = [v for v in config.lowres_variables if v in lowres_data]
+            lowres_lon = lon_grid
+            lowres_lat = lat_grid
+        
+        # Build data cube for this timestep
+        lowres_slice = np.zeros((len(lowres_channels), H, W), dtype=np.float32)
+        for j, ch in enumerate(lowres_channels):
+            if ch in lowres_data:
+                lowres_slice[j] = lowres_data[ch]
+        
+        lowres_cube_list.append(lowres_slice)
+        time_coords.append(np.datetime64(grib_timestamp))
+    
+    # Stack all LowRes timesteps
+    lowres_cube = np.stack(lowres_cube_list, axis=0)  # [T, C, H, W]
+    time_coord = np.array(time_coords, dtype="datetime64[ns]")
+    
+    logger.info(f"LowRes cube shape: {lowres_cube.shape}")
+    
+    # Write LowRes zarr
+    lowres_dir = output_base / "LowRes"
+    lowres_dir.mkdir(parents=True, exist_ok=True)
+    write_zarr_store(
+        lowres_dir / "inference.zarr",
+        "LowRes",
+        lowres_cube,
+        time_coord,
+        lowres_channels,
+        lowres_lon,
+        lowres_lat,
+        overwrite=config.overwrite,
+    )
+    
+    # Compute and write LowRes stats
+    means = np.nanmean(lowres_cube, axis=(0, 2, 3))
+    stds = np.nanstd(lowres_cube, axis=(0, 2, 3))
+    stds = np.where(stds == 0, 1.0, stds)
+    write_stats(lowres_dir / "stats", means, stds, lowres_channels)
+    
+    # Process HighRes data (initial condition only)
+    if config.rwrf_path and config.rwrf_path.exists():
+        logger.info("Processing HighRes initial condition from RWRF...")
+        highres_data, highres_lon, highres_lat = process_rwrf_file(
+            config.rwrf_path, config, target_time=base_timestamp
+        )
+        
+        # Process QPEPRE if available
+        if config.qpepre_path and config.qpepre_path.exists():
+            qpepre_data, qpepre_lon, qpepre_lat = process_qpepre_file(config.qpepre_path, config)
+            highres_data["qpepre"] = qpepre_data
+            if highres_lon is None:
+                highres_lon = qpepre_lon
+                highres_lat = qpepre_lat
+        
+        # Build HighRes cube (single timestep)
+        highres_channels = [v for v in config.highres_variables if v in highres_data]
+        highres_cube = np.zeros((1, len(highres_channels), H, W), dtype=np.float32)
+        for i, ch in enumerate(highres_channels):
+            highres_cube[0, i] = highres_data[ch]
+        
+        # Write HighRes zarr
+        highres_dir = output_base / "HighRes"
+        highres_dir.mkdir(parents=True, exist_ok=True)
+        write_zarr_store(
+            highres_dir / "inference.zarr",
+            "HighRes",
+            highres_cube,
+            np.array([np.datetime64(base_timestamp)], dtype="datetime64[ns]"),
+            highres_channels,
+            highres_lon,
+            highres_lat,
+            overwrite=config.overwrite,
+        )
+        
+        # Compute and write HighRes stats
+        means = np.nanmean(highres_cube, axis=(0, 2, 3))
+        stds = np.nanstd(highres_cube, axis=(0, 2, 3))
+        stds = np.where(stds == 0, 1.0, stds)
+        write_stats(highres_dir / "stats", means, stds, highres_channels)
+        
+        # Extract and write invariants
+        invariant_data = extract_invariants(config.rwrf_path, config)
+        if invariant_data:
+            inv_array, inv_lon, inv_lat = invariant_data
+            write_invariants(
+                output_base / "invariants",
+                inv_array,
+                config.invariant_variables,
+                inv_lon,
+                inv_lat,
+                overwrite=config.overwrite,
+            )
+    else:
+        logger.warning("RWRF path not specified, skipping HighRes and invariants")
+    
+    logger.info("Multi-timestep processing complete. Output written to: %s", output_base)
+    logger.info(f"LowRes: {num_lowres_needed} timesteps covering {num_lowres_needed * lowres_dt} hours")
+    logger.info(f"HighRes: 1 timestep (initial condition)")
+
+
 def extract_invariants(
     rwrf_path: pathlib.Path,
     config: InferenceConfig,
@@ -944,9 +1147,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to YAML configuration file",
     )
     parser.add_argument(
-        "--grib-path",
+        "--grib-folder",
         type=str,
-        help="Path to GRIB file (low-resolution input)",
+        help="Path to folder containing GRIB files (low-resolution input)",
     )
     parser.add_argument(
         "--rwrf-path",
@@ -961,14 +1164,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output", "-o",
         type=str,
-        default="./output",
-        help="Output directory for Zarr stores",
+        default=None,
+        help="Output directory for Zarr stores (if not specified, uses value from config file)",
     )
     parser.add_argument(
         "--output-name",
         type=str,
         default="inference",
         help="Base name for output Zarr files",
+    )
+    parser.add_argument(
+        "--n-steps",
+        type=int,
+        default=12,
+        help="Number of forecast timesteps to prepare data for (default: 12)",
+    )
+    parser.add_argument(
+        "--dt-hours",
+        type=int,
+        default=1,
+        help="Hours between each inference timestep (default: 1)",
     )
     parser.add_argument(
         "--timestamp",
@@ -1051,14 +1266,18 @@ def main():
         config = InferenceConfig()
     
     # Override with CLI args
-    if args.grib_path:
-        config.grib_path = pathlib.Path(args.grib_path)
+    if args.grib_folder:
+        config.grib_folder = pathlib.Path(args.grib_folder)
     if args.rwrf_path:
         config.rwrf_path = pathlib.Path(args.rwrf_path)
     if args.qpepre_path:
         config.qpepre_path = pathlib.Path(args.qpepre_path)
-    if args.output:
+    if args.output is not None:
         config.output_path = pathlib.Path(args.output)
+    if args.n_steps:
+        config.n_steps = args.n_steps
+    if args.dt_hours:
+        config.dt_hours = args.dt_hours
     if args.domain_size:
         config.domain_size = tuple(args.domain_size)
     if args.lon_bounds:
@@ -1080,17 +1299,23 @@ def main():
     
     config.overwrite = args.overwrite
     
-    # Parse timestamp
-    timestamp = None
-    if args.timestamp:
-        timestamp = datetime.fromisoformat(args.timestamp)
-    
-    # Process
-    process_single_hour(
-        config,
-        timestamp=timestamp,
-        output_name=args.output_name,
-    )
+    # Decide whether to use multi-timestep processing
+    if config.grib_folder:
+        logger.info("Using multi-timestep processing mode")
+        process_multi_timestep(config)
+    else:
+        logger.info("Using single-timestep processing mode (legacy)")
+        # Parse timestamp
+        timestamp = None
+        if args.timestamp:
+            timestamp = datetime.fromisoformat(args.timestamp)
+        
+        # Process single timestep
+        process_single_hour(
+            config,
+            timestamp=timestamp,
+            output_name=args.output_name,
+        )
 
 
 if __name__ == "__main__":
