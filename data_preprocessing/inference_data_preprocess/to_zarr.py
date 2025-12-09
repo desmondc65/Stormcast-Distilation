@@ -179,7 +179,23 @@ def extract_timestamp_from_path(path: pathlib.Path) -> Optional[datetime]:
     """
     path_str = str(path)
     
-    # Pattern 1: WRF output format - wrfout_d02_2025-12-03_00:00:00
+    # Pattern 1.1: EC-pangu Forecast format with offset (Base Time + Offset Hours)
+    # e.g., EC-pangu_2025120300-0.grb, EC-pangu_2025120300-6.grb, EC-pangu_2025120300-100.grb
+    # Regex breakdown:
+    #   EC-pangu_       : Literal prefix
+    #   (\d{4})         : Year
+    #   (\d{2})         : Month
+    #   (\d{2})         : Day
+    #   (\d{2})         : Hour (Base)
+    #   -               : Separator
+    #   (\d+)           : Offset hours (1 or more digits)
+    match = re.search(r'EC-pangu_(\d{4})(\d{2})(\d{2})(\d{2})-(\d+)', path_str)
+    if match:
+        year, month, day, hour, offset_hours = map(int, match.groups())
+        base_time = datetime(year, month, day, hour)
+        return base_time + timedelta(hours=offset_hours)
+    
+    # Pattern 1.2: WRF output format - wrfout_d02_2025-12-03_00:00:00
     match = re.search(r'(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2}):(\d{2})', path_str)
     if match:
         year, month, day, hour, minute, second = map(int, match.groups())
