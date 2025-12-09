@@ -71,6 +71,8 @@ def save_multistep_output(
         "t2m": 167,     # 2 metre temperature
         "u10": 165,     # 10 metre U wind component
         "v10": 166,     # 10 metre V wind component
+        "qpepre": 228,  # qpepre
+        
     }
     
     zarr_paths = []
@@ -108,7 +110,7 @@ def save_multistep_output(
             # --- Apply GRIB Codes ---
             if ch in CHANNEL_TO_GRIB_ID:
                 da.attrs['GRIB_paramId'] = CHANNEL_TO_GRIB_ID[ch]
-                da.attrs['GRIB_shortName'] = ch
+                # da.attrs['GRIB_shortName'] = ch
                 # Optional: Add units if known (helps some readers)
                 if ch == "t2m": da.attrs['units'] = "K"
                 if ch == "qpepre": da.attrs['units'] = "m" 
@@ -119,19 +121,22 @@ def save_multistep_output(
                 da.attrs['GRIB_paramId'] = 167
             
             ds[ch] = da
+        # ini_time
+        ini_time = np.datetime_as_string(timestamp - np.timedelta64(step_num, 'h'), unit='h').replace('-', '').replace('T', '')[:10]
+        #ini_time = (datetime.fromisoformat(timestamp.replace("Z","").replace("000000000","")) - timedelta(hours=int(step_num))).strftime("%Y%m%d%H")
 
         # Save to Zarr/NetCDF (standard)
-        zarr_path = os.path.join(output_dir, "zarr", f"step_{step_num:02d}_{ts_str}.zarr")
+        zarr_path = os.path.join(output_dir, "zarr", f"step_{step_num:04d}_{ts_str}.zarr")
         ds.to_zarr(zarr_path, mode="w", consolidated=True)
         zarr_paths.append(zarr_path)
 
-        nc_path = os.path.join(output_dir, "NetCDF", f"step_{step_num:02d}_{ts_str}.nc")
+        nc_path = os.path.join(output_dir, "NetCDF", f"StormCast_{ini_time}_{step_num:04d}_{ts_str}.nc")
         os.makedirs(os.path.dirname(nc_path), exist_ok=True)
         ds.to_netcdf(nc_path, format="NETCDF4")
         nc_paths.append(nc_path)
 
         # --- Save to GRIB (Flip to North-to-South) ---
-        grb_path = os.path.join(output_dir, "GRIB", f"step_{step_num:02d}_{ts_str}.grb")
+        grb_path = os.path.join(output_dir, "GRIB", f"StormCast_{step_num:04d}_{ts_str}.grb")
         os.makedirs(os.path.dirname(grb_path), exist_ok=True)
         
         # Flip the dataset so latitude decreases (North -> South)
@@ -146,6 +151,7 @@ def save_multistep_output(
         dy = abs(ds_grib.latitude[1, 0] - ds_grib.latitude[0, 0]).item()
         
         safe_grib_keys = {
+            'centre': 98,
             'gridType': 'regular_ll',
             'stepType': 'instant',
             'Ni': ds_grib.sizes['x'], 
@@ -182,7 +188,7 @@ def save_multistep_output(
         for i, ch in enumerate(channels):
             ds_input[ch] = (["time", "y", "x"], input_state[np.newaxis, i, :, :])
         
-        ds_input.to_netcdf(os.path.join(output_dir, "NetCDF", f"step_00_input_{ts_str}.nc"))
+        ds_input.to_netcdf(os.path.join(output_dir, "NetCDF", f"StormCast_00_input_{ts_str}.nc"))
         ds_input.to_zarr(os.path.join(output_dir, "zarr", f"step_00_input_{ts_str}.zarr"), mode="w", consolidated=True)
     
     return zarr_paths, nc_paths, grb_paths
@@ -363,6 +369,7 @@ def main(cfg: DictConfig) -> None:
             highres_source = f"predicted from hour {prev_hour} (autoregressive)"
         
         logger0.info(f"Step {step_num}/{n_steps} (predicting hour {forecast_hour}):")
+        # logger0.info(f"ini_time={ini_time}")###test
         logger0.info(f"  LowRes input (Global): timestep {lowres_idx} [{lowres_ts}]")
         logger0.info(f"  HighRes input: {highres_source}")
         
