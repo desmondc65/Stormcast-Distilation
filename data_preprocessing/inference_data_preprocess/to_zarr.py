@@ -256,6 +256,7 @@ class InferenceConfig:
     # Inference settings
     n_steps: int = 12  # Number of forecast timesteps to prepare data for
     dt_hours: int = 1  # Hours between each inference timestep
+    grib_base_time: Optional[datetime] = None  # GRIB forecast base time (if different from valid time)
     
     # Domain configuration
     domain_size: Tuple[int, int] = (224, 128)  # (lat, lon)
@@ -278,6 +279,12 @@ class InferenceConfig:
             raise RuntimeError("PyYAML is required to load config from file")
         with open(path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
+        
+        # Parse grib_base_time if provided
+        grib_base_time = None
+        if cfg.get("grib-base-time"):
+            grib_base_time = datetime.fromisoformat(cfg["grib-base-time"])
+        
         return cls(
             grib_folder=pathlib.Path(cfg["grib-folder"]) if cfg.get("grib-folder") else None,
             rwrf_path=pathlib.Path(cfg["rwrf-path"]) if cfg.get("rwrf-path") else None,
@@ -285,6 +292,7 @@ class InferenceConfig:
             output_path=pathlib.Path(cfg.get("output-path", "./output")),
             n_steps=cfg.get("n-steps", 12),
             dt_hours=cfg.get("dt-hours", 1),
+            grib_base_time=grib_base_time,
             domain_size=tuple(cfg.get("domain-size", [224, 128])),
             lon_bounds=tuple(cfg.get("lon-bounds", [119.75, 122.25])),
             lat_bounds=tuple(cfg.get("lat-bounds", [21.6, 25.6])),
@@ -748,9 +756,17 @@ def write_invariants(
 # GRIB file discovery and sorting
 # ---------------------------------------------------------------------------
 
-def discover_grib_files(grib_folder: pathlib.Path) -> List[Tuple[pathlib.Path, datetime]]:
+def discover_grib_files(
+    grib_folder: pathlib.Path, 
+    base_time: Optional[datetime] = None
+) -> List[Tuple[pathlib.Path, datetime]]:
     """
     Discover all .grb files in a folder and extract their timestamps.
+    
+    Args:
+        grib_folder: Folder containing GRIB files
+        base_time: Optional base time for forecast files. If provided, will extract
+                   offset from filename and calculate valid time as base_time + offset.
     
     Returns:
         List of (file_path, timestamp) tuples, sorted by timestamp
@@ -759,16 +775,33 @@ def discover_grib_files(grib_folder: pathlib.Path) -> List[Tuple[pathlib.Path, d
     
     # Search for all .grb files recursively
     for grb_file in grib_folder.rglob("*.grb"):
-        timestamp = extract_timestamp_from_path(grb_file)
-        if timestamp is not None:
-            grib_files.append((grb_file, timestamp))
+        if base_time is not None:
+            # Extract offset from filename (e.g., EC-pangu_2025120300-12.grb -> 12)
+            match = re.search(r'-(\d+)\.grb$', grb_file.name)
+            if match:
+                offset_hours = int(match.group(1))
+                timestamp = base_time + timedelta(hours=offset_hours)
+                logger.debug(f"  {grb_file.name} -> base={base_time} + {offset_hours}h = {timestamp}")
+            else:
+                # Fallback to extracting from path
+                timestamp = extract_timestamp_from_path(grb_file)
+                if not timestamp:
+                    logger.warning(f"Could not extract timestamp from {grb_file}")
+                    continue
         else:
-            logger.warning(f"Could not extract timestamp from {grb_file}, skipping")
+            timestamp = extract_timestamp_from_path(grb_file)
+            if not timestamp:
+                logger.warning(f"Could not extract timestamp from {grb_file}, skipping")
+                continue
+        
+        grib_files.append((grb_file, timestamp))
     
     # Sort by timestamp
     grib_files.sort(key=lambda x: x[1])
     
     logger.info(f"Found {len(grib_files)} GRIB files in {grib_folder}")
+    if base_time:
+        logger.info(f"Using base time: {base_time}")
     for grb_file, ts in grib_files:
         logger.info(f"  {ts}: {grb_file.name}")
     
@@ -921,6 +954,7 @@ def process_single_hour(
 
 def process_multi_timestep(
     config: InferenceConfig,
+    timestamp: Optional[datetime] = None,
 ) -> None:
     """
     Process multiple GRIB files for multi-timestep inference.
@@ -931,12 +965,13 @@ def process_multi_timestep(
     
     Args:
         config: Processing configuration with grib_folder, n_steps, dt_hours
+        timestamp: Initial condition timestamp for RWRF/QPEPRE data. If None, uses first GRIB timestamp.
     """
     if not config.grib_folder or not config.grib_folder.exists():
         raise ValueError(f"GRIB folder does not exist: {config.grib_folder}")
     
     # Discover all GRIB files in folder
-    grib_files = discover_grib_files(config.grib_folder)
+    grib_files = discover_grib_files(config.grib_folder, base_time=config.grib_base_time)
     if not grib_files:
         raise ValueError(f"No GRIB files found in {config.grib_folder}")
     
@@ -961,9 +996,38 @@ def process_multi_timestep(
         )
         num_lowres_needed = len(grib_files)
     
-    # Use first GRIB file timestamp as base
-    base_timestamp = grib_files[0][1]
-    logger.info(f"Base timestamp: {base_timestamp}")
+    # Determine base timestamp for RWRF/QPEPRE
+    if timestamp is not None:
+        base_timestamp = timestamp
+        logger.info(f"Using provided timestamp as initial condition: {base_timestamp}")
+        
+        # Find the starting GRIB file index that matches or is closest to base_timestamp
+        start_idx = 0
+        for idx, (grib_path, grib_ts) in enumerate(grib_files):
+            if grib_ts >= base_timestamp:
+                start_idx = idx
+                break
+        
+        if grib_files[start_idx][1] != base_timestamp:
+            logger.warning(
+                f"Exact match for timestamp {base_timestamp} not found. "
+                f"Using closest GRIB file: {grib_files[start_idx][0].name} at {grib_files[start_idx][1]}"
+            )
+    else:
+        start_idx = 0
+        base_timestamp = grib_files[0][1]
+        logger.info(f"Using first GRIB timestamp as base: {base_timestamp}")
+    
+    # Check if we have enough GRIB files from start_idx
+    available_from_start = len(grib_files) - start_idx
+    if available_from_start < num_lowres_needed:
+        logger.warning(
+            f"Only {available_from_start} GRIB files available from {base_timestamp}, "
+            f"but need {num_lowres_needed}. Will process available files only."
+        )
+        num_lowres_needed = available_from_start
+    
+    logger.info(f"Starting from GRIB file index {start_idx}: {grib_files[start_idx][0].name}")
     
     output_base = config.output_path
     output_base.mkdir(parents=True, exist_ok=True)
@@ -979,7 +1043,8 @@ def process_multi_timestep(
     time_coords = []
     
     for i in range(num_lowres_needed):
-        grib_path, grib_timestamp = grib_files[i]
+        grib_idx = start_idx + i
+        grib_path, grib_timestamp = grib_files[grib_idx]
         logger.info(f"Processing LowRes timestep {i}: {grib_timestamp} from {grib_path.name}")
         
         lowres_data, lon_grid, lat_grid = process_grib_file(grib_path, config)
@@ -1208,6 +1273,15 @@ def build_parser() -> argparse.ArgumentParser:
              "Has highest priority - overrides timestamp inferred from file paths.",
     )
     parser.add_argument(
+        "--grib-base-time",
+        type=str,
+        help="GRIB forecast base time in ISO format (e.g., 2025-12-03T00:00:00). "
+             "Use this when GRIB files are named with base time + offset (e.g., EC-pangu_2025120300-12.grb). "
+             "The script will look for files matching: basename-{offset}.grb where offset = (valid_time - base_time) / dt_hours. "
+             "Example: If base time is 2025-12-03T00:00:00 and you need data for 2025-12-03T12:00:00, "
+             "it will look for EC-pangu_2025120300-12.grb",
+    )
+    parser.add_argument(
         "--domain-size",
         type=int,
         nargs=2,
@@ -1294,6 +1368,8 @@ def main():
         config.n_steps = args.n_steps
     if args.dt_hours:
         config.dt_hours = args.dt_hours
+    if hasattr(args, 'grib_base_time') and args.grib_base_time:
+        config.grib_base_time = datetime.fromisoformat(args.grib_base_time)
     if args.domain_size:
         config.domain_size = tuple(args.domain_size)
     if args.lon_bounds:
@@ -1315,16 +1391,17 @@ def main():
     
     config.overwrite = args.overwrite
     
+    # Parse timestamp (used for RWRF/QPEPRE initial condition in multi-timestep mode)
+    timestamp = None
+    if args.timestamp:
+        timestamp = datetime.fromisoformat(args.timestamp)
+    
     # Decide whether to use multi-timestep processing
     if config.grib_folder:
         logger.info("Using multi-timestep processing mode")
-        process_multi_timestep(config)
+        process_multi_timestep(config, timestamp=timestamp)
     else:
         logger.info("Using single-timestep processing mode (legacy)")
-        # Parse timestamp
-        timestamp = None
-        if args.timestamp:
-            timestamp = datetime.fromisoformat(args.timestamp)
         
         # Process single timestep
         process_single_hour(
