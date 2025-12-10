@@ -56,7 +56,15 @@ preprocessing_output="/work/jasjou71/data_ncdr/output_test"
 
 # --- 時間戳記設定 ---
 # 輸入資料的時間戳記 (格式：YYYY-MM-DDTHH:MM:SS)
+# 這是 RWRF 和 QPEPRE 資料的實際時間戳記
 input_timestamp="2025-12-03T00:00:00"
+
+# GRIB 預報基準時間 (選用，格式：YYYY-MM-DDTHH:MM:SS)
+# 當 GRIB 檔案以「基準時間-預報時數」格式命名時使用
+# 例如：EC-pangu_2025120300-12.grb 表示基準時間 2025-12-03T00:00:00，預報 12 小時後
+# 如果設定此參數，腳本會自動計算每個時間步所需的預報時數
+# 留空則從檔名自動推斷完整時間戳記
+grib_base_time=""  # 例如："2025-12-03T00:00:00"
 
 
 # --- 區域範圍設定 ---
@@ -111,6 +119,7 @@ torchrun --standalone --nnodes=${SLURM_JOB_NUM_NODES} --nproc_per_node=${NPROC} 
     --qpepre-path "${qpepre_path}" \
     --output "${preprocessing_output}" \
     --timestamp "${input_timestamp}" \
+    --grib-base-time "${grib_base_time}" \
     --domain-size ${domain_height} ${domain_width} \
     --lon-bounds ${lon_min} ${lon_max} \
     --lat-bounds ${lat_min} ${lat_max} \
