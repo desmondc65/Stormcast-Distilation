@@ -35,13 +35,13 @@ to_zarr_script="/home/master/13/dczy/code/stormcast-ncdr/data_preprocessing/infe
 
 # --- 輸入資料路徑 ---
 # GRIB 檔案路徑資料夾 (低解析度全球模式資料，例如 EC-Pangu)
-grib_folder="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/dynamic_global"
+grib_folder="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Global/2025120300"
 
 # RWRF NetCDF 檔案路徑 (高解析度區域模式資料)
-rwrf_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_00:00:00"
+rwrf_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/RWRF/2025120300/wrfout_d02_2025-12-03_06:00:00"
 
 # QPEPRE 降水文字檔路徑
-qpepre_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Rain/qpepre_202512030000-202512030100_1_h.txt"
+qpepre_path="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/data_ncdr/Rain/qpepre_202512030600-202512030700_1_h.txt"
 
 # --- 前處理輸出路徑 ---
 # Zarr 資料集輸出目錄
@@ -49,8 +49,14 @@ preprocessing_output="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_na
 
 # --- 時間戳記設定 ---
 # 輸入資料的時間戳記 (格式：YYYY-MM-DDTHH:MM:SS)
-input_timestamp="2025-12-03T00:00:00"
+input_timestamp="2025-12-03T06:00:00"
 
+# GRIB 預報基準時間 (選用，格式：YYYY-MM-DDTHH:MM:SS)
+# 當 GRIB 檔案以「基準時間-預報時數」格式命名時使用
+# 例如：EC-pangu_2025120300-12.grb 表示基準時間 2025-12-03T00:00:00，預報 12 小時後
+# 如果設定此參數，腳本會自動計算每個時間步所需的預報時數
+# 留空則從檔名自動推斷完整時間戳記
+grib_base_time="2025-12-03T00:00:00"  # 例如："2025-12-03T00:00:00"
 
 # --- 區域範圍設定 ---
 # 網格大小 [高度, 寬度] (緯度, 經度方向的格點數)
@@ -67,7 +73,7 @@ lat_max=25.6
 
 # --- 推論參數設定 ---
 # 預報步數 (例如：6 表示預報 t+1 到 t+6)
-n_steps=15
+n_steps=7
 
 # 每步時間間隔 (小時)
 dt_hours=1
@@ -103,6 +109,7 @@ python ${to_zarr_script} \
     --qpepre-path "${qpepre_path}" \
     --output "${preprocessing_output}" \
     --timestamp "${input_timestamp}" \
+    --grib-base-time "${grib_base_time}" \
     --domain-size ${domain_height} ${domain_width} \
     --lon-bounds ${lon_min} ${lon_max} \
     --lat-bounds ${lat_min} ${lat_max} \
@@ -138,7 +145,7 @@ inference_script="/home/master/13/dczy/code/stormcast-ncdr/stormcast/inference_n
 
 
 # 輸出資料夾路徑
-FINAL_OUTPUT_DIR="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/n_16_output_test8"
+FINAL_OUTPUT_DIR="/home/master/13/dczy/code/stormcast-ncdr/data/stormcast_nano5_inference/n_16_output_test18"
 
 # 確保該資料夾存在
 mkdir -p "${FINAL_OUTPUT_DIR}"
