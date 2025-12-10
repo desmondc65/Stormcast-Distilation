@@ -171,7 +171,7 @@ def extract_timestamp_from_path(path: pathlib.Path) -> Optional[datetime]:
     Supports formats:
     - EC-pangu_2025120300-0.grb (YYYYMMDDHH)
     - wrfout_d02_2025-12-03_00:00:00 (YYYY-MM-DD_HH:MM:SS)
-    - qpepre_202512030000-202512030100_1_h.txt (YYYYMMDDHHMM)
+    - qpepre_202512030000-202512030100_1_h.txt (uses END time: 202512030100)
     - Directory names like 2025120300
     
     Returns:
@@ -207,8 +207,9 @@ def extract_timestamp_from_path(path: pathlib.Path) -> Optional[datetime]:
         year, month, day, hour = map(int, match.groups())
         return datetime(year, month, day, hour)
     
-    # Pattern 3: QPEPRE format - 202512030000 (YYYYMMDDHHMM)
-    match = re.search(r'qpepre_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})', path_str)
+    # Pattern 3: QPEPRE format - qpepre_YYYYMMDDHHMM-YYYYMMDDHHMM_1_h.txt
+    # Extract the END time (second timestamp) to match the valid time of the data
+    match = re.search(r'qpepre_\d{12}-(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})', path_str)
     if match:
         year, month, day, hour, minute = map(int, match.groups())
         return datetime(year, month, day, hour, minute)
