@@ -35,7 +35,7 @@ def load_prediction_files(output_dir: str) -> tuple:
         Tuple of (list of xarray datasets sorted by step, list of step numbers)
     """
     # Find all prediction nc files (excluding input reference)
-    nc_files = sorted(glob.glob(os.path.join(output_dir, "step_*.nc")))
+    nc_files = sorted(glob.glob(os.path.join(output_dir, "*.nc")))
     
     # Separate input and prediction files
     input_files = [f for f in nc_files if "input" in os.path.basename(f)]
