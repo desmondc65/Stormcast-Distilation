@@ -18,7 +18,7 @@ from collections.abc import Iterable
 
 import torch
 from physicsnemo.models import Module
-from physicsnemo.models.diffusion import EDMPrecond, StormCastUNet
+from physicsnemo.models.diffusion import ConsistencyPrecond, EDMPrecond, StormCastUNet
 from physicsnemo.utils.diffusion import deterministic_sampler
 
 
@@ -44,6 +44,17 @@ def get_preconditioned_architecture(
     """
     if name == "diffusion":
         return EDMPrecond(
+            img_resolution=img_resolution,
+            img_channels=target_channels + conditional_channels,
+            img_out_channels=target_channels,
+            model_type="SongUNet",
+            channel_mult=[1, 2, 2, 2, 2],
+            attn_resolutions=attn_resolutions,
+            additive_pos_embed=spatial_embedding,
+        )
+
+    elif name == "consistency":
+        return ConsistencyPrecond(
             img_resolution=img_resolution,
             img_channels=target_channels + conditional_channels,
             img_out_channels=target_channels,
@@ -144,6 +155,26 @@ def regression_model_forward(
     )
 
     return model(x)
+
+
+def consistency_model_forward(model, condition, shape, sigma_max=80.0):
+    """1-step generation using a consistency model.
+
+    Samples x ~ N(0, sigma_max^2 I) and evaluates f(x, sigma_max) in a
+    single forward pass.
+
+    Args:
+        model: ConsistencyPrecond model
+        condition: conditioning tensor [B, C_cond, H, W]
+        shape: shape of the output tensor [B, C, H, W]
+        sigma_max: maximum noise level
+
+    Returns:
+        Generated samples [B, C, H, W]
+    """
+    x = torch.randn(*shape, device=condition.device, dtype=condition.dtype) * sigma_max
+    sigma = torch.full([x.shape[0]], sigma_max, device=x.device, dtype=x.dtype)
+    return model(x, sigma, condition=condition)
 
 
 def regression_loss_fn(

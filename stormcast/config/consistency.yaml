@@ -13,28 +13,36 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ruff: noqa
-from .utils import weight_init
-from .layers import (
-    AttentionOp,
-    Conv2d,
-    FourierEmbedding,
-    GroupNorm,
-    Linear,
-    PositionalEmbedding,
-    UNetBlock,
-)
-from .song_unet import SongUNet, SongUNetPosEmbd, SongUNetPosLtEmbd
-from .dhariwal_unet import DhariwalUNet
-from .unet import UNet, StormCastUNet
-from .preconditioning import (
-    ConsistencyPrecond,
-    EDMPrecond,
-    EDMPrecondSuperResolution,
-    EDMPrecondSR,
-    VEPrecond,
-    VPPrecond,
-    iDDPMPrecond,
-    VEPrecond_dfsr_cond,
-    VEPrecond_dfsr,
-)
+
+# Defaults
+defaults:
+
+  # Dataset
+  - dataset/era5_rwrf_qpepre
+
+  # Model
+  - model/consistency
+
+  # Training
+  - training/consistency
+
+  # Sampler
+  - sampler/edm_deterministic
+
+  # Hydra
+  - hydra/default
+
+  - _self_
+
+# Consistency distillation specific overrides
+model:
+  use_regression_net: True
+  regression_weights: ""   # Set path to pretrained regression checkpoint
+  teacher_weights: ""      # Set path to pretrained EDM diffusion checkpoint
+  spatial_pos_embed: True
+
+training:
+  loss: 'consistency'
+  total_train_steps: 400000
+  checkpoint_freq: 5000
+  validation_freq: 500
