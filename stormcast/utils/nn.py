@@ -64,6 +64,17 @@ def get_preconditioned_architecture(
             additive_pos_embed=spatial_embedding,
         )
 
+    elif name == "dmd":
+        return EDMPrecond(
+            img_resolution=img_resolution,
+            img_channels=target_channels + conditional_channels,
+            img_out_channels=target_channels,
+            model_type="SongUNet",
+            channel_mult=[1, 2, 2, 2, 2],
+            attn_resolutions=attn_resolutions,
+            additive_pos_embed=spatial_embedding,
+        )
+
     elif name == "regression":
         return StormCastUNet(
             img_resolution=img_resolution,
@@ -175,6 +186,27 @@ def consistency_model_forward(model, condition, shape, sigma_max=80.0):
     x = torch.randn(*shape, device=condition.device, dtype=condition.dtype) * sigma_max
     sigma = torch.full([x.shape[0]], sigma_max, device=x.device, dtype=x.dtype)
     return model(x, sigma, condition=condition)
+
+
+def dmd_model_forward(model, condition, shape, sigma_max=80.0):
+    """1-step generation using a DMD-distilled EDMPrecond model.
+
+    Samples z ~ N(0, sigma_max^2 I) and evaluates the denoiser D(z, sigma_max)
+    in a single forward pass. The model has been trained via Distribution
+    Matching Distillation to produce high-quality samples in one step.
+
+    Args:
+        model: EDMPrecond model (DMD-distilled)
+        condition: conditioning tensor [B, C_cond, H, W]
+        shape: shape of the output tensor [B, C, H, W]
+        sigma_max: maximum noise level
+
+    Returns:
+        Generated samples [B, C, H, W]
+    """
+    z = torch.randn(*shape, device=condition.device, dtype=condition.dtype) * sigma_max
+    sigma = torch.full([z.shape[0]], sigma_max, device=z.device, dtype=z.dtype)
+    return model(z, sigma, condition=condition)
 
 
 def progressive_distilled_forward(

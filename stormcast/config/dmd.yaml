@@ -14,7 +14,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .consistency_loss import ConsistencyDistillationLoss
-from .dmd_loss import DMDLoss
-from .loss import tEDMResidualLoss
-from .progressive_distillation_loss import ProgressiveDistillationLoss
+# Defaults
+defaults:
+
+  # Dataset
+  - dataset/era5_rwrf_qpepre
+
+  # Model
+  - model/dmd
+
+  # Training
+  - training/dmd
+
+  # Sampler
+  - sampler/edm_deterministic
+
+  # Hydra
+  - hydra/default
+
+  - _self_
+
+# DMD distillation specific overrides
+model:
+  use_regression_net: True
+  regression_weights: ""   # Set path to pretrained regression checkpoint
+  teacher_weights: ""      # Set path to pretrained EDM diffusion checkpoint
+  spatial_pos_embed: True
+
+training:
+  loss: 'dmd'
+  total_train_steps: 400000
+  checkpoint_freq: 5000
+  validation_freq: 500
