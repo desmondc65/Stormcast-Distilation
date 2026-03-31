@@ -14,31 +14,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Train a consistency model via Consistency Distillation from a pre-trained EDM teacher."""
+"""Train a distilled diffusion model via Progressive Distillation (Salimans & Ho, 2022).
+
+Iteratively halves the sampling steps of a pre-trained EDM teacher.
+"""
 
 import os
+import glob
 
 import hydra
 import torch
 import wandb
-import glob
 from omegaconf import DictConfig, OmegaConf
 from physicsnemo.distributed import DistributedManager
 
-from utils.trainer_consistency import consistency_training_loop
+from utils.trainer_progressive import progressive_distillation_loop
 
 
-@hydra.main(version_base=None, config_path="config", config_name="consistency")
+@hydra.main(version_base=None, config_path="config", config_name="progressive")
 def main(cfg: DictConfig) -> None:
-    """Train a consistency model via distillation from a pre-trained EDM diffusion teacher."""
+    """Progressive Distillation entry point."""
 
-    # Initialize
     DistributedManager.initialize()
     dist = DistributedManager()
 
-    # Print all config options
     if dist.rank == 0:
-        print("Consistency Distillation configuration:")
+        print("Progressive Distillation configuration:")
         print(OmegaConf.to_yaml(cfg))
 
     # Random seed
@@ -47,11 +48,11 @@ def main(cfg: DictConfig) -> None:
         torch.distributed.broadcast(seed, src=0)
         cfg.training.seed = int(seed)
 
-    # Setup wandb, if enabled
+    # W&B setup
     wandb_resume = False
     os.makedirs(cfg.training.rundir, exist_ok=True)
     training_states = glob.glob(
-        os.path.join(cfg.training.rundir, "checkpoints_consistency/checkpoint*.pt")
+        os.path.join(cfg.training.rundir, "phase_*/checkpoints/checkpoint*.pt")
     )
     if training_states:
         wandb_resume = True
@@ -68,8 +69,7 @@ def main(cfg: DictConfig) -> None:
             mode=cfg.training.wandb_mode,
         )
 
-    # Train
-    consistency_training_loop(cfg)
+    progressive_distillation_loop(cfg)
 
 
 # ----------------------------------------------------------------------------

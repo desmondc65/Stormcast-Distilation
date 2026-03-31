@@ -14,6 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .consistency_loss import ConsistencyDistillationLoss
-from .loss import tEDMResidualLoss
-from .progressive_distillation_loss import ProgressiveDistillationLoss
+
+# Model name
+model_name: 'progressive'
+
+# Model conditions (same as diffusion)
+regression_conditions: ["state", "background", "invariant"]
+diffusion_conditions: ["state", "regression", "invariant"]
+
+# Model hyperparameters
+spatial_pos_embed: False
+P_mean: -1.2
+attn_resolutions: []
+
+# Pretrained regression model
+regression_weights: ""
+
+# Pretrained EDM teacher model (frozen during distillation)
+teacher_weights: ""
+
+# EDM parameters (shared by teacher and student)
+sigma_min: 0.002
+sigma_max: 80.0
+sigma_data: 0.5

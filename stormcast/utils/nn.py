@@ -177,6 +177,37 @@ def consistency_model_forward(model, condition, shape, sigma_max=80.0):
     return model(x, sigma, condition=condition)
 
 
+def progressive_distilled_forward(
+    model, condition, shape, num_steps=4, sigma_min=0.002, sigma_max=80.0, rho=7.0
+):
+    """Inference with a progressively distilled EDM model.
+
+    Uses the standard deterministic sampler with reduced step count. The model
+    is a regular EDMPrecond whose weights were trained via progressive
+    distillation to produce high-quality samples in fewer steps.
+
+    Args:
+        model: EDMPrecond model (distilled student)
+        condition: conditioning tensor [B, C_cond, H, W]
+        shape: shape of the output tensor [B, C, H, W]
+        num_steps: number of sampling steps (should match the distillation target)
+        sigma_min: minimum noise level
+        sigma_max: maximum noise level
+        rho: Karras schedule exponent
+
+    Returns:
+        Generated samples [B, C, H, W]
+    """
+    sampler_args = dict(
+        num_steps=num_steps,
+        sigma_min=sigma_min,
+        sigma_max=sigma_max,
+        rho=rho,
+        solver="euler",
+    )
+    return diffusion_model_forward(model, condition, shape, sampler_args)
+
+
 def regression_loss_fn(
     net: Module,
     images,
