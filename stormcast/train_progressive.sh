@@ -12,7 +12,7 @@ gpus_per_node=1
 stormcast_train="/home/desmond/Documents/master thesis/Stormcast-Distilation/stormcast/train_progressive.py"
 config="--config-name progressive"
 experiment_name="progressive_ncdr"
-training_output_dir="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_4_train_2_5_yrs_val_1yr_tp1/progressive"
+training_output_dir="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/progressive"
 run_id="0"
 
 # --- Logging parameters ---
@@ -22,7 +22,7 @@ validation_freq=500
 num_data_workers=0
 
 # --- Training parameters ---
-batch_size=16
+batch_size=2
 lr=1E-4
 lr_rampup_steps=500
 clip_grad_norm=1.0
@@ -43,18 +43,18 @@ output_nc="false"
 output_nc_freq=5
 
 # --- Dataset parameters ---
-location="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_4_train_2_5_yrs_val_1yr_tp1/zarr_exp4_L_24_H_74_train_2_5_years_full"
+location="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full"
 HighRes_img_size="[224,128]"
 exp_train_zarrs="[stormcast_test_train]"
 train_dates="[2019/08/01,2021/12/31]"
 exp_valid_zarrs="[stormcast_test_valid]"
 valid_dates="[2022/01/01,2022/12/31]"
-kept_LowRes_channels="[u10,v10,t2m,sp,mslp,tcwv,u50,u100,u150,u200,u250,u300,u400,u500,u600,u700,u850,u925,u1000,v50,v100,v150,v200,v250,v300,v400,v500,v600,v700,v850,v925,v1000,z50,z100,z150,z200,z250,z300,z400,z500,z600,z700,z850,z925,z1000,t50,t100,t150,t200,t250,t300,t400,t500,t600,t700,t850,t925,t1000,q50,q100,q150,q200,q250,q300,q400,q500,q600,q700,q850,q925,q1000,qpepre,lsm,orog]"
+kept_LowRes_channels="all"
 kept_HighRes_channels="[u10, v10, t2m, qpepre]"
 
 # --- Model parameters ---
-regression_weights="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_4_train_2_5_yrs_val_1yr_tp1/exp_4_reg_L_24_H_74_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.2500.mdlus"
-teacher_weights="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_4_train_2_5_yrs_val_1yr_tp1/exp_4_dif_L_24_H_74_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.40000.mdlus"
+regression_weights="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.14000.mdlus"
+teacher_weights="/home/desmond/Documents/master thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus"
 
 # Execute training with torchrun
 python -m torch.distributed.run --standalone --nnodes="${number_of_nodes}" --nproc_per_node="${gpus_per_node}" "${stormcast_train}" ${config} \
