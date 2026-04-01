@@ -16,20 +16,20 @@ training_output_dir="/workspace/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1y
 run_id="0"
 
 # --- Logging parameters ---
-print_progress_freq=1
+print_progress_freq=25
 checkpoint_freq=5000
-validation_freq=500
-num_data_workers=0
+validation_freq=50
+num_data_workers=4
 
 # --- Training parameters ---
-batch_size=16
+batch_size=32
 lr=1E-4
 lr_rampup_steps=500
 clip_grad_norm=1.0
 loss='progressive'
 
 # --- Progressive Distillation parameters ---
-initial_num_steps=128   # Teacher uses 2x this; number of phases = log2(initial/target)
+initial_num_steps=16    # Teacher uses 2x this; must match teacher's sampling steps (18→16)
 target_num_steps=4      # Stop when student reaches this step count
 steps_per_phase=50000   # Optimizer steps per phase
 rho=7.0                 # Karras schedule exponent
