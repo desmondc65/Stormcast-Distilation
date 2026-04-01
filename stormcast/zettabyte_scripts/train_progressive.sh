@@ -12,7 +12,7 @@ gpus_per_node=4
 stormcast_train="/workspace/Stormcast-Distilation/stormcast/train_progressive.py"
 config="--config-name progressive"
 experiment_name="progressive_ncdr"
-training_output_dir="/workspace/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/progressive_zettabyte"
+training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/progressive_zettabyte"
 run_id="0"
 
 # --- Logging parameters ---
