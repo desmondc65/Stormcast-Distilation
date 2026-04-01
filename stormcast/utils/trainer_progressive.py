@@ -376,13 +376,29 @@ def progressive_distillation_loop(cfg):
                     loss, op=torch.distributed.ReduceOp.AVG
                 )
 
-            avg_train_loss += loss.mean().detach().cpu().item()
+            # Log MSE against ground truth (not distillation loss)
+            with torch.no_grad():
+                gt_sampler_args = dict(
+                    num_steps=N_student,
+                    sigma_min=cfg.model.sigma_min,
+                    sigma_max=cfg.model.sigma_max,
+                    rho=cfg.training.rho,
+                    solver="euler",
+                )
+                train_output = diffusion_model_forward(
+                    student, condition, target.shape, gt_sampler_args
+                )
+                if "regression" in condition_list and reg_out is not None:
+                    train_output = train_output + reg_out
+                gt_mse = ((train_output - target) ** 2).mean().cpu().item()
+
+            avg_train_loss += gt_mse
             train_steps_logged += 1
             phase_step += 1
             global_step += 1
 
             if log_to_wandb:
-                wandb_logs["loss"] = loss.mean().detach().cpu().item()
+                wandb_logs["loss"] = gt_mse
                 wandb_logs["phase"] = phase
                 wandb_logs["N_student"] = N_student
 
@@ -443,13 +459,8 @@ def progressive_distillation_loop(cfg):
                         if "regression" in condition_list and reg_out is not None:
                             output_images = output_images + reg_out
 
-                        # Validation loss
-                        valid_loss = loss_fn(
-                            student=student,
-                            teacher=teacher,
-                            images=target,
-                            condition=condition,
-                        )
+                        # Validation loss: MSE against ground truth
+                        valid_loss = ((output_images - target) ** 2).mean()
 
                     if dist.world_size > 1 and _distributed_ready():
                         torch.distributed.barrier()
@@ -457,7 +468,7 @@ def progressive_distillation_loop(cfg):
                             valid_loss, op=torch.distributed.ReduceOp.AVG
                         )
 
-                    val_loss = valid_loss.mean().detach().cpu().item()
+                    val_loss = valid_loss.detach().cpu().item()
                     if log_to_wandb:
                         wandb_logs["valid_loss"] = val_loss
 

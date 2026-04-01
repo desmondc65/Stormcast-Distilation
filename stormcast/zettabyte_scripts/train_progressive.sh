@@ -22,7 +22,7 @@ validation_freq=50
 num_data_workers=4
 
 # --- Training parameters ---
-batch_size=32
+batch_size=64
 lr=1E-4
 lr_rampup_steps=500
 clip_grad_norm=1.0
@@ -33,7 +33,7 @@ initial_num_steps=16    # Teacher uses 2x this; must match teacher's sampling st
 target_num_steps=2      # Stop when student reaches this step count
 steps_per_phase=50000   # Optimizer steps per phase
 rho=7.0                 # Karras schedule exponent
-loss_weighting='edm' # 'uniform' or 'edm'
+loss_weighting='uniform' # 'uniform' or 'edm'
 
 # --- Validation parameters ---
 validation_plot_variables="[t2m,u10,v10,qpepre]"
