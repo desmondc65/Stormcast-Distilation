@@ -522,9 +522,9 @@ def progressive_distillation_loop(cfg):
                     f"step_time {(current_time - train_start - max(valid_time, 0.0)) / max(train_steps_logged, 1):.2f}",
                     f"cpumem {psutil.Process(os.getpid()).memory_info().rss / 2**30:<6.2f}",
                     f"gpumem {torch.cuda.max_memory_allocated(device) / 2**30:<6.2f}",
-                    f"distill_loss {avg_distill_loss / max(train_steps_logged, 1):<6.3f}",
-                    f"train_loss {avg_train_loss / max(train_gt_count, 1):<6.3f}",
-                    f"val_loss {val_loss:<6.3f}",
+                    f"distill_loss {avg_distill_loss / max(train_steps_logged, 1):<6.5f}",
+                    f"train_loss {avg_train_loss / max(train_gt_count, 1):<6.5f}",
+                    f"val_loss {val_loss:<6.5f}",
                 ]
                 logger0.info(" ".join(fields))
 
