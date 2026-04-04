@@ -30,16 +30,20 @@ from torch import Tensor
 class ProgressiveDistillationLoss:
     """Loss function for Progressive Distillation of EDM diffusion models.
 
-    Given a frozen teacher and a trainable student (both EDMPrecond), this loss:
+    Implements Algorithm 2 from Salimans & Ho (2022). Given a frozen teacher
+    and a trainable student (both EDMPrecond), this loss:
     1. Constructs a 2N-step Karras noise schedule (teacher resolution).
     2. Samples a random student step index i, identifying three consecutive
        teacher sigma values: sigma_{2i}, sigma_{2i+1}, sigma_{2i+2}.
-    3. Creates a noisy sample x at sigma_{2i} from clean data.
-    4. Runs the teacher for TWO Euler PF-ODE steps:
-       sigma_{2i} -> sigma_{2i+1} -> sigma_{2i+2} to produce x_target.
-    5. Runs the student for ONE Euler PF-ODE step:
-       sigma_{2i} -> sigma_{2i+2} to produce x_student.
-    6. Returns MSE(x_student, x_target), optionally with EDM weighting.
+    3. Creates a noisy sample z_t at sigma_{2i} from clean data.
+    4. Runs the teacher for TWO Euler PF-ODE steps to produce z_{t''}.
+    5. Backs out the implied denoised target x̃ from z_{t''} using the
+       DDIM inversion formula (Algorithm 2).
+    6. Compares x̃ against the student's denoiser output x̂_θ(z_t).
+    7. Returns MSE(x̂_θ, x̃), optionally with EDM weighting.
+
+    The loss is computed in **denoised prediction space**, not trajectory
+    space, matching the paper's formulation.
 
     The student's effective inference schedule has N+1 sigma values (N steps),
     corresponding to the even-indexed points of the teacher's 2N+1 schedule.
@@ -170,39 +174,6 @@ class ProgressiveDistillationLoss:
 
         return x_end
 
-    def _student_one_step(
-        self,
-        student: torch.nn.Module,
-        x: Tensor,
-        sigma_start: Tensor,
-        sigma_end: Tensor,
-        condition: Tensor,
-    ) -> Tensor:
-        """Execute one Euler PF-ODE step with the student model.
-
-        Parameters
-        ----------
-        student : torch.nn.Module
-            Trainable student EDMPrecond model (may be DDP-wrapped).
-        x : Tensor
-            Noisy input at sigma_start, shape (B, C, H, W).
-        sigma_start : Tensor
-            Starting noise level, shape (B, 1, 1, 1).
-        sigma_end : Tensor
-            Target noise level, shape (B, 1, 1, 1).
-        condition : Tensor
-            Conditioning tensor, shape (B, C_cond, H, W).
-
-        Returns
-        -------
-        Tensor
-            Result of one Euler step at sigma_end, shape (B, C, H, W).
-        """
-        denoised = student(x, sigma_start.flatten(), condition=condition)
-        d = (x - denoised) / sigma_start
-        x_end = x + (sigma_end - sigma_start) * d
-        return x_end
-
     def __call__(
         self,
         student: torch.nn.Module,
@@ -210,11 +181,11 @@ class ProgressiveDistillationLoss:
         images: Tensor,
         condition: Tensor,
     ) -> Tensor:
-        """Compute the Progressive Distillation loss.
+        """Compute the Progressive Distillation loss (Algorithm 2).
 
         For each sample in the batch, samples a random student step index,
-        then compares the student's 1-step output against the teacher's
-        2-step output starting from the same noisy input.
+        runs the teacher for two steps, backs out the implied denoised
+        target x̃, and compares it against the student's denoiser output.
 
         Parameters
         ----------
@@ -251,20 +222,27 @@ class ProgressiveDistillationLoss:
         noise = torch.randn_like(images)
         x_noisy = images + sigma_start * noise
 
-        # Teacher: 2 Euler steps (no grad)
-        x_target = self._teacher_two_steps(
+        # Teacher: 2 Euler steps (no grad) -> z_{t''}
+        z_t_double_prime = self._teacher_two_steps(
             teacher, x_noisy, sigma_start, sigma_mid, sigma_end, condition
         )
 
-        # Student: 1 Euler step (grad flows through student parameters)
-        x_student = self._student_one_step(
-            student, x_noisy, sigma_start, sigma_end, condition
+        # Back out implied denoised target x̃ (Algorithm 2, Salimans & Ho 2022).
+        # In EDM parameterization (alpha=1 for all t), the DDIM/Euler update is:
+        #   z_{t''} = x̃ + (sigma_end / sigma_start) * (z_t - x̃)
+        # Solving for x̃:
+        #   x̃ = (z_{t''} - (sigma_end / sigma_start) * z_t) / (1 - sigma_end / sigma_start)
+        x_tilde = (z_t_double_prime - (sigma_end / sigma_start) * x_noisy) / (
+            1.0 - sigma_end / sigma_start
         )
 
-        # MSE loss in trajectory space
-        loss = (x_student - x_target.detach()) ** 2
+        # Student denoiser output (grad flows through student parameters)
+        denoised_student = student(x_noisy, sigma_start.flatten(), condition=condition)
 
-        # Optional EDM-style per-sample weighting
+        # MSE loss in denoised prediction space
+        loss = (denoised_student - x_tilde.detach()) ** 2
+
+        # Optional EDM-style per-sample weighting (now correctly applied to denoised-space loss)
         if self.loss_weighting == "edm":
             sigma_flat = sigma_start.squeeze()
             weight = (sigma_flat**2 + self.sigma_data**2) / (

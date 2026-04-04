@@ -376,29 +376,16 @@ def progressive_distillation_loop(cfg):
                     loss, op=torch.distributed.ReduceOp.AVG
                 )
 
-            # Log MSE against ground truth (not distillation loss)
-            with torch.no_grad():
-                gt_sampler_args = dict(
-                    num_steps=N_student,
-                    sigma_min=cfg.model.sigma_min,
-                    sigma_max=cfg.model.sigma_max,
-                    rho=cfg.training.rho,
-                    solver="euler",
-                )
-                train_output = diffusion_model_forward(
-                    student, condition, target.shape, gt_sampler_args
-                )
-                if "regression" in condition_list and reg_out is not None:
-                    train_output = train_output + reg_out
-                gt_mse = ((train_output - target) ** 2).mean().cpu().item()
+            # Log distillation loss (mean over channels and spatial dims)
+            train_loss_value = loss.detach().mean().cpu().item()
 
-            avg_train_loss += gt_mse
+            avg_train_loss += train_loss_value
             train_steps_logged += 1
             phase_step += 1
             global_step += 1
 
             if log_to_wandb:
-                wandb_logs["loss"] = gt_mse
+                wandb_logs["loss"] = train_loss_value
                 wandb_logs["phase"] = phase
                 wandb_logs["N_student"] = N_student
 
