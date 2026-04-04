@@ -16,24 +16,24 @@ training_output_dir="/home/desmond/Documents/master thesis/Stormcast-Distilation
 run_id="0"
 
 # --- Logging parameters ---
-print_progress_freq=1
+print_progress_freq=5
 checkpoint_freq=5000
-validation_freq=500
-num_data_workers=0
+validation_freq=10
+num_data_workers=4
 
 # --- Training parameters ---
-batch_size=2
+batch_size=4
 lr=1E-4
 lr_rampup_steps=500
 clip_grad_norm=1.0
 loss='progressive'
 
 # --- Progressive Distillation parameters ---
-initial_num_steps=128   # Teacher uses 2x this; number of phases = log2(initial/target)
-target_num_steps=4      # Stop when student reaches this step count
+initial_num_steps=18    # Teacher's sampling steps (18 → 9 → 4 → 2 → 1)
+target_num_steps=1      # Stop when student reaches 1 step
 steps_per_phase=50000   # Optimizer steps per phase
 rho=7.0                 # Karras schedule exponent
-loss_weighting='uniform' # 'uniform' or 'edm'
+loss_weighting='edm' # 'uniform' or 'edm'; edm normalizes across noise levels
 
 # --- Validation parameters ---
 validation_plot_variables="[t2m,u10,v10,qpepre]"

@@ -44,11 +44,11 @@ fp_optimizations: fp32
 compile_model: False
 
 # Progressive Distillation specific
-initial_num_steps: 128    # Starting student step count (teacher uses 2x)
-target_num_steps: 4       # Stop distillation when student reaches this count
+initial_num_steps: 18     # Teacher's sampling steps (18 → 9 → 4 → 2 → 1)
+target_num_steps: 1       # Stop distillation when student reaches this count
 steps_per_phase: 50000    # Training steps per distillation phase
 rho: 7.0                  # Karras schedule exponent
-loss_weighting: 'uniform' # 'uniform' or 'edm' per-sample weighting
+loss_weighting: 'edm' # 'uniform' or 'edm' per-sample weighting
 
 # Validation options
 validation_plot_variables: ["t2m", "u10", "v10", "qpepre"]

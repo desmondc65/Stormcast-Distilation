@@ -23,7 +23,6 @@ teacher for the next phase.
 """
 
 import copy
-import math
 import os
 import time
 from collections import defaultdict
@@ -73,11 +72,17 @@ def _distributed_ready() -> bool:
 def compute_num_phases(initial_steps: int, target_steps: int) -> int:
     """Compute the number of distillation phases needed.
 
-    Each phase halves the step count. Returns ceil(log2(initial/target)).
+    Simulates integer-halving (floor division by 2) each phase to correctly
+    handle non-power-of-2 starting counts like 18 → 9 → 4 → 2 → 1.
     """
     if target_steps >= initial_steps:
         return 0
-    return math.ceil(math.log2(initial_steps / target_steps))
+    n = initial_steps
+    phases = 0
+    while n > target_steps:
+        n = max(n // 2, target_steps)
+        phases += 1
+    return phases
 
 
 def progressive_distillation_loop(cfg):
@@ -307,8 +312,10 @@ def progressive_distillation_loop(cfg):
 
         # ── Phase training loop ──────────────────────────────────────
         wandb_logs = {}
+        avg_distill_loss = 0.0
         avg_train_loss = 0.0
         train_steps_logged = 0
+        train_gt_count = 0
         train_start = time.time()
         valid_time = -1.0
         val_loss = -1.0
@@ -377,26 +384,49 @@ def progressive_distillation_loop(cfg):
                 )
 
             # Log distillation loss (mean over channels and spatial dims)
-            train_loss_value = loss.detach().mean().cpu().item()
+            distill_loss_value = loss.detach().mean().cpu().item()
 
-            avg_train_loss += train_loss_value
+            avg_distill_loss += distill_loss_value
             train_steps_logged += 1
             phase_step += 1
             global_step += 1
 
             if log_to_wandb:
-                wandb_logs["loss"] = train_loss_value
+                wandb_logs["distill_loss"] = distill_loss_value
                 wandb_logs["phase"] = phase
                 wandb_logs["N_student"] = N_student
+
+            # ── Periodic GT MSE on training batch (same metric as val) ─
+            if phase_step % cfg.training.print_progress_freq == 0:
+                with torch.no_grad():
+                    gt_sampler_args = dict(
+                        num_steps=N_student,
+                        sigma_min=cfg.model.sigma_min,
+                        sigma_max=cfg.model.sigma_max,
+                        rho=cfg.training.rho,
+                        solver="euler",
+                    )
+                    train_output = diffusion_model_forward(
+                        student, condition, target.shape, gt_sampler_args
+                    )
+                    if "regression" in condition_list and reg_out is not None:
+                        train_output = train_output + reg_out
+                    gt_mse = ((train_output - target) ** 2).mean().cpu().item()
+
+                avg_train_loss += gt_mse
+                train_gt_count += 1
+
+                if log_to_wandb:
+                    wandb_logs["train_loss"] = gt_mse
 
             # ── CSV logging ───────────────────────────────────────────
             if (
                 dist.rank == 0
                 and phase_step % cfg.training.print_progress_freq == 0
-                and train_steps_logged > 0
+                and train_gt_count > 0
             ):
                 try:
-                    avg_loss_to_log = avg_train_loss / train_steps_logged
+                    avg_loss_to_log = avg_train_loss / train_gt_count
                     _log_train_loss_csv(phase_dir, global_step, float(avg_loss_to_log))
                 except Exception as e:
                     logger0.warning(
@@ -492,13 +522,16 @@ def progressive_distillation_loop(cfg):
                     f"step_time {(current_time - train_start - max(valid_time, 0.0)) / max(train_steps_logged, 1):.2f}",
                     f"cpumem {psutil.Process(os.getpid()).memory_info().rss / 2**30:<6.2f}",
                     f"gpumem {torch.cuda.max_memory_allocated(device) / 2**30:<6.2f}",
-                    f"train_loss {avg_train_loss / max(train_steps_logged, 1):<6.3f}",
+                    f"distill_loss {avg_distill_loss / max(train_steps_logged, 1):<6.3f}",
+                    f"train_loss {avg_train_loss / max(train_gt_count, 1):<6.3f}",
                     f"val_loss {val_loss:<6.3f}",
                 ]
                 logger0.info(" ".join(fields))
 
                 train_steps_logged = 0
+                train_gt_count = 0
                 train_start = time.time()
+                avg_distill_loss = 0.0
                 avg_train_loss = 0.0
                 torch.cuda.reset_peak_memory_stats()
 

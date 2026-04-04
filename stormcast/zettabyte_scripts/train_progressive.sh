@@ -12,7 +12,7 @@ gpus_per_node=4
 stormcast_train="/workspace/Stormcast-Distilation/stormcast/train_progressive.py"
 config="--config-name progressive"
 experiment_name="progressive_ncdr"
-training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/progressive_zettabyte"
+training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/progressive_zettabyte_v1"
 run_id="0"
 
 # --- Logging parameters ---
@@ -29,11 +29,11 @@ clip_grad_norm=1.0
 loss='progressive'
 
 # --- Progressive Distillation parameters ---
-initial_num_steps=16    # Teacher uses 2x this; must match teacher's sampling steps (18→16)
-target_num_steps=2      # Stop when student reaches this step count
+initial_num_steps=18    # Teacher's sampling steps (18 → 9 → 4 → 2 → 1)
+target_num_steps=1      # Stop when student reaches 1 step
 steps_per_phase=50000   # Optimizer steps per phase
 rho=7.0                 # Karras schedule exponent
-loss_weighting='uniform' # 'uniform' or 'edm'
+loss_weighting='edm' # 'uniform' or 'edm'; edm normalizes across noise levels
 
 # --- Validation parameters ---
 validation_plot_variables="[t2m,u10,v10,qpepre]"
