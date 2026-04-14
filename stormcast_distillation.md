@@ -124,25 +124,32 @@ d_2 = (x_mid - denoised_2) / sigma_mid
 x_target = x_mid + (sigma_end - sigma_mid) * d_2
 ```
 
-The student executes one Euler step (gradient flows):
+The student produces its denoiser output directly (gradient flows):
 ```
 denoised_s = D_student(x, sigma_start)
-d_s = (x - denoised_s) / sigma_start
-x_student = x + (sigma_end - sigma_start) * d_s
 ```
 
-The loss is:
+The teacher trajectory endpoint `x_target` is then converted back to an implied **denoised target** `x̃` via DDIM inversion (Salimans & Ho 2022 Algorithm 2). In the EDM parameterization (α=1 for all t), the DDIM/Euler update is
 ```
-L = MSE(x_student, x_target.detach())
+x_target = x̃ + (sigma_end / sigma_start) * (x - x̃)
+```
+so
+```
+x̃ = (x_target - (sigma_end / sigma_start) * x) / (1 - sigma_end / sigma_start)
+```
+
+The loss is computed in **denoised prediction space**:
+```
+L = MSE(denoised_s, x̃.detach())
 ```
 
 Optionally, EDM-style per-sample weighting can be applied:
 ```
 w(sigma) = (sigma^2 + sigma_data^2) / (sigma * sigma_data)^2
-L = w(sigma_start) * MSE(x_student, x_target)
+L = w(sigma_start) * MSE(denoised_s, x̃.detach())
 ```
 
-**Note**: The loss is in *trajectory space* (noisy image space), not in clean image space. This is important because it avoids requiring the model to denoise in a single step from any noise level — it only needs to match the trajectory of the teacher.
+**Note**: Unlike the textbook presentation that matches trajectory points, the implementation follows Algorithm 2 of the paper and compares *denoised* predictions. Matching in denoised space is numerically better behaved at large sigma, where trajectory-space differences shrink toward zero even when denoised predictions disagree. See [`physicsnemo/experimental/metrics/diffusion/progressive_distillation_loss.py:230`](physicsnemo/experimental/metrics/diffusion/progressive_distillation_loss.py#L230) for the exact back-out and loss.
 
 ### 2.2 Algorithm
 
@@ -169,13 +176,17 @@ For phase = 0, 1, ..., num_phases-1:
 
         x_noisy = x_clean + sigma_start * N(0, I)
 
-        # Teacher trajectory (no grad)
+        # Teacher: 2 Euler PF-ODE steps (no grad) -> trajectory endpoint
         x_target = Euler2(T_phase, x_noisy, sigma_start -> sigma_mid -> sigma_end)
 
-        # Student trajectory (grad)
-        x_student = Euler1(S, x_noisy, sigma_start -> sigma_end)
+        # DDIM back-out to implied denoised target (Algorithm 2)
+        x_tilde = (x_target - (sigma_end/sigma_start) * x_noisy)
+                  / (1 - sigma_end/sigma_start)
 
-        loss = MSE(x_student, x_target)  [+ optional EDM weighting]
+        # Student denoiser output (grad)
+        denoised_s = S(x_noisy, sigma_start)
+
+        loss = MSE(denoised_s, x_tilde.detach())  [+ optional EDM weighting]
         loss.backward(); optimizer.step()
 
     T_{phase+1} = copy.deepcopy(S)    # Promote student to teacher
@@ -421,6 +432,15 @@ d(a, b) = sqrt(||a - b||^2 + c^2) - c
 where `c = huber_c = 0.00054` (default). This is more robust to outliers than MSE while remaining differentiable everywhere. Setting `huber_c = None` falls back to MSE.
 
 **Implementation**: [`physicsnemo/experimental/metrics/diffusion/consistency_loss.py:230`](physicsnemo/experimental/metrics/diffusion/consistency_loss.py#L230)
+
+#### Per-Channel Weights and Spectral Regularizer (RWRF-specific)
+
+For the 4-channel Taiwan RWRF target, `ConsistencyDistillationLoss` supports two additional hooks on top of the base Pseudo-Huber term:
+
+- **Per-channel weights** `channel_weights` = `(β_1, …, β_K)` multiply the pixel-wise distance on each target channel. Useful for up-weighting `qpepre`, which is heavy-tailed and under-represented by mean metrics.
+- **Radial log-PSD regularizer** on a subset of channels via `spectral_channels` + `spectral_weight`. This adds an L1 penalty between the radially averaged log power spectra of the student and the EMA target output on the selected channels — typically just `[3]` (qpepre) — to preserve fine spatial structure of precipitation that a plain Huber loss tends to smooth.
+
+These knobs live in [`stormcast/config/training/consistency.yaml`](stormcast/config/training/consistency.yaml). When they are unset or zero the loss collapses to the vanilla CD formulation. See [`consistency_loss.py:72`](physicsnemo/experimental/metrics/diffusion/consistency_loss.py#L72) for the docstring summarizing all terms.
 
 #### Inference
 
@@ -799,8 +819,8 @@ Same keys as progressive model config, but `model_name: consistency`. The `teach
 | **Training phases** | Multiple (one per 2× reduction) | Single continuous training run |
 | **Teacher** | Updated each phase (previous student) | Fixed EDM teacher throughout |
 | **Target network** | Teacher is exact (no EMA) | EMA of online student |
-| **Loss target** | Trajectory point (noisy space) | Denoised prediction (clean space) |
-| **Loss metric** | MSE in trajectory space | Pseudo-Huber in prediction space |
+| **Loss target** | DDIM-implied denoised target `x̃` (clean space) | Denoised prediction (clean space) |
+| **Loss metric** | MSE in denoised prediction space | Pseudo-Huber in prediction space, optional per-channel β_k and log-PSD |
 | **Inference** | EDM Euler sampler, few steps | Direct 1-step: `f(x, sigma_max)` |
 | **Model type** | `EDMPrecond` (same as teacher) | `ConsistencyPrecond` (different preconditioning) |
 | **Schedule** | Fixed N during phase | Adaptive N(k), grows over training |

@@ -70,8 +70,8 @@ Your setup is a **regional, smaller-scale** StormCast than NVIDIA's: Taiwan doma
 | $D_\eta$ | Student denoiser |
 | $N$ | Current student step count |
 | $\sigma, \sigma'$ | Consecutive noise levels on student's grid |
-| $\tilde{R}$ | Target: two teacher Heun steps from $(z_\sigma, \sigma) \to \sigma'$ |
-| $\hat{R}_\eta = D_\eta(z_\sigma, \sigma; c)$ | Student's one-step residual |
+| $\tilde{R}$ | Target: DDIM back-out from two teacher **Euler** PF-ODE steps $(z_\sigma, \sigma) \to \sigma'$ (Salimans & Ho 2022 Alg. 2) |
+| $\hat{R}_\eta = D_\eta(z_\sigma, \sigma; c)$ | Student's denoiser output at $\sigma$ (compared in denoised-prediction space, not trajectory space) |
 
 ### Setup
 
@@ -84,8 +84,8 @@ Your setup is a **regional, smaller-scale** StormCast than NVIDIA's: Taiwan doma
 For a sample $(X_{t-1}, S_t, X_t, I)$ from your zarr train split:
 1. Run frozen $F_\xi$ to get $M_t$; form $R_t = X_t - M_t$.
 2. Sample $\sigma$ from student grid; draw $\epsilon$; form $z_\sigma = R_t + \sigma \epsilon$.
-3. Run two teacher Heun steps $(z_\sigma, \sigma) \to \sigma'$ → target $\tilde{R}$.
-4. Student predicts $\hat{R}_\eta$.
+3. Run **two teacher Euler PF-ODE steps** $(z_\sigma, \sigma) \to \sigma_{\text{mid}} \to \sigma'$, then DDIM-invert to an implied denoised target $\tilde{R}$.
+4. Student predicts $\hat{R}_\eta$ directly (denoiser output at $\sigma$), and the loss is MSE in denoised-prediction space.
 
 ### Loss
 
@@ -156,6 +156,8 @@ $$
 $$
 
 ### Choosing $d_{\text{atmos}}$ for 4-channel RWRF
+
+> **Status:** This hybrid distance is already wired into `ConsistencyDistillationLoss` via the `channel_weights`, `spectral_channels`, and `spectral_weight` parameters — see [`physicsnemo/experimental/metrics/diffusion/consistency_loss.py`](physicsnemo/experimental/metrics/diffusion/consistency_loss.py) and [`stormcast/config/training/consistency.yaml`](stormcast/config/training/consistency.yaml). The formulas below describe what the code computes, not a future change.
 
 With only 4 channels, you can afford a **hybrid loss** with explicit per-channel terms:
 
