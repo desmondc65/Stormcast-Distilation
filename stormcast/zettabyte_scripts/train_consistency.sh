@@ -16,8 +16,8 @@ training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/consistency_zettabyte
 run_id="0"
 
 # --- Logging parameters ---
-print_progress_freq=10
-checkpoint_freq=500
+print_progress_freq=25
+checkpoint_freq=2500
 validation_freq=50
 num_data_workers=4
 
