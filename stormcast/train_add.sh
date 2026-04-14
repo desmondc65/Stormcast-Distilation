@@ -6,10 +6,10 @@ number_of_nodes=1
 gpus_per_node=2
 
 # --- General training config ---
-stormcast_train="/home/master/13/dczy/code/stormcast-ncdr/stormcast/train_consistency.py"
-config="--config-name consistency"
-experiment_name="consistency_ncdr"
-training_output_dir="/home/master/13/dczy/code/stormcast-ncdr/data/Stormcast_test/consistency"
+stormcast_train="/home/master/13/dczy/code/stormcast-ncdr/stormcast/train_add.py"
+config="--config-name add"
+experiment_name="add_ncdr"
+training_output_dir="/home/master/13/dczy/code/stormcast-ncdr/data/Stormcast_test/add"
 run_id="0"
 
 # --- Logging parameters ---
@@ -19,27 +19,28 @@ validation_freq=500
 
 # --- Training parameters ---
 batch_size=16
-lr=1E-4
-lr_rampup_steps=500
+lr_G=1E-5
+lr_D=4E-5
+lr_rampup_steps=1000
 total_train_steps=400000
 clip_grad_norm=1.0
-loss='consistency'
+loss='add'
 
-# --- Consistency Distillation parameters ---
-N_0=2            # Initial discretization steps
-N_total=150      # Final discretization steps (grows via sqrt schedule over training)
-rho=7.0          # Karras schedule exponent
-huber_c=0.00054  # Pseudo-Huber loss constant (set to 0.0 to use MSE instead)
-ema_decay_init=0.95  # Base EMA decay mu_0; adaptive: mu_k = mu_0^(N_0/N_k)
+# --- ADD Distillation parameters ---
+num_student_steps=1          # Number of student denoising steps (1-4)
+lambda_distill=2.5           # Score distillation loss weight
+r1_gamma=0.00001             # R1 gradient penalty weight (1e-5, per ADD design)
+use_nfsd=false               # Noise-Free Score Distillation
+P_std=1.2                    # Std for score distillation sigma sampling
+ema_decay=0.999              # Fixed EMA decay
 
-# --- Hybrid loss (per-channel β + log-PSD on qpepre), see CD spec §2 ---
-channel_weights="[1.0,1.0,1.0,2.0]"   # β for (t2m, u10, v10, qpepre)
-spectral_channels="[qpepre]"           # channels to add radial log-PSD term
-spectral_weight=0.1                    # α_spec
+# --- Discriminator parameters ---
+disc_base_ch=64              # Base channel width
+disc_num_scales=4            # Number of multi-scale heads
+condition_discriminator=true # Condition discriminator on input state
 
 # --- Validation parameters ---
 validation_plot_variables="[t2m,u10,v10,qpepre]"
-valid_num_steps=1                     # 1 = one-shot; try 2 or 4 for multi-step sampling
 
 # --- Optional outputs ---
 output_nc="false"
@@ -69,23 +70,24 @@ torchrun --standalone --nnodes=${number_of_nodes} --nproc_per_node=${gpus_per_no
     ++training.checkpoint_freq=${checkpoint_freq} \
     ++training.validation_freq=${validation_freq} \
     ++training.batch_size=${batch_size} \
-    ++training.lr=${lr} \
+    ++training.lr_G=${lr_G} \
+    ++training.lr_D=${lr_D} \
     ++training.lr_rampup_steps=${lr_rampup_steps} \
     ++training.total_train_steps=${total_train_steps} \
     ++training.clip_grad_norm=${clip_grad_norm} \
     ++training.loss=${loss} \
-    ++training.N_0=${N_0} \
-    ++training.N_total=${N_total} \
-    ++training.rho=${rho} \
-    ++training.huber_c=${huber_c} \
-    ++training.ema_decay_init=${ema_decay_init} \
-    ++training.channel_weights=${channel_weights} \
-    ++training.spectral_channels=${spectral_channels} \
-    ++training.spectral_weight=${spectral_weight} \
+    ++training.num_student_steps=${num_student_steps} \
+    ++training.lambda_distill=${lambda_distill} \
+    ++training.r1_gamma=${r1_gamma} \
+    ++training.use_nfsd=${use_nfsd} \
+    ++training.P_std=${P_std} \
+    ++training.ema_decay=${ema_decay} \
+    ++training.disc_base_ch=${disc_base_ch} \
+    ++training.disc_num_scales=${disc_num_scales} \
+    ++training.condition_discriminator=${condition_discriminator} \
     ++training.output_nc=${output_nc} \
     ++training.output_nc_freq=${output_nc_freq} \
     ++training.validation_plot_variables=${validation_plot_variables} \
-    ++training.valid_num_steps=${valid_num_steps} \
     ++dataset.location=${location} \
     ++dataset.HighRes_img_size=${HighRes_img_size} \
     ++dataset.exp_train_zarrs=${exp_train_zarrs} \

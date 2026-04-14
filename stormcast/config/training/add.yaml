@@ -16,8 +16,8 @@
 
 
 # General training config items
-outdir: 'StormCast_consistency'
-experiment_name: 'cd_distillation'
+outdir: 'StormCast_add'
+experiment_name: 'add_distillation'
 run_id: '0'
 rundir: ./${training.outdir}/${training.experiment_name}/${training.run_id}
 num_data_workers: 4
@@ -36,29 +36,30 @@ validation_freq: 500
 # Optimization hyperparameters
 batch_size: 64
 batch_size_per_gpu: "auto"
-lr: 1E-4              # Lower LR than EDM training, typical for distillation
-lr_rampup_steps: 500
+lr_G: 1E-5              # Student (generator) learning rate
+lr_D: 4E-5              # Discriminator learning rate
+lr_rampup_steps: 1000
 total_train_steps: 400000
 clip_grad_norm: 1.0
-loss: 'consistency'
+loss: 'add'
 fp_optimizations: fp32
 compile_model: False
 
-# Consistency Distillation specific
-N_0: 2                 # Initial discretization steps
-N_total: 150           # Final discretization steps
-rho: 7.0
-huber_c: 0.00054       # Pseudo-Huber loss constant (from Song et al.)
-ema_decay_init: 0.95   # mu_0 for EMA schedule
+# ADD specific
+num_student_steps: 1           # Number of denoising steps for the student (1-4)
+lambda_distill: 2.5            # Weight for score distillation loss
+r1_gamma: 0.00001             # Weight for R1 gradient penalty (1e-5, per ADD design)
+use_nfsd: False                # Use Noise-Free Score Distillation
+P_std: 1.2                    # Std for score distillation sigma sampling
+ema_decay: 0.999              # Fixed EMA decay for student
 
-# Hybrid loss config (CD spec §2): per-channel β weights and log-PSD on qpepre.
-channel_weights: [1.0, 1.0, 1.0, 2.0]   # (t2m, u10, v10, qpepre)
-spectral_channels: ["qpepre"]           # channels to add radial log-PSD term
-spectral_weight: 0.1                    # α_spec; set to 0.0 to disable
+# Discriminator architecture
+disc_base_ch: 64               # Base channel width
+disc_num_scales: 4             # Number of downsampling stages / heads
+condition_discriminator: True  # Whether to condition discriminator on input state
 
 # Validation options
 validation_plot_variables: ["t2m", "u10", "v10", "qpepre"]
-valid_num_steps: 1                      # 1=one-shot; try 2 or 4 for multi-step sampling
 
 # Output nc
 output_nc: False

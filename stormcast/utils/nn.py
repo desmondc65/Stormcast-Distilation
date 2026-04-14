@@ -75,6 +75,17 @@ def get_preconditioned_architecture(
             additive_pos_embed=spatial_embedding,
         )
 
+    elif name == "add":
+        return EDMPrecond(
+            img_resolution=img_resolution,
+            img_channels=target_channels + conditional_channels,
+            img_out_channels=target_channels,
+            model_type="SongUNet",
+            channel_mult=[1, 2, 2, 2, 2],
+            attn_resolutions=attn_resolutions,
+            additive_pos_embed=spatial_embedding,
+        )
+
     elif name == "regression":
         return StormCastUNet(
             img_resolution=img_resolution,
@@ -168,24 +179,69 @@ def regression_model_forward(
     return model(x)
 
 
-def consistency_model_forward(model, condition, shape, sigma_max=80.0):
-    """1-step generation using a consistency model.
+def consistency_model_forward(
+    model,
+    condition,
+    shape,
+    sigma_max=80.0,
+    sigma_min=0.002,
+    rho=7.0,
+    num_steps=1,
+    intermediate_sigmas=None,
+):
+    """Multi-step generation using a consistency model.
 
-    Samples x ~ N(0, sigma_max^2 I) and evaluates f(x, sigma_max) in a
-    single forward pass.
+    Implements the Consistency Models multi-step sampler (Song et al. 2023,
+    Algorithm 1): evaluate f once at sigma_max, then for each intermediate
+    sigma re-noise the clean estimate by sqrt(sigma^2 - sigma_min^2) and
+    re-evaluate f. This preserves stochasticity between steps and is the
+    knob the CD spec wants exposed for num_steps ∈ {1, 2, 4}.
 
     Args:
-        model: ConsistencyPrecond model
-        condition: conditioning tensor [B, C_cond, H, W]
-        shape: shape of the output tensor [B, C, H, W]
-        sigma_max: maximum noise level
+        model: ConsistencyPrecond model.
+        condition: conditioning tensor [B, C_cond, H, W].
+        shape: shape of the output tensor [B, C, H, W].
+        sigma_max: maximum noise level (start of trajectory).
+        sigma_min: minimum noise level (boundary of f).
+        rho: Karras schedule exponent (only used if intermediate_sigmas is None).
+        num_steps: number of function evaluations. 1 = one-shot.
+        intermediate_sigmas: optional explicit list of intermediate σ values
+            (length num_steps - 1), descending, each in (sigma_min, sigma_max).
+            If None, chosen from the Karras ρ-schedule.
 
     Returns:
-        Generated samples [B, C, H, W]
+        Generated samples [B, C, H, W].
     """
-    x = torch.randn(*shape, device=condition.device, dtype=condition.dtype) * sigma_max
-    sigma = torch.full([x.shape[0]], sigma_max, device=x.device, dtype=x.dtype)
-    return model(x, sigma, condition=condition)
+    device = condition.device
+    dtype = condition.dtype
+    B = shape[0]
+
+    x = torch.randn(*shape, device=device, dtype=dtype) * sigma_max
+    sigma = torch.full([B], sigma_max, device=device, dtype=dtype)
+    x0 = model(x, sigma, condition=condition)
+
+    if num_steps <= 1:
+        return x0
+
+    if intermediate_sigmas is None:
+        # Pick num_steps+1 points on the Karras grid between sigma_max and
+        # sigma_min, drop the endpoints → num_steps-1 intermediate σ values.
+        idx = torch.arange(num_steps + 1, dtype=torch.float64, device=device)
+        t = (
+            sigma_max ** (1 / rho)
+            + idx / num_steps * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))
+        ) ** rho
+        intermediate_sigmas = t[1:-1].to(dtype).tolist()
+
+    for s in intermediate_sigmas:
+        s = float(s)
+        z = torch.randn_like(x0)
+        noise_scale = (max(s * s - sigma_min * sigma_min, 0.0)) ** 0.5
+        x_noisy = x0 + noise_scale * z
+        sigma = torch.full([B], s, device=device, dtype=dtype)
+        x0 = model(x_noisy, sigma, condition=condition)
+
+    return x0
 
 
 def dmd_model_forward(model, condition, shape, sigma_max=80.0):
@@ -238,6 +294,51 @@ def progressive_distilled_forward(
         solver="euler",
     )
     return diffusion_model_forward(model, condition, shape, sampler_args)
+
+
+def add_model_forward(model, condition, shape, sigma_max=80.0, num_steps=1,
+                      sigma_min=0.002, rho=7.0):
+    """Inference with an ADD-distilled EDMPrecond model.
+
+    For 1-step: sample z ~ N(0, sigma_max^2 I), denoise once.
+    For N>1 steps: use deterministic Euler schedule.
+
+    Args:
+        model: EDMPrecond model (ADD-distilled student).
+        condition: conditioning tensor [B, C_cond, H, W].
+        shape: shape of the output tensor [B, C, H, W].
+        sigma_max: maximum noise level.
+        num_steps: number of denoising steps (1-4).
+        sigma_min: minimum noise level.
+        rho: Karras schedule exponent.
+
+    Returns:
+        Generated samples [B, C, H, W].
+    """
+    device = condition.device
+    dtype = condition.dtype
+    B = shape[0]
+
+    if num_steps == 1:
+        z = torch.randn(*shape, device=device, dtype=dtype) * sigma_max
+        sigma = torch.full([B], sigma_max, device=device, dtype=dtype)
+        return model(z, sigma, condition=condition)
+
+    # Multi-step Euler sampling with Karras schedule
+    step_indices = torch.arange(num_steps, device=device, dtype=dtype)
+    sigma_max_inv = sigma_max ** (1 / rho)
+    sigma_min_inv = sigma_min ** (1 / rho)
+    t_steps = (sigma_max_inv + step_indices / (num_steps - 1) * (sigma_min_inv - sigma_max_inv)) ** rho
+    t_steps = torch.cat([t_steps, torch.zeros(1, device=device)])
+
+    x = torch.randn(*shape, device=device, dtype=dtype) * t_steps[0]
+    for i in range(num_steps):
+        sigma = torch.full([B], t_steps[i].item(), device=device, dtype=dtype)
+        denoised = model(x, sigma, condition=condition)
+        d = (x - denoised) / t_steps[i]
+        x = x + d * (t_steps[i + 1] - t_steps[i])
+
+    return x
 
 
 def regression_loss_fn(

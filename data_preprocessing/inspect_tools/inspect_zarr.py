@@ -16,7 +16,7 @@ Usage:
 import argparse
 import pathlib
 import sys
-from typing import Optional
+from typing import Any
 
 import numpy as np
 
@@ -26,14 +26,6 @@ try:
 except ImportError:
     HAS_XARRAY = False
     xr = None
-
-try:
-    import zarr
-    HAS_ZARR = True
-except ImportError:
-    HAS_ZARR = False
-    zarr = None
-
 
 def print_separator(char: str = "=", length: int = 70) -> None:
     print(char * length)
@@ -45,7 +37,112 @@ def print_header(title: str) -> None:
     print_separator()
 
 
-def inspect_zarr_store(zarr_path: pathlib.Path) -> None:
+def _to_python_scalar(value: Any) -> Any:
+    """Convert numpy scalars to python scalars for cleaner printing."""
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def _epoch_int_to_datetime_str(value: int) -> str | None:
+    """Best-effort conversion of epoch integers to ISO datetime strings."""
+    abs_value = abs(value)
+
+    # Heuristic by magnitude: ns/us/ms/s since epoch.
+    if abs_value >= 10**17:
+        unit = "ns"
+    elif abs_value >= 10**14:
+        unit = "us"
+    elif abs_value >= 10**11:
+        unit = "ms"
+    elif abs_value >= 10**9:
+        unit = "s"
+    else:
+        return None
+
+    try:
+        dt64 = np.datetime64(value, unit)
+        return str(np.datetime_as_string(dt64, unit="s"))
+    except Exception:
+        return None
+
+
+def _format_time_summary(time_values: np.ndarray) -> str:
+    """Return a concise summary for a time coordinate."""
+    if time_values.size == 0:
+        return "0 steps"
+
+    if np.issubdtype(time_values.dtype, np.datetime64):
+        start = np.datetime_as_string(time_values[0], unit="s")
+        if time_values.size == 1:
+            return f"1 step: {start}"
+
+        end = np.datetime_as_string(time_values[-1], unit="s")
+        step = time_values[1] - time_values[0]
+        step_hours = step / np.timedelta64(1, "h")
+        step_repr = f"{float(step_hours):g}h"
+        return f"{time_values.size} steps, range=[{start} -> {end}], step={step_repr}"
+
+    start_raw = _to_python_scalar(time_values[0])
+    start_dt = _epoch_int_to_datetime_str(int(start_raw)) if isinstance(start_raw, int) else None
+    if time_values.size == 1:
+        if start_dt is not None:
+            return f"1 step: {start_dt}"
+        return f"1 step: {start_raw}"
+
+    end_raw = _to_python_scalar(time_values[-1])
+    end_dt = _epoch_int_to_datetime_str(int(end_raw)) if isinstance(end_raw, int) else None
+    step = _to_python_scalar(time_values[1] - time_values[0])
+
+    if start_dt is not None and end_dt is not None:
+        step_hours = None
+        if isinstance(step, int):
+            step_unit_guess = _epoch_int_to_datetime_str(abs(step))
+            if step_unit_guess is not None:
+                # Derive hours from nanoseconds if conversion heuristic recognized epoch units.
+                step_hours = step / 3_600_000_000_000
+        if step_hours is not None and float(step_hours).is_integer():
+            step_repr = f"{int(step_hours)}h"
+        elif step_hours is not None:
+            step_repr = f"{float(step_hours):g}h"
+        else:
+            step_repr = str(step)
+        return f"{time_values.size} steps, range=[{start_dt} -> {end_dt}], step={step_repr}"
+
+    return f"{time_values.size} steps, range=[{start_raw} -> {end_raw}], step={step}"
+
+
+def _compute_basic_stats(var: Any) -> dict[str, float] | None:
+    """Compute basic stats using xarray reductions (can be expensive)."""
+    try:
+        min_v = var.min(skipna=True)
+        max_v = var.max(skipna=True)
+        mean_v = var.mean(skipna=True)
+        std_v = var.std(skipna=True)
+
+        if hasattr(min_v, "compute"):
+            min_v = min_v.compute()
+            max_v = max_v.compute()
+            mean_v = mean_v.compute()
+            std_v = std_v.compute()
+
+        return {
+            "min": float(np.asarray(min_v.values).item()),
+            "max": float(np.asarray(max_v.values).item()),
+            "mean": float(np.asarray(mean_v.values).item()),
+            "std": float(np.asarray(std_v.values).item()),
+        }
+    except Exception as exc:
+        print(f"      stats error: {exc}")
+        return None
+
+
+def inspect_zarr_store(
+    zarr_path: pathlib.Path,
+    *,
+    channels_only: bool = False,
+    compute_stats: bool = False,
+) -> None:
     """Inspect a single Zarr store and print detailed information."""
     if not HAS_XARRAY:
         print("ERROR: xarray is required to inspect Zarr stores")
@@ -63,20 +160,30 @@ def inspect_zarr_store(zarr_path: pathlib.Path) -> None:
     except Exception as e:
         print(f"  ERROR opening zarr: {e}")
         return
+
+    if channels_only:
+        if "channel" in ds.coords:
+            channels = [str(ch) for ch in ds.coords["channel"].values.tolist()]
+            print(f"\n  Channels ({len(channels)}):")
+            print(f"    {channels}")
+        else:
+            print("\n  No 'channel' coordinate found.")
+        ds.close()
+        return
     
     # Print dimensions
     print(f"\n  Dimensions:")
-    for dim, size in ds.dims.items():
+    for dim, size in ds.sizes.items():
         print(f"    {dim}: {size}")
     
     # Print coordinates
     print(f"\n  Coordinates:")
     for coord_name, coord in ds.coords.items():
-        coord_vals = coord.values
+        coord_vals = np.asarray(coord.values)
         if coord_name == "time":
-            print(f"    {coord_name}: {coord_vals}")
+            print(f"    {coord_name}: {_format_time_summary(coord_vals)}")
         elif coord_name == "channel":
-            channels = list(coord_vals)
+            channels = [str(ch) for ch in coord_vals.tolist()]
             print(f"    {coord_name}: {len(channels)} channels")
             print(f"      {channels}")
         elif coord_name in ["latitude", "longitude"]:
@@ -98,33 +205,18 @@ def inspect_zarr_store(zarr_path: pathlib.Path) -> None:
         print(f"      dims: {var.dims}")
         print(f"      shape: {var.shape}")
         print(f"      dtype: {var.dtype}")
+        if var.chunks is not None:
+            print(f"      chunks: {var.chunks}")
+        if "units" in var.attrs:
+            print(f"      units: {var.attrs['units']}")
         
-        # Compute statistics for numeric arrays
-        if np.issubdtype(var.dtype, np.number):
-            vals = var.values
-            finite_vals = vals[np.isfinite(vals)]
-            if finite_vals.size > 0:
-                print(f"      min: {finite_vals.min():.6g}")
-                print(f"      max: {finite_vals.max():.6g}")
-                print(f"      mean: {finite_vals.mean():.6g}")
-                print(f"      std: {finite_vals.std():.6g}")
-                nan_count = np.isnan(vals).sum()
-                if nan_count > 0:
-                    print(f"      NaN count: {nan_count} ({100*nan_count/vals.size:.2f}%)")
-    
-    # Print per-channel statistics if applicable
-    for var_name in ds.data_vars:
-        if "channel" in ds[var_name].dims and "time" in ds[var_name].dims:
-            print(f"\n  Per-Channel Statistics for '{var_name}':")
-            channels = ds.coords["channel"].values
-            data = ds[var_name].values  # (time, channel, y, x)
-            
-            for i, ch in enumerate(channels):
-                ch_data = data[:, i, :, :]
-                finite = ch_data[np.isfinite(ch_data)]
-                if finite.size > 0:
-                    print(f"    {ch:12s}: min={finite.min():12.4g}, max={finite.max():12.4g}, "
-                          f"mean={finite.mean():12.4g}, std={finite.std():12.4g}")
+        if compute_stats and np.issubdtype(var.dtype, np.number):
+            stats = _compute_basic_stats(var)
+            if stats is not None:
+                print(f"      min: {stats['min']:.6g}")
+                print(f"      max: {stats['max']:.6g}")
+                print(f"      mean: {stats['mean']:.6g}")
+                print(f"      std: {stats['std']:.6g}")
     
     ds.close()
 
@@ -165,14 +257,28 @@ def inspect_stats(stats_dir: pathlib.Path) -> None:
             print(f"    {stds}")
 
 
-def inspect_invariants(invariants_dir: pathlib.Path) -> None:
+def inspect_invariants(
+    invariants_dir: pathlib.Path,
+    *,
+    channels_only: bool = False,
+    compute_stats: bool = False,
+) -> None:
     """Inspect invariants zarr store."""
     zarr_path = invariants_dir / "invariants.zarr"
     if zarr_path.exists():
-        inspect_zarr_store(zarr_path)
+        inspect_zarr_store(
+            zarr_path,
+            channels_only=channels_only,
+            compute_stats=compute_stats,
+        )
 
 
-def inspect_output_directory(output_dir: pathlib.Path) -> None:
+def inspect_output_directory(
+    output_dir: pathlib.Path,
+    *,
+    channels_only: bool = False,
+    compute_stats: bool = False,
+) -> None:
     """Inspect a complete output directory from to_zarr.py."""
     print_header(f"Inspecting Output Directory: {output_dir}")
     
@@ -189,7 +295,11 @@ def inspect_output_directory(output_dir: pathlib.Path) -> None:
     if lowres_dir.exists():
         print("\n")
         for zarr_path in sorted(lowres_dir.glob("*.zarr")):
-            inspect_zarr_store(zarr_path)
+            inspect_zarr_store(
+                zarr_path,
+                channels_only=channels_only,
+                compute_stats=compute_stats,
+            )
         
         stats_dir = lowres_dir / "stats"
         if stats_dir.exists():
@@ -201,7 +311,11 @@ def inspect_output_directory(output_dir: pathlib.Path) -> None:
     if highres_dir.exists():
         print("\n")
         for zarr_path in sorted(highres_dir.glob("*.zarr")):
-            inspect_zarr_store(zarr_path)
+            inspect_zarr_store(
+                zarr_path,
+                channels_only=channels_only,
+                compute_stats=compute_stats,
+            )
         
         stats_dir = highres_dir / "stats"
         if stats_dir.exists():
@@ -212,7 +326,11 @@ def inspect_output_directory(output_dir: pathlib.Path) -> None:
     invariants_dir = output_dir / "invariants"
     if invariants_dir.exists():
         print("\n")
-        inspect_invariants(invariants_dir)
+        inspect_invariants(
+            invariants_dir,
+            channels_only=channels_only,
+            compute_stats=compute_stats,
+        )
 
 
 def main():
@@ -229,6 +347,11 @@ def main():
         action="store_true",
         help="Only print channel names",
     )
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Compute min/max/mean/std for numeric variables (can be slow)",
+    )
     
     args = parser.parse_args()
     path = pathlib.Path(args.path)
@@ -240,16 +363,28 @@ def main():
     # Determine what kind of path this is
     if path.suffix == ".zarr" or (path / ".zattrs").exists():
         # Single zarr store
-        inspect_zarr_store(path)
+        inspect_zarr_store(
+            path,
+            channels_only=args.channels_only,
+            compute_stats=args.stats,
+        )
     elif (path / "LowRes").exists() or (path / "HighRes").exists() or (path / "invariants").exists():
         # Output directory from to_zarr.py
-        inspect_output_directory(path)
+        inspect_output_directory(
+            path,
+            channels_only=args.channels_only,
+            compute_stats=args.stats,
+        )
     elif path.is_dir():
         # Check if it contains zarr stores
         zarr_stores = list(path.glob("**/*.zarr"))
         if zarr_stores:
             for zarr_path in sorted(zarr_stores):
-                inspect_zarr_store(zarr_path)
+                inspect_zarr_store(
+                    zarr_path,
+                    channels_only=args.channels_only,
+                    compute_stats=args.stats,
+                )
                 print("\n")
         else:
             print(f"No zarr stores found in: {path}")

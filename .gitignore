@@ -189,3 +189,4 @@ nano5/
 *.log
 exp_3_train_2_5_yrs_val_1yr_tp1/*
 
+zettabyte_data/*

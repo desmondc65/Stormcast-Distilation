@@ -805,3 +805,73 @@ Same keys as progressive model config, but `model_name: consistency`. The `teach
 | **Model type** | `EDMPrecond` (same as teacher) | `ConsistencyPrecond` (different preconditioning) |
 | **Schedule** | Fixed N during phase | Adaptive N(k), grows over training |
 | **Inference file** | `phase_N/student_final.mdlus` | `ema_state.pt` (EMA shadow) |
+
+```mermaid
+---
+title: Progressive Distillation Overview
+---
+flowchart TB
+    T0["Pre-trained EDM Teacher\n(18 sampling steps)"]
+
+    T0 --> COPY
+
+    COPY["Copy teacher weights\ninto new Student"]
+
+    COPY --> DATA
+
+    subgraph TRAIN["Training Step (repeat steps_per_phase times)"]
+        direction TB
+        DATA["Load batch:\nbackground + state channels"]
+        COND["Build conditioning\n(state, background, regression, invariants)"]
+        DATA --> COND
+
+        subgraph TEACHER_2STEP["Teacher: 2-step ODE (frozen)"]
+            direction LR
+            T_NOISE["Sample noise z\nat schedule sigma_i"]
+            T_STEP1["Teacher denoise\nstep i to i+1"]
+            T_STEP2["Teacher denoise\nstep i+1 to i+2"]
+            T_NOISE --> T_STEP1 --> T_STEP2
+            T_TARGET["Teacher target"]
+            T_STEP2 --> T_TARGET
+        end
+
+        subgraph STUDENT_1STEP["Student: 1-step ODE (trainable)"]
+            direction LR
+            S_NOISE["Same noise z\nat sigma_i"]
+            S_STEP["Student denoise\nstep i to i+2"]
+            S_NOISE --> S_STEP
+            S_OUT["Student output"]
+            S_STEP --> S_OUT
+        end
+
+        COND --> TEACHER_2STEP
+        COND --> STUDENT_1STEP
+
+        LOSS["Distillation Loss\nSNR-weighted MSE between\nstudent output and teacher target"]
+        T_TARGET --> LOSS
+        S_OUT --> LOSS
+
+        UPDATE["Backprop + Adam step\n(gradient clipping, LR warmup)"]
+        LOSS --> UPDATE
+    end
+
+    UPDATE --> PROMOTE
+
+    PROMOTE["Promote student to teacher\n(deepcopy, freeze weights)"]
+
+    PROMOTE --> HALVE
+
+    HALVE{"Halve step count\nN = N / 2"}
+
+    HALVE -->|"N > target"| COPY
+    HALVE -->|"N = target"| DONE
+
+    DONE["Distilled Model\n(target steps)"]
+
+    style T0 fill:#e8f4fd,stroke:#2196F3
+    style TRAIN fill:#f3e5f5,stroke:#9C27B0
+    style TEACHER_2STEP fill:#e8f5e9,stroke:#4CAF50
+    style STUDENT_1STEP fill:#fce4ec,stroke:#E91E63
+    style HALVE fill:#fff3e0,stroke:#FF9800
+    style DONE fill:#c8e6c9,stroke:#388E3C,stroke-width:3px
+```

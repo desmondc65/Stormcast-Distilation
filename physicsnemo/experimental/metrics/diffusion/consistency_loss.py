@@ -17,9 +17,48 @@
 """Consistency Distillation loss function (Song et al., 2023)."""
 
 import math
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor
+
+
+def _radial_log_psd(x: Tensor, eps: float = 1e-12) -> Tensor:
+    """Radially-averaged log power spectrum of a 2D field.
+
+    Parameters
+    ----------
+    x : Tensor
+        Input of shape (B, H, W).
+    eps : float
+        Floor for the log.
+
+    Returns
+    -------
+    Tensor
+        Log power spectrum of shape (B, K), where K is the number of radial bins.
+    """
+    B, H, W = x.shape
+    X = torch.fft.rfft2(x, norm="ortho")
+    P = X.real**2 + X.imag**2  # (B, H, W//2+1)
+
+    ky = torch.fft.fftfreq(H, device=x.device) * H
+    kx = torch.fft.rfftfreq(W, device=x.device) * W
+    kyy, kxx = torch.meshgrid(ky, kx, indexing="ij")
+    k_int = torch.sqrt(kyy**2 + kxx**2).round().long()  # (H, W//2+1)
+
+    k_max = int(k_int.max().item()) + 1
+    flat_idx = k_int.flatten()
+    batch_idx = flat_idx.unsqueeze(0).expand(B, -1)
+
+    Pk = torch.zeros(B, k_max, device=x.device, dtype=P.dtype)
+    Pk.scatter_add_(1, batch_idx, P.flatten(1))
+
+    counts = torch.zeros(k_max, device=x.device, dtype=P.dtype)
+    counts.scatter_add_(0, flat_idx, torch.ones_like(flat_idx, dtype=P.dtype))
+
+    Pk = Pk / counts.clamp_min(1.0).unsqueeze(0)
+    return torch.log(Pk.clamp_min(eps))
 
 
 class ConsistencyDistillationLoss:
@@ -29,6 +68,13 @@ class ConsistencyDistillationLoss:
     that can generate samples in 1 or 2 steps. The loss enforces that the
     student maps any point on the same PF-ODE trajectory to the same
     clean output, using the teacher to provide one-step ODE guidance.
+
+    Per the CD spec (stormcast_distillation.md §2), the distance supports:
+    - Pseudo-Huber (or MSE) on all target channels with per-channel weights β_k.
+    - A radial log-PSD regularizer on user-selected channels (e.g. qpepre)
+      to preserve spatial structure of sparse, heavy-tailed fields.
+    - Per-step weighting λ(σ_n) = 1 / (σ_{n+1} - σ_n) on the Karras ρ=7 grid.
+    - Heun teacher step (Φ), matching the teacher's inference sampler.
 
     Parameters
     ----------
@@ -47,7 +93,14 @@ class ConsistencyDistillationLoss:
     total_train_steps : int
         Total number of training steps (for the N(k) schedule).
     huber_c : float or None
-        Pseudo-Huber loss parameter. If None, uses MSE.
+        Pseudo-Huber loss parameter. If None or 0, uses MSE.
+    channel_weights : sequence of float or None
+        Per-channel β_k weights (length = target_channels). None → uniform.
+    spectral_channels : sequence of int or None
+        Indices of target channels on which to add the radial log-PSD L1
+        penalty. None or empty disables the spectral term.
+    spectral_weight : float
+        α_spec: weight of the log-PSD term.
 
     Note
     ----
@@ -64,7 +117,10 @@ class ConsistencyDistillationLoss:
         N_0: int = 2,
         N_total: int = 150,
         total_train_steps: int = 400000,
-        huber_c: float = None,
+        huber_c: Optional[float] = None,
+        channel_weights: Optional[Sequence[float]] = None,
+        spectral_channels: Optional[Sequence[int]] = None,
+        spectral_weight: float = 0.0,
     ):
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
@@ -74,21 +130,18 @@ class ConsistencyDistillationLoss:
         self.N_total = N_total
         self.total_train_steps = total_train_steps
         self.huber_c = huber_c
+        self.channel_weights = (
+            None if channel_weights is None else tuple(float(w) for w in channel_weights)
+        )
+        self.spectral_channels = (
+            tuple(int(i) for i in spectral_channels) if spectral_channels else ()
+        )
+        self.spectral_weight = float(spectral_weight)
 
     def get_num_steps(self, current_step: int) -> int:
         """Compute the adaptive number of discretization steps N(k).
 
         Uses a sqrt schedule to increase from N_0 to N_total over training.
-
-        Parameters
-        ----------
-        current_step : int
-            Current training step.
-
-        Returns
-        -------
-        int
-            Number of discretization steps at the current step.
         """
         k = min(current_step, self.total_train_steps)
         K = self.total_train_steps
@@ -104,18 +157,6 @@ class ConsistencyDistillationLoss:
         """Compute the Karras noise schedule for N steps.
 
         Returns a descending sequence: t[0] = sigma_max, t[N] = sigma_min.
-
-        Parameters
-        ----------
-        N : int
-            Number of discretization steps.
-        device : torch.device
-            Device for the output tensor.
-
-        Returns
-        -------
-        Tensor
-            Noise levels of shape (N + 1,).
         """
         indices = torch.arange(N + 1, dtype=torch.float64, device=device)
         t = (
@@ -127,7 +168,7 @@ class ConsistencyDistillationLoss:
         return t
 
     @torch.no_grad()
-    def euler_step(
+    def heun_step(
         self,
         teacher: torch.nn.Module,
         x: Tensor,
@@ -135,32 +176,27 @@ class ConsistencyDistillationLoss:
         t_next: Tensor,
         condition: Tensor,
     ) -> Tensor:
-        """Take a single Euler ODE step using the teacher model.
+        """Take a single Heun (2nd-order) ODE step using the teacher model.
 
-        Solves the EDM probability flow ODE: dx/dt = (x - D(x,t)) / t
-
-        Parameters
-        ----------
-        teacher : torch.nn.Module
-            Frozen EDM teacher model.
-        x : Tensor
-            Noisy input of shape (B, C, H, W).
-        t_cur : Tensor
-            Current noise levels of shape (B, 1, 1, 1).
-        t_next : Tensor
-            Target noise levels of shape (B, 1, 1, 1).
-        condition : Tensor
-            Conditioning tensor.
-
-        Returns
-        -------
-        Tensor
-            Denoised estimate at noise level t_next.
+        Solves the EDM probability flow ODE dx/dt = (x - D(x,t)) / t with the
+        Heun correction: an Euler predictor followed by a trapezoidal corrector
+        that re-evaluates the drift at t_next. Matches the teacher's inference
+        sampler and the Φ operator defined in the CD spec.
         """
         denoised = teacher(x, t_cur.flatten(), condition=condition)
-        d = (x - denoised) / t_cur
-        x_next = x + (t_next - t_cur) * d
+        d_cur = (x - denoised) / t_cur
+        x_euler = x + (t_next - t_cur) * d_cur
+
+        denoised_next = teacher(x_euler, t_next.flatten(), condition=condition)
+        d_next = (x_euler - denoised_next) / t_next
+        x_next = x + (t_next - t_cur) * 0.5 * (d_cur + d_next)
         return x_next
+
+    def _pointwise_distance(self, a: Tensor, b: Tensor) -> Tensor:
+        if self.huber_c is not None and self.huber_c > 0:
+            diff = a - b
+            return torch.sqrt(diff**2 + self.huber_c**2) - self.huber_c
+        return (a - b) ** 2
 
     def __call__(
         self,
@@ -170,7 +206,7 @@ class ConsistencyDistillationLoss:
         images: Tensor,
         condition: Tensor,
         current_step: int,
-    ) -> Tensor:
+    ) -> Dict[str, Tensor]:
         """Compute the Consistency Distillation loss.
 
         Parameters
@@ -190,51 +226,71 @@ class ConsistencyDistillationLoss:
 
         Returns
         -------
-        Tensor
-            Loss tensor of shape (B, C, H, W) (unreduced).
+        dict
+            {"loss": scalar total loss (backprop this),
+             "pointwise": scalar weighted Huber/MSE component,
+             "spectral": scalar log-PSD component (0 if disabled),
+             "N": current N(k),
+             "t_n1": noisier σ per-sample, "t_n": less-noisy σ per-sample}
         """
         N = self.get_num_steps(current_step)
         t_schedule = self.get_discretization(N, device=images.device)
-        # t_schedule: [sigma_max, ..., sigma_min], length N+1
-        # t_schedule[0] = sigma_max (noisiest)
-        # t_schedule[N] = sigma_min (cleanest)
 
         batch_size = images.shape[0]
-
-        # Sample random index n in [1, N] (inclusive).
-        # t_schedule[n-1] is the noisier level, t_schedule[n] is the less noisy level.
         n = torch.randint(1, N + 1, (batch_size,), device=images.device)
 
-        t_n1 = t_schedule[n - 1].to(torch.float32)  # noisier: t_{n+1} in paper notation
-        t_n = t_schedule[n].to(torch.float32)  # less noisy: t_n in paper notation
+        t_n1 = t_schedule[n - 1].to(torch.float32).view(-1, 1, 1, 1)  # noisier
+        t_n = t_schedule[n].to(torch.float32).view(-1, 1, 1, 1)  # less noisy
 
-        t_n1 = t_n1.view(-1, 1, 1, 1)
-        t_n = t_n.view(-1, 1, 1, 1)
-
-        # Create noisy sample at the noisier level
         noise = torch.randn_like(images)
         x_noisy = images + t_n1 * noise
 
-        # Teacher Euler step: from t_{n+1} down to t_n
         with torch.no_grad():
-            x_hat = self.euler_step(teacher, x_noisy, t_n1, t_n, condition)
+            x_hat = self.heun_step(teacher, x_noisy, t_n1, t_n, condition)
 
-        # Student prediction at (x_noisy, t_{n+1})
         student_out = student(x_noisy, t_n1.flatten(), condition=condition)
 
-        # EMA target prediction at (x_hat, t_n) — stop gradient
         with torch.no_grad():
             target_out = ema_student(x_hat, t_n.flatten(), condition=condition)
 
-        # Compute loss
-        if self.huber_c is not None and self.huber_c > 0:
-            # Pseudo-Huber loss
-            diff = student_out - target_out
-            loss = torch.sqrt(diff**2 + self.huber_c**2) - self.huber_c
+        # --- Pointwise distance (Huber or MSE), per channel ---
+        pw = self._pointwise_distance(student_out, target_out)  # (B, C, H, W)
+
+        if self.channel_weights is not None:
+            assert len(self.channel_weights) == pw.shape[1], (
+                f"channel_weights length {len(self.channel_weights)} "
+                f"!= num channels {pw.shape[1]}"
+            )
+            beta = torch.tensor(
+                self.channel_weights, device=pw.device, dtype=pw.dtype
+            ).view(1, -1, 1, 1)
+            pw = pw * beta
+
+        # Per-step weight λ(σ_n) = 1 / (σ_{n+1} - σ_n) on Karras ρ=7 grid.
+        # Note: this spec-compliant weighting (and the mean reduction below)
+        # changes the gradient scale vs. the previous 1/N + sum/C convention,
+        # so LR / huber_c / clip_grad_norm may need to be re-tuned.
+        lam = 1.0 / (t_n1 - t_n).clamp_min(1e-8)
+        pointwise_loss = (pw * lam).mean()
+
+        # --- Spectral (log-PSD) term on selected channels ---
+        if self.spectral_channels and self.spectral_weight > 0:
+            spec_terms = []
+            for cidx in self.spectral_channels:
+                s_field = student_out[:, cidx]  # (B, H, W)
+                t_field = target_out[:, cidx]
+                log_ps_s = _radial_log_psd(s_field)
+                log_ps_t = _radial_log_psd(t_field)
+                spec_terms.append((log_ps_s - log_ps_t).abs().mean())
+            spectral_loss = self.spectral_weight * torch.stack(spec_terms).mean()
         else:
-            loss = (student_out - target_out) ** 2
+            spectral_loss = pointwise_loss.new_zeros(())
 
-        # Weight by 1/N to stabilize across schedule progression
-        loss = loss / N
+        total = pointwise_loss + spectral_loss
 
-        return loss
+        return {
+            "loss": total,
+            "pointwise": pointwise_loss.detach(),
+            "spectral": spectral_loss.detach(),
+            "N": N,
+        }
