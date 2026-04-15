@@ -190,7 +190,12 @@ nano5/
 exp_3_train_2_5_yrs_val_1yr_tp1/*
 
 zettabyte_data/*
+zettabyte_results/*
+zettabyte_results/*
+papers/*
 azcopy.txt
 CLAUDE.md
 NTU-Thesis-LaTeX-Template
 .claude
+corrdiff_data/*
+/home/desmond/Documents/master_thesis/Stormcast-Distilation/corrdiff_data/*
