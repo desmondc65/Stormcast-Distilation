@@ -199,3 +199,6 @@ NTU-Thesis-LaTeX-Template
 .claude
 corrdiff_data/*
 /home/desmond/Documents/master_thesis/Stormcast-Distilation/corrdiff_data/*
+analyse_tools/progressive*/*
+zettabyte/*
+zettabyte/azcopy_transfer.sh
