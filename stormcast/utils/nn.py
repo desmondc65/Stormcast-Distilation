@@ -21,6 +21,8 @@ from physicsnemo.models import Module
 from physicsnemo.models.diffusion import ConsistencyPrecond, EDMPrecond, StormCastUNet
 from physicsnemo.utils.diffusion import deterministic_sampler
 
+from .flowcast_precond import FlowCastPrecond
+
 
 def get_preconditioned_architecture(
     name: str,
@@ -79,6 +81,18 @@ def get_preconditioned_architecture(
         return EDMPrecond(
             img_resolution=img_resolution,
             img_channels=target_channels + conditional_channels,
+            img_out_channels=target_channels,
+            model_type="SongUNet",
+            channel_mult=[1, 2, 2, 2, 2],
+            attn_resolutions=attn_resolutions,
+            additive_pos_embed=spatial_embedding,
+        )
+
+    elif name == "flowcast":
+        return FlowCastPrecond(
+            img_resolution=img_resolution,
+            img_channels=target_channels + conditional_channels,
+            img_in_channels=target_channels + conditional_channels,
             img_out_channels=target_channels,
             model_type="SongUNet",
             channel_mult=[1, 2, 2, 2, 2],
@@ -339,6 +353,58 @@ def add_model_forward(model, condition, shape, sigma_max=80.0, num_steps=1,
         x = x + d * (t_steps[i + 1] - t_steps[i])
 
     return x
+
+
+def flowcast_model_forward(
+    model,
+    condition,
+    shape,
+    num_steps: int = 10,
+    sigma_data: float = 0.5,
+    t_start: float = 0.0,
+    t_end: float = 1.0,
+    solver: str = "euler",
+):
+    """Sample the FlowCast residual with a fixed-step ODE solver.
+
+    Integrates ``dz/dt = v_theta(z, t, condition)`` from t_start to t_end
+    starting at ``z(0) ~ N(0, I)`` (standardized space) and returns the
+    de-normalized residual ``z(1) * sigma_data``. Used as the generative step
+    on top of the regression mean M_t; the final prediction is ``M_t + R_t``.
+
+    Args:
+        model: FlowCastPrecond model (or an EMA shadow of one).
+        condition: conditioning tensor [B, C_cond, H, W].
+        shape: shape of the output tensor [B, C_target, H, W].
+        num_steps: number of ODE steps (FlowCast paper default: 10).
+        sigma_data: standard deviation used for standardization at train time.
+        t_start, t_end: integration bounds along the flow axis.
+        solver: 'euler' or 'midpoint'. Midpoint is a 2nd-order Runge–Kutta
+            variant that doubles the NFE per step.
+
+    Returns:
+        Predicted residual R_hat of shape ``shape`` (in raw, un-standardized
+        units), ready to add to the regression mean.
+    """
+    device = condition.device
+    dtype = condition.dtype
+
+    z = torch.randn(*shape, device=device, dtype=dtype)
+    dt = (t_end - t_start) / num_steps
+
+    for i in range(num_steps):
+        t_i = t_start + i * dt
+        t_vec = torch.full([shape[0]], t_i, device=device, dtype=dtype)
+        if solver == "midpoint":
+            v_half = model(z, t_vec, condition=condition)
+            t_half = t_vec + 0.5 * dt
+            z_half = z + v_half * (0.5 * dt)
+            v = model(z_half, t_half, condition=condition)
+        else:  # euler
+            v = model(z, t_vec, condition=condition)
+        z = z + v * dt
+
+    return z * sigma_data
 
 
 def regression_loss_fn(
