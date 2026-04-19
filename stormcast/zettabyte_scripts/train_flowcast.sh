@@ -17,8 +17,8 @@ run_id="0"
 
 # --- Logging parameters ---
 print_progress_freq=25
-checkpoint_freq=5000
-validation_freq=500
+checkpoint_freq=2500
+validation_freq=250
 num_data_workers=4
 
 # --- Training parameters (FlowCast paper defaults: AdamW, cosine w/ 1% warmup) ---
