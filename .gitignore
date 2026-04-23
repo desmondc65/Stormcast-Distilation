@@ -202,3 +202,4 @@ corrdiff_data/*
 analyse_tools/progressive*/*
 zettabyte/*
 zettabyte/azcopy_transfer.sh
+zettabyte_results/*
