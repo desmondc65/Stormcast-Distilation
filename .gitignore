@@ -205,4 +205,4 @@ zettabyte/azcopy_transfer.sh
 zettabyte_results/*
 stormcast_env/*
 exp_2_train_2_5_yrs_val_1yr_tp1/*
-Stormcast-Distilation/runs/*
+runs/*
