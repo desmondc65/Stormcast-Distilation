@@ -5,16 +5,11 @@
 # Pull the dataset onto the worker first (azcopy, see ../zettabyte/zettabyte.md):
 #   export SAS_URL="https://zbstore2026.blob.core.windows.net/g-019c8ca2-605d-7bb5-b98b-1c53fbdf2b7f?se=...sig=..."
 #   SRC="${SAS_URL%%\?*}/desmond/dataset/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026?${SAS_URL#*\?}"
-#   azcopy copy "$SRC" /workspace/downloads/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026 --recursive
+#   azcopy copy "$SRC" /workspace/downloads --recursive
+#   # contents land at /workspace/downloads/zarr_exp3_..._cleaned_4_27_2026/{LowRes,HighRes,invariants,...}
 #
-# !! Spatial-size note !!
-# The cleaned dataset is 192 x 102 (y x x). 192 = 32*6 is fine, but 102 is only
-# divisible by 2 once -- the 5-level StormCastUNet downsampling chain (/2 five
-# times) breaks at level 2. Before launching, choose ONE of:
-#   (a) re-crop x to 96 in clean_zarr.py (drop 6 cells; 192x96 = 32*6 x 32*3); or
-#   (b) pad x from 102 to 128 inside a dataset wrapper / collate_fn and mask
-#       the padded region in the loss.
-# This script ships with HighRes_img_size=[192,102] -- update it once you pick.
+# Dataset spatial shape: 192 (y) x 96 (x). Both are clean multiples of 32, so
+# the 5-level StormCastUNet downsample chain works without padding.
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
@@ -35,14 +30,14 @@ run_id="0"
 # --- Logging parameters ---
 print_progress_freq=25
 checkpoint_freq=2000
-validation_freq=200
+validation_freq=100
 num_data_workers=4
 
 # --- Training parameters (StormCast paper regression defaults) ---
 batch_size=64                # global; with 4 GPUs -> 16 per GPU
 lr=4E-4
 lr_rampup_steps=1000
-total_train_steps=16000      # paper default for regression at batch_size=64
+total_train_steps=160000      # paper default for regression at batch_size=64
 clip_grad_norm=-1            # -1 = disable
 loss='regression'
 fp_optimizations='fp32'
@@ -53,11 +48,10 @@ validation_plot_variables="[t2m,u10,v10,qpepre]"
 # --- Optional NetCDF outputs ---
 output_nc="false"
 output_nc_freq=5
-# location="/workspace/downloads/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026"
 
 # --- Dataset parameters ---
-location="/workspace/downloads/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026"
-HighRes_img_size="[192,102]"     # <-- update if you re-crop or pad (see top-of-file note)
+location="/workspace/downloads/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026"
+HighRes_img_size="[192,96]"
 exp_train_zarrs="[stormcast_test_train]"
 train_dates="[2019/08/01,2021/12/31]"
 exp_valid_zarrs="[stormcast_test_valid]"
