@@ -53,9 +53,10 @@ validation_plot_variables="[t2m,u10,v10,qpepre]"
 # --- Optional NetCDF outputs ---
 output_nc="false"
 output_nc_freq=5
+# location="/workspace/downloads/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026"
 
 # --- Dataset parameters ---
-location="/workspace/downloads/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026"
+location="/workspace/downloads/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026"
 HighRes_img_size="[192,102]"     # <-- update if you re-crop or pad (see top-of-file note)
 exp_train_zarrs="[stormcast_test_train]"
 train_dates="[2019/08/01,2021/12/31]"
