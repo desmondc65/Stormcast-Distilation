@@ -85,6 +85,16 @@ class Dataset(StormCastDataset):
         )[kept_LowRes_idx, None, None]
         self.invariants = params.invariants
 
+        # See data_loader_rwrf_era5_stable.Dataset for context: clean_zarr.py
+        # stores qpepre as log1p(mm/h); denormalize_state inverts it (expm1)
+        # so callers receive real mm/h. Defaults True for the canonical
+        # cleaned dataset; set False for legacy raw datasets.
+        self.qpepre_log1p = bool(getattr(params, "qpepre_log1p", True))
+        try:
+            self._qpepre_idx = self.kept_HighRes_channels.index("qpepre")
+        except ValueError:
+            self._qpepre_idx = None
+
     def background_channels(self):
         """Metadata for the background channels. A list of channel names, one for each channel"""
         return self.kept_LowRes_channels
@@ -350,10 +360,21 @@ class Dataset(StormCastDataset):
         return x
 
     def denormalize_state(self, x: np.ndarray) -> np.ndarray:
-        """Convert state from normalized data to physical units."""
+        """Convert state from normalized data back to physical units (e.g.
+        K for t2m, m/s for u10/v10, mm/h for qpepre).
+
+        Inverts both:
+          1. standard-score normalization (``x * std + mean``), and
+          2. dataset-level pre-processing applied during clean_zarr -- on the
+             ``qpepre`` channel only, ``expm1`` to undo the ``log1p`` that
+             clean_zarr.py applied. Gated by ``self.qpepre_log1p`` so legacy
+             raw datasets (without log1p) still round-trip correctly.
+        """
         if self.normalize:
             x *= self.stds_HighRes
             x += self.means_HighRes
+        if self.qpepre_log1p and self._qpepre_idx is not None:
+            x[..., self._qpepre_idx, :, :] = np.expm1(x[..., self._qpepre_idx, :, :])
         return x
 
     def _get_LowRes(self, ts_inp, ts_tar):
