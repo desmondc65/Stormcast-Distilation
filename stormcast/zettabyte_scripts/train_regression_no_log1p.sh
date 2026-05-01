@@ -13,10 +13,13 @@
 # The resulting checkpoint is then shared by D2 (`train_diffusion_no_log1p.sh`)
 # and F2 (`train_flowcast_no_log1p.sh`), the way R0 is shared by D1/F1/F3.
 #
-# Prerequisite: the `_raw` sibling cleaned zarr (qpepre stored raw, stats
-# recomputed on raw — see train_diffusion_no_log1p.sh header for build steps).
-#
-# Pull that dataset onto the worker first (azcopy, see ../zettabyte/zettabyte.md):
+# Prerequisite: build the `_raw` sibling cleaned zarr first
+# (qpepre stored raw, stats recomputed on raw):
+#   python data_preprocessing/clean_zarr/clean_zarr.py \
+#       --no-qpepre-log1p \
+#       --dst .../zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026_raw
+# Then upload to the zettabyte blob store and azcopy-pull onto the worker
+# (see ../zettabyte/zettabyte.md):
 #   export SAS_URL="https://zbstore2026.blob.core.windows.net/g-019c8ca2-605d-7bb5-b98b-1c53fbdf2b7f?se=...sig=..."
 #   SRC="${SAS_URL%%\?*}/desmond/dataset/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026_raw?${SAS_URL#*\?}"
 #   azcopy copy "$SRC" /workspace/downloads --recursive
