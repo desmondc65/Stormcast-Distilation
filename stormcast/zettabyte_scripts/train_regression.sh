@@ -61,6 +61,10 @@ kept_LowRes_channels="all"
 # resulting regression checkpoint is drop-in compatible with the downstream
 # distillation runs.
 kept_HighRes_channels="[u10, v10, t2m, qpepre]"
+# Cleaned dataset has qpepre stored as log1p(mm/h). The dataset YAML default
+# already sets this true, but pin it explicitly so a future config change
+# can't silently flip the regression run into raw-mm/h mode.
+qpepre_log1p="true"
 
 # Execute training with torchrun
 python -m torch.distributed.run --standalone --nnodes="${number_of_nodes}" --nproc_per_node="${gpus_per_node}" "${stormcast_train}" ${config} \
@@ -89,4 +93,5 @@ python -m torch.distributed.run --standalone --nnodes="${number_of_nodes}" --npr
     "++dataset.exp_valid_zarrs=${exp_valid_zarrs}" \
     "++dataset.valid_dates=${valid_dates}" \
     "++dataset.kept_LowRes_channels=${kept_LowRes_channels}" \
-    "++dataset.kept_HighRes_channels=${kept_HighRes_channels}"
+    "++dataset.kept_HighRes_channels=${kept_HighRes_channels}" \
+    "++dataset.qpepre_log1p=${qpepre_log1p}"

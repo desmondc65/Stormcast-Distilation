@@ -206,3 +206,5 @@ zettabyte_results/*
 stormcast_env/*
 exp_2_train_2_5_yrs_val_1yr_tp1/*
 runs/*
+data_preprocessing/inspect_tools/*.csv
+data_preprocessing/clean_zarr/plot/*.png
