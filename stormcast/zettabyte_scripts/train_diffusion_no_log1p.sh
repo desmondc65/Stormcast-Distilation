@@ -46,11 +46,11 @@ run_id="0"
 # --- Logging parameters ---
 print_progress_freq=25
 checkpoint_freq=1000
-validation_freq=100
+validation_freq=250
 num_data_workers=4
 
 # --- Training parameters (StormCast paper diffusion defaults) ---
-batch_size=64                # global; with 4 GPUs -> 16 per GPU
+batch_size=96                # global; with 4 GPUs -> 16 per GPU
 lr=4E-4
 lr_rampup_steps=1000
 total_train_steps=700000      # match D1 so step-aligned snapshots are paired
@@ -98,7 +98,7 @@ qpepre_log1p="false"
 # (ablation.md §1: "the same step for every row" within each log1p group).
 # TODO: swap in the actual checkpoint path once train_regression_no_log1p.sh
 # has run; 8000 mirrors the step D1 currently uses.
-regression_weights="/data/exp_3_train_2_5_yrs_val_1yr_tp1/regression_zettabyte_v1_cleaned_4_27_2026_NO_log1p/regression_cleaned_NO_log1p/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus"
+regression_weights="/data/exp_3_train_2_5_yrs_val_1yr_tp1/regression_zettabyte_v1_cleaned_4_27_2026_NO_log1p/regression_cleaned_NO_log1p/run_0/checkpoints_regression/StormCastUNet.0.10000.mdlus"
 spatial_pos_embed="True"
 
 # Execute training with torchrun
