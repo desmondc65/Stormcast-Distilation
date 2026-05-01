@@ -7,9 +7,10 @@
 #
 # Prerequisite: a sibling cleaned dataset whose qpepre channel is raw mm/h,
 # with HighRes/stats/{means,stds}.npy recomputed on the raw values
-# (qpepre std should be ~9, NOT ~0.37 — see ablation.md §7 sanity check #2).
-# Build it by running clean_zarr.py with --no-qpepre-log1p (the clip-min=0
-# numerical-noise fix stays on, only log1p is gated):
+# (on the 192x96 Taiwan crop the recomputed qpepre std is ~2 mm/h vs ~0.37
+# for the log1p variant — see ablation.md §7 sanity check #2). Build it by
+# running clean_zarr.py with --no-qpepre-log1p (the clip-min=0 numerical-
+# noise fix stays on, only log1p is gated):
 #   python data_preprocessing/clean_zarr/clean_zarr.py \
 #       --no-qpepre-log1p \
 #       --dst .../zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026_raw
