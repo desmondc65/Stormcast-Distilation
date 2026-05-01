@@ -39,6 +39,10 @@ Run::
     python clean_zarr.py                       # use defaults
     python clean_zarr.py --skip-stats          # skip stat re-computation
     python clean_zarr.py --src ... --dst ...   # custom paths
+    # Build the `_raw` sibling for the log1p ablation (D2/F2/R0_raw):
+    python clean_zarr.py \\
+        --no-qpepre-log1p \\
+        --dst .../zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026_raw
 """
 
 from __future__ import annotations
@@ -179,6 +183,7 @@ def write_store(
     invalid_set: "frozenset[np.datetime64]",
     y_slice: slice,
     x_slice: slice,
+    apply_qpepre_log1p: bool = True,
 ) -> None:
     print(f"\n[store] {src_path.relative_to(src_path.parents[2])}")
     t0 = time.time()
@@ -199,19 +204,24 @@ def write_store(
             f" {float(ds_c.longitude.max()):.4f}]"
         )
 
-        # HighRes-only: apply max(0, .) + log1p to the qpepre channel.
+        # HighRes-only: apply max(0, .) [+ log1p] to the qpepre channel.
+        # The clip is a numerical-noise fix (RWRF qpepre has tiny negatives)
+        # and is always on. log1p is the heavy-tail compression and is gated
+        # by --no-qpepre-log1p so an ablation can build a `_raw` sibling that
+        # differs from the standard cleaned zarr in *only* the log1p axis.
         if var_name == "HighRes" and QPEPRE_TRANSFORM_CHANNEL in [
             str(c) for c in ds_c.channel.values
         ]:
-            print(f"        transforming '{QPEPRE_TRANSFORM_CHANNEL}': clip(min=0) + log1p")
+            transform_desc = "clip(min=0) + log1p" if apply_qpepre_log1p else "clip(min=0) only (NO log1p)"
+            print(f"        transforming '{QPEPRE_TRANSFORM_CHANNEL}': {transform_desc}")
             data = ds_c[var_name]
             original_dims = data.dims  # ("time", "channel", "y", "x")
             is_qpepre = (ds_c.channel == QPEPRE_TRANSFORM_CHANNEL)
             # Clip the whole array to >=0 first (winds/temps unaffected because
             # we only WRITE the result back to the qpepre channel via where()).
             data_clipped = data.where(data >= 0, 0.0)
-            data_log1p = np.log1p(data_clipped)
-            transformed = xr.where(is_qpepre, data_log1p, data)
+            qpepre_new = np.log1p(data_clipped) if apply_qpepre_log1p else data_clipped
+            transformed = xr.where(is_qpepre, qpepre_new, data)
             # xr.where broadcasts and may reorder dims (channel first); restore
             # the original (time, channel, y, x) layout so chunks align.
             ds_c[var_name] = transformed.transpose(*original_dims)
@@ -305,6 +315,12 @@ def main() -> int:
                         help="Skip the HighRes stores (and their stats).")
     parser.add_argument("--skip-invariants", action="store_true",
                         help="Skip the invariants store.")
+    parser.add_argument("--no-qpepre-log1p", action="store_true",
+                        help="Do not apply log1p to the HighRes qpepre channel "
+                             "(clip(min=0) is still applied). Use for the `_raw` "
+                             "sibling dataset that the log1p ablation (D2/F2/R0_raw) "
+                             "consumes. The launcher must then set "
+                             "dataset.qpepre_log1p=false to keep loader semantics in sync.")
     args = parser.parse_args()
 
     src: Path = args.src
@@ -342,6 +358,7 @@ def main() -> int:
             invalid_set if apply_invalid else frozenset(),
             y_slice,
             x_slice,
+            apply_qpepre_log1p=not args.no_qpepre_log1p,
         )
 
     if not args.skip_invariants:
