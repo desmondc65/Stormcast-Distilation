@@ -191,10 +191,15 @@ These are 5-minute checks that prevent multi-day misruns:
    compare D1 and F1 by their CSV losses, only by post-`denormalize_state`
    metrics.
 2. **`HighRes/stats/{means,stds}.npy` of the no-log1p dataset must be
-   recomputed on raw qpepre.** If you reuse the log1p stats with raw data,
-   the qpepre std becomes ~9 instead of 0.37 and the channel will dominate
-   the loss; you'd see a sane training curve but disastrous wind/temp
-   metrics. Verify the std file matches the data on disk.
+   recomputed on raw qpepre.** Empirically (192×96 Taiwan crop, train
+   timesteps after invalidity masking) the qpepre std comes in around
+   **~2 mm/h raw** vs **~0.37 in log1p space** on the same crop. The 5–6×
+   ratio is enough that reusing log1p stats with raw data would let the
+   qpepre channel dominate the loss; you'd see a sane training curve but
+   disastrous wind/temp metrics. The check is "raw std should be much
+   larger than 0.37", not a specific number — the absolute value depends
+   on crop and validity mask. Verify the std file matches the data on
+   disk.
 3. **Channel order across all runs identical**: `[u10, v10, t2m, qpepre]`.
    The launcher comments say so but it's the kind of thing that drifts.
 4. **EMA shadow vs raw student**: for both FlowCast and EDM the inference
