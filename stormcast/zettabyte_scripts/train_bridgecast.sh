@@ -38,7 +38,7 @@ validation_freq=250
 num_data_workers=4
 
 # --- Optimization (FlowCast-paper compatible: AdamW, cosine w/ 1% warmup) ---
-batch_size=64
+batch_size=32
 lr=5E-4
 weight_decay=1.0E-4
 adam_betas="[0.9,0.999]"
@@ -51,7 +51,7 @@ loss='bridgecast'
 # regression. Required to fit BridgeCast (antithetic + K-sample ES) on
 # 4xH100 at batch_size=64; the FlowCast paper used fp32 because it has no
 # antithetic / ES branches.
-fp_optimizations='amp-bf16'
+fp_optimizations='fp32'
 ema_decay=0.999
 
 # --- Bridge parameters (plan §6) ---
