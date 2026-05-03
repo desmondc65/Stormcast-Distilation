@@ -38,7 +38,7 @@ validation_freq=250
 num_data_workers=4
 
 # --- Optimization (FlowCast-paper compatible: AdamW, cosine w/ 1% warmup) ---
-batch_size=96
+batch_size=64
 lr=5E-4
 weight_decay=1.0E-4
 adam_betas="[0.9,0.999]"
