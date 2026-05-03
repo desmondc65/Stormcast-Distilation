@@ -440,6 +440,9 @@ def bridgecast_model_forward(
     apply_mask_gate: bool = True,
     mask_threshold: float = 0.5,
     nonneg_qpepre: bool = True,
+    qpepre_log1p: bool = False,
+    qpepre_floor_std: float | None = None,
+    qpepre_clip_std: float | None = None,
     t_eps: float = 1e-3,
     midpoint: bool = True,
     eps_override: torch.Tensor | None = None,
@@ -488,7 +491,33 @@ def bridgecast_model_forward(
     mask_threshold : float
         Sigmoid probability threshold for the hard mask gate.
     nonneg_qpepre : bool
-        Whether to clamp the decoded qpepre to be non-negative.
+        Whether to clamp the decoded qpepre to be non-negative. Only applied
+        when ``qpepre_log1p`` is False — the loader's standardized log1p
+        space puts "no rain" at a negative standardized value (not 0), so a
+        ``min=0`` clamp would force every dry pixel up to the channel mean
+        (visible in early training as a flat-zero background). When using a
+        log1p loader, set ``qpepre_floor_std`` instead.
+    qpepre_log1p : bool
+        Set ``True`` when the dataloader applies ``log1p(mm/h)`` followed by
+        per-channel standardization (e.g. zettabyte cleaned dataset).
+        Disables ``nonneg_qpepre`` and the rain-mask gate so they don't
+        misinterpret "0 in standardized log1p" as "no rain".
+    qpepre_floor_std : float, optional
+        When ``qpepre_log1p`` is True, the smallest physically-meaningful
+        value of the qpepre channel (raw 0 mm/h → log1p(0)=0 → standardized
+        ``(0 - mu) / sigma``). If supplied, the qpepre channel of x_pred is
+        clamped from below at this value. Use the dataset's
+        ``HighRes_means`` / ``HighRes_stds`` to compute it; pass ``None`` to
+        skip the floor (the model's natural output handles non-negativity
+        once trained).
+    qpepre_clip_std : float, optional
+        Upper bound on the qpepre channel of x_pred in standardized space.
+        Acts as a *trust region* preventing isolated runaway model outputs
+        from dominating RMSE — extreme typhoon rain (200 mm/h →
+        log1p ≈ 5.3 → standardized ≈ 14 with sigma_log1p=0.37) sits well
+        below 20, so a value of 20–25 is a safe upper bound that almost
+        never trims real signal but kills the validation-time spikes.
+        ``None`` disables the clip.
     t_eps : float
         Time clip on both sides of [0, 1] (gamma'(t) diverges at endpoints).
     midpoint : bool
@@ -548,12 +577,50 @@ def bridgecast_model_forward(
     residual = z * sigma_data
     x_pred = residual + regression_mean
 
-    if qpepre_idx >= 0 and nonneg_qpepre:
+    # Clamp the qpepre channel of x_pred so a single rogue pixel can't
+    # blow up downstream RMSE / plotting. The semantics of "no rain" depend
+    # on the dataloader's qpepre encoding:
+    #
+    #  - Raw mm/h loader  → no-rain == 0; ``nonneg_qpepre`` clamps min=0.
+    #  - log1p loader     → no-rain == standardized ``-mu/sigma`` < 0; the
+    #                       ``min=0`` clamp would force every dry pixel up
+    #                       to the channel mean, producing the flat-zero
+    #                       background + spike pattern that makes RMSE
+    #                       blow up during training. We instead clamp
+    #                       ``min=qpepre_floor_std`` if provided, otherwise
+    #                       leave the lower bound to the trained model.
+    #
+    # ``qpepre_clip_std`` is an unconditional upper bound that rejects
+    # runaway model outputs in either encoding.
+    if qpepre_idx >= 0 and (
+        nonneg_qpepre
+        or qpepre_floor_std is not None
+        or qpepre_clip_std is not None
+    ):
         from .qpepre_transform import _replace_channel as _replace_ch
-        new_q = torch.clamp(x_pred[:, qpepre_idx], min=0.0)
-        x_pred = _replace_ch(x_pred, qpepre_idx, new_q)
+        q = x_pred[:, qpepre_idx]
+        if qpepre_log1p:
+            if qpepre_floor_std is not None:
+                q = torch.clamp(q, min=float(qpepre_floor_std))
+        else:
+            if nonneg_qpepre:
+                q = torch.clamp(q, min=0.0)
+        if qpepre_clip_std is not None:
+            q = torch.clamp(q, max=float(qpepre_clip_std))
+        x_pred = _replace_ch(x_pred, qpepre_idx, q)
 
-    if qpepre_idx >= 0 and apply_mask_gate and last_m_logits is not None:
+    # Mask gate: only safe when "0 in the channel's natural space" really
+    # means no rain. For a log1p loader, multiplying the standardized
+    # output by 0 collapses the value to the channel mean (≈ light rain),
+    # not to dry — which is the opposite of what the gate is supposed to
+    # do. So we skip it under qpepre_log1p; the mask head still trains as
+    # an auxiliary signal but is not applied at inference.
+    if (
+        qpepre_idx >= 0
+        and apply_mask_gate
+        and last_m_logits is not None
+        and not qpepre_log1p
+    ):
         x_pred = apply_rain_mask(
             x_pred,
             last_m_logits,

@@ -542,6 +542,15 @@ def bridgecast_training_loop(cfg):
                         regression_condition_list=cfg.model.regression_conditions,
                     )
 
+                    qpepre_log1p_flag = bool(
+                        getattr(cfg.dataset, "qpepre_log1p", False)
+                    )
+                    qpepre_floor_std_cfg = getattr(
+                        cfg.training, "qpepre_floor_std", None
+                    )
+                    qpepre_clip_std_cfg = getattr(
+                        cfg.training, "qpepre_clip_std", None
+                    )
                     output_images = bridgecast_model_forward(
                         ema_net,
                         condition=condition,
@@ -561,6 +570,15 @@ def bridgecast_training_loop(cfg):
                         ),
                         nonneg_qpepre=bool(
                             getattr(cfg.training, "nonneg_qpepre", True)
+                        ),
+                        qpepre_log1p=qpepre_log1p_flag,
+                        qpepre_floor_std=(
+                            None if qpepre_floor_std_cfg is None
+                            else float(qpepre_floor_std_cfg)
+                        ),
+                        qpepre_clip_std=(
+                            None if qpepre_clip_std_cfg is None
+                            else float(qpepre_clip_std_cfg)
                         ),
                         t_eps=float(cfg.training.t_eps),
                         midpoint=cfg.training.solver == "midpoint",

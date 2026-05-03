@@ -28,7 +28,7 @@ gpus_per_node=4
 stormcast_train="/workspace/Stormcast-Distilation/stormcast/train_bridgecast.py"
 config="--config-name bridgecast"
 experiment_name="bridgecast_zettabyte_cleaned_4_27_2026"
-training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/bridgecast_zettabyte_v1_cleaned_4_27_2026"
+training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/bridgecast_v2_zettabyte_v1_cleaned_4_27_2026"
 run_id="0"
 
 # --- Logging ---
@@ -38,7 +38,7 @@ validation_freq=250
 num_data_workers=4
 
 # --- Optimization (FlowCast-paper compatible: AdamW, cosine w/ 1% warmup) ---
-batch_size=32
+batch_size=48
 lr=5E-4
 weight_decay=1.0E-4
 adam_betas="[0.9,0.999]"
@@ -78,9 +78,22 @@ qpepre_kappa=1.0
 # a reasonable wet/dry binary on the cleaned 4/27/2026 dataset.
 rain_threshold=0.0
 enable_mask_head=true
-apply_mask_gate=true
+# Mask gate / non-neg clamp at inference are SKIPPED automatically when the
+# loader uses qpepre_log1p=true (the dataset's qpepre is in standardised
+# log1p space, where "0" is the channel mean — NOT no-rain — so a min=0
+# clamp / x*0 gate would force every dry pixel up to the mean and produce
+# the flat-zero-background-with-spikes failure mode visible in early runs).
+# The mask head still trains as an auxiliary signal; just don't apply it
+# post-hoc at inference time.
+apply_mask_gate=false
 mask_threshold=0.5
-nonneg_qpepre=true
+nonneg_qpepre=false
+# Trust-region upper bound on the qpepre channel of x_pred (in the loader's
+# standardised log1p space). A 200 mm/h typhoon corresponds to standardised
+# ~14 with sigma_log1p=0.37; 25 leaves comfortable headroom while killing
+# the runaway-pixel spikes (model outputs of magnitude 100-150 visible in
+# early validation images) that otherwise dominate RMSE.
+qpepre_clip_std=25.0
 
 # --- Energy-Score ensemble objective (plan §2.6) ---
 # K=2 is the smallest strictly-proper estimator; K=4 was the plan default
@@ -99,7 +112,12 @@ lambda_d=1.0E-3
 
 # --- Channel weights / spectral regularizer ---
 # Order MUST match kept_HighRes_channels below: u10, v10, t2m, qpepre.
-channel_weights="[1.0,1.0,1.0,2.0]"
+# qpepre weight kept at 1.0 on the log1p loader (its std is 0.37, in the
+# same regime as the wind channels). The 2.0 boost was a heavy-tail balance
+# for the raw mm/h channel and amplifies the gradient on rare extreme rain
+# pixels — exactly the failure mode the spike artifacts in early validation
+# images came from.
+channel_weights="[1.0,1.0,1.0,1.0]"
 spectral_channels="[qpepre]"
 spectral_weight=0.1
 
@@ -166,6 +184,7 @@ python -m torch.distributed.run --standalone --nnodes="${number_of_nodes}" --npr
     "++training.apply_mask_gate=${apply_mask_gate}" \
     "++training.mask_threshold=${mask_threshold}" \
     "++training.nonneg_qpepre=${nonneg_qpepre}" \
+    "++training.qpepre_clip_std=${qpepre_clip_std}" \
     "++training.es_K=${es_K}" \
     "++training.es_pool=${es_pool}" \
     "++training.lambda_v=${lambda_v}" \
