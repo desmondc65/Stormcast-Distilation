@@ -47,7 +47,11 @@ min_lr_ratio=0.01
 total_train_steps=400000
 clip_grad_norm=1.0
 loss='bridgecast'
-fp_optimizations='fp32'
+# H100-native bf16 AMP — halves activation memory vs fp32 with no quality
+# regression. Required to fit BridgeCast (antithetic + K-sample ES) on
+# 4xH100 at batch_size=64; the FlowCast paper used fp32 because it has no
+# antithetic / ES branches.
+fp_optimizations='amp-bf16'
 ema_decay=0.999
 
 # --- Bridge parameters (plan §6) ---
@@ -79,9 +83,12 @@ mask_threshold=0.5
 nonneg_qpepre=true
 
 # --- Energy-Score ensemble objective (plan §2.6) ---
-# K=4 multiplies training compute by ~5x but is the headline calibration
-# contribution. Set es_K=0 for ablation #6 (no ES).
-es_K=4
+# K=2 is the smallest strictly-proper estimator; K=4 was the plan default
+# but each extra K runs a *full* SongUNet forward pass with retained graph
+# and pushes 4xH100 OOM at batch_size=64. K=2 still trains calibration
+# correctly with ~half the activation memory. Bump to 4 if memory allows.
+# Set es_K=0 for ablation #6 (no ES).
+es_K=2
 es_pool=4
 
 # --- Loss weights (plan §2.8) ---

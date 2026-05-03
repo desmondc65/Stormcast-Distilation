@@ -84,18 +84,33 @@ def _energy_score_fair(samples: Tensor, target: Tensor) -> Tensor:
         # zero spread term); just return the L2 distance to truth.
         return (samples[0] - target).pow(2).mean()
 
+    # Flatten the field dimensions once and work in (K, B, D) — avoids
+    # materialising a (K, K, B, C, H, W) pairwise tensor that for K=4,
+    # B=16, C=4, H=192, W=96 in fp32 would peak around 75 MB *with full
+    # gradient buffers*, on top of the K live forward-pass activations.
+    flat = samples.flatten(2)              # (K, B, D)
+    sq_norms = flat.pow(2).sum(dim=-1)     # (K, B)
+
     # Term 1: E[ ||X̂ - X|| ] over members. ``+1e-8`` inside the sqrt avoids
     # the inf-gradient of ``sqrt(0)`` at the (rare) coincident sample case.
-    diff_to_truth = samples - target.unsqueeze(0)  # (K, B, C, H, W)
-    norm_truth = (diff_to_truth.flatten(2).pow(2).sum(dim=-1) + 1e-8).sqrt()  # (K, B)
-    term1 = norm_truth.mean(dim=0)  # (B,)
+    target_flat = target.flatten(1)        # (B, D)
+    target_sq = target_flat.pow(2).sum(dim=-1)        # (B,)
+    cross_truth = torch.einsum("kbd,bd->kb", flat, target_flat)  # (K, B)
+    norm_truth_sq = sq_norms + target_sq.unsqueeze(0) - 2.0 * cross_truth
+    norm_truth = (norm_truth_sq.clamp_min(0.0) + 1e-8).sqrt()
+    term1 = norm_truth.mean(dim=0)         # (B,)
 
-    # Term 2: 1/(2K(K-1)) * sum_{k != j} ||X̂_k - X̂_j||. The diagonal is
-    # guaranteed 0 in value but ``sqrt(0)`` has +inf gradient — adding 1e-8
-    # under the sqrt makes both forward and backward NaN-safe at negligible
-    # bias (sqrt(1e-8) = 1e-4 per diagonal entry, divided by 2K(K-1)).
-    pairwise = samples.unsqueeze(0) - samples.unsqueeze(1)  # (K, K, B, C, H, W)
-    pairwise_norm = (pairwise.flatten(3).pow(2).sum(dim=-1) + 1e-8).sqrt()
+    # Term 2: 1/(2K(K-1)) * sum_{k != j} ||X̂_k - X̂_j||. Use the polarisation
+    # identity ||x_k - x_j||^2 = ||x_k||^2 + ||x_j||^2 - 2<x_k, x_j> so the
+    # inner-product matrix (K, K, B) is the only K×K-shaped tensor we ever
+    # allocate — orders of magnitude smaller than the explicit pairwise
+    # difference. ``clamp_min(0)`` guards against fp accumulation noise.
+    gram = torch.einsum("kbd,jbd->kjb", flat, flat)            # (K, K, B)
+    pair_sq = sq_norms.unsqueeze(1) + sq_norms.unsqueeze(0) - 2.0 * gram
+    pairwise_norm = (pair_sq.clamp_min(0.0) + 1e-8).sqrt()     # (K, K, B)
+    # Diagonal contributes ``sqrt(1e-8) = 1e-4`` per (k, k) — bias of order
+    # 1e-4 / (K-1) on term2, which is negligible against typical ES values
+    # and keeps the forward / backward path NaN-free.
     term2 = pairwise_norm.sum(dim=(0, 1)) / (2.0 * K * (K - 1))
 
     return (term1 - term2).mean()
