@@ -203,3 +203,4 @@ analyse_tools/progressive*/*
 zettabyte/*
 zettabyte/azcopy_transfer.sh
 zettabyte_results/*
+stormcast/experiments/results_cross_method/*
