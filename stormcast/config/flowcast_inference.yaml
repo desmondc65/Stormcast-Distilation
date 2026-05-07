@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Main config for FlowCast inference (regression mean + flow-matching residual).
+# Mirrors inference_ncdr.yaml but loads the FlowCast student via EMA shadow.
+
+defaults:
+  # Dataset -- use the same RWRF/ERA5 loader as training so denormalize_state
+  # auto-applies expm1 to qpepre (qpepre_log1p flag).
+  - dataset/era5_rwrf_qpepre
+
+  # Model settings shared with training (sigma_data, time_scale, conditions).
+  - model/flowcast
+
+  # Inference settings (checkpoints, n_steps, plot vars, FlowCast sampler args).
+  - inference/flowcast
+
+  # Hydra
+  - hydra/default
+
+  - _self_

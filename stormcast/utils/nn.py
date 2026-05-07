@@ -22,6 +22,13 @@ from physicsnemo.models.diffusion import ConsistencyPrecond, EDMPrecond, StormCa
 from physicsnemo.utils.diffusion import deterministic_sampler
 
 from .flowcast_precond import FlowCastPrecond
+from .bridgecast_precond import BridgeCastPrecond
+from .qpepre_transform import (
+    channel_asinh_forward,
+    channel_asinh_inverse,
+    softplus_nonneg,
+    apply_rain_mask,
+)
 
 
 def get_preconditioned_architecture(
@@ -94,6 +101,18 @@ def get_preconditioned_architecture(
             img_channels=target_channels + conditional_channels,
             img_in_channels=target_channels + conditional_channels,
             img_out_channels=target_channels,
+            model_type="SongUNet",
+            channel_mult=[1, 2, 2, 2, 2],
+            attn_resolutions=attn_resolutions,
+            additive_pos_embed=spatial_embedding,
+        )
+
+    elif name == "bridgecast":
+        return BridgeCastPrecond(
+            img_resolution=img_resolution,
+            img_channels=target_channels + conditional_channels,
+            target_channels=target_channels,
+            img_in_channels=target_channels + conditional_channels,
             model_type="SongUNet",
             channel_mult=[1, 2, 2, 2, 2],
             attn_resolutions=attn_resolutions,
@@ -405,6 +424,212 @@ def flowcast_model_forward(
         z = z + v * dt
 
     return z * sigma_data
+
+
+def bridgecast_model_forward(
+    model,
+    condition: torch.Tensor,
+    regression_mean: torch.Tensor,
+    clim_noise_sampler,
+    sigma_b: float = 0.15,
+    sigma_a: float = 0.0,
+    sigma_data: float = 0.5,
+    num_steps: int = 2,
+    qpepre_idx: int = -1,
+    qpepre_kappa: float = 1.0,
+    apply_mask_gate: bool = True,
+    mask_threshold: float = 0.5,
+    nonneg_qpepre: bool = True,
+    qpepre_log1p: bool = False,
+    qpepre_floor_std: float | None = None,
+    qpepre_clip_std: float | None = None,
+    t_eps: float = 1e-3,
+    midpoint: bool = True,
+    eps_override: torch.Tensor | None = None,
+):
+    """Sample BridgeCast (Algorithm 1 of new_method_plan.md §3).
+
+    Integrates the bridge ODE in *standardized residual* space:
+        z_0 = sigma_a * eps_clim       (anchor; sigma_a=0 ⇒ exact zero start)
+        z_1 ≈ R_norm = (X_t - M_t) / sigma_data
+        z_t = (1-t) z_0 + t R_norm + gamma(t) eps_clim
+        gamma(t) = sigma_b * sqrt(t(1-t))
+
+    where the same correlated noise tensor ``eps_clim`` is used for the anchor
+    jitter and the bridge noise (single Brownian-bridge formulation). The
+    network is queried at ``z + gamma(t) eps`` per Algorithm 1; the returned
+    tensor is the predicted full state X_t = M_t + R_pred in raw units.
+
+    Parameters
+    ----------
+    model : BridgeCastPrecond
+        Trained student (or its EMA shadow).
+    condition : Tensor, (B, C_cond, H, W)
+        Conditioning bundle (state, regression, invariant; same as FlowCast).
+    regression_mean : Tensor, (B, C, H, W)
+        ``M_t = F_xi(X_{t-1}, S_t, I)`` in raw physical units.
+    clim_noise_sampler : ClimNoiseSampler
+        Per-channel climatology-correlated unit-variance noise sampler. Pass
+        a sampler with ``Pk_per_channel=None`` to fall back to white noise
+        (plan §4 ablation #4).
+    sigma_b : float
+        Bridge noise magnitude (peaks at t=1/2).
+    sigma_a : float
+        Anchor jitter at t=0 (default 0 = deterministic anchor at residual=0).
+    sigma_data : float
+        Per-channel std used to de-standardize the predicted residual.
+    num_steps : int
+        Number of integration steps (1–4 typical).
+    qpepre_idx : int
+        Channel index of qpepre. ``-1`` disables the asinh transform / mask /
+        non-negativity gate (plan §4 ablation #5).
+    qpepre_kappa : float
+        asinh knee scale for the qpepre residual channel (in standardized
+        units; use 1.0 since R_norm is roughly unit-variance per channel).
+    apply_mask_gate : bool
+        Whether to multiply the decoded qpepre channel by the predicted mask.
+    mask_threshold : float
+        Sigmoid probability threshold for the hard mask gate.
+    nonneg_qpepre : bool
+        Whether to clamp the decoded qpepre to be non-negative. Only applied
+        when ``qpepre_log1p`` is False — the loader's standardized log1p
+        space puts "no rain" at a negative standardized value (not 0), so a
+        ``min=0`` clamp would force every dry pixel up to the channel mean
+        (visible in early training as a flat-zero background). When using a
+        log1p loader, set ``qpepre_floor_std`` instead.
+    qpepre_log1p : bool
+        Set ``True`` when the dataloader applies ``log1p(mm/h)`` followed by
+        per-channel standardization (e.g. zettabyte cleaned dataset).
+        Disables ``nonneg_qpepre`` and the rain-mask gate so they don't
+        misinterpret "0 in standardized log1p" as "no rain".
+    qpepre_floor_std : float, optional
+        When ``qpepre_log1p`` is True, the smallest physically-meaningful
+        value of the qpepre channel (raw 0 mm/h → log1p(0)=0 → standardized
+        ``(0 - mu) / sigma``). If supplied, the qpepre channel of x_pred is
+        clamped from below at this value. Use the dataset's
+        ``HighRes_means`` / ``HighRes_stds`` to compute it; pass ``None`` to
+        skip the floor (the model's natural output handles non-negativity
+        once trained).
+    qpepre_clip_std : float, optional
+        Upper bound on the qpepre channel of x_pred in standardized space.
+        Acts as a *trust region* preventing isolated runaway model outputs
+        from dominating RMSE — extreme typhoon rain (200 mm/h →
+        log1p ≈ 5.3 → standardized ≈ 14 with sigma_log1p=0.37) sits well
+        below 20, so a value of 20–25 is a safe upper bound that almost
+        never trims real signal but kills the validation-time spikes.
+        ``None`` disables the clip.
+    t_eps : float
+        Time clip on both sides of [0, 1] (gamma'(t) diverges at endpoints).
+    midpoint : bool
+        Use 2nd-order Heun-midpoint (2 NFE/step) or Euler (1 NFE/step).
+    eps_override : Tensor, optional
+        Caller-supplied noise (e.g. for paired antithetic ensembles). When
+        ``None`` a fresh sample is drawn from ``clim_noise_sampler``.
+
+    Returns
+    -------
+    Tensor, (B, C, H, W) — predicted X_t in raw physical units.
+    """
+    device = condition.device
+    dtype = condition.dtype
+    B, C, H, W = regression_mean.shape
+
+    # Bridge state lives in standardized residual space (z = R / sigma_data).
+    if eps_override is None:
+        eps = clim_noise_sampler.sample_like(regression_mean).to(dtype=dtype)
+    else:
+        eps = eps_override.to(dtype=dtype)
+
+    z = sigma_a * eps  # shape (B, C, H, W); zero if sigma_a == 0
+
+    t_lo = max(t_eps, 0.0)
+    t_hi = 1.0 - t_lo
+    dt = (t_hi - t_lo) / max(num_steps, 1)
+
+    last_m_logits = None
+
+    def gamma(t_val: float) -> float:
+        return sigma_b * (max(t_val * (1.0 - t_val), 0.0)) ** 0.5
+
+    for i in range(num_steps):
+        t_i = t_lo + i * dt
+        t_mid = t_i + 0.5 * dt
+        if midpoint:
+            x_in = z + gamma(t_i) * eps
+            t_vec = torch.full([B], t_i, device=device, dtype=dtype)
+            v_a, _ = model(x_in, t_vec, condition=condition)
+            z_half = z + v_a * (0.5 * dt)
+            x_mid = z_half + gamma(t_mid) * eps
+            t_vec_mid = torch.full([B], t_mid, device=device, dtype=dtype)
+            v_b, last_m_logits = model(x_mid, t_vec_mid, condition=condition)
+            z = z + v_b * dt
+        else:
+            x_in = z + gamma(t_i) * eps
+            t_vec = torch.full([B], t_i, device=device, dtype=dtype)
+            v, last_m_logits = model(x_in, t_vec, condition=condition)
+            z = z + v * dt
+
+    # ``z`` now holds the predicted standardized residual (potentially with
+    # the qpepre channel in asinh-compressed coordinates).
+    if qpepre_idx >= 0:
+        z = channel_asinh_inverse(z, qpepre_idx=qpepre_idx, kappa=qpepre_kappa)
+
+    residual = z * sigma_data
+    x_pred = residual + regression_mean
+
+    # Clamp the qpepre channel of x_pred so a single rogue pixel can't
+    # blow up downstream RMSE / plotting. The semantics of "no rain" depend
+    # on the dataloader's qpepre encoding:
+    #
+    #  - Raw mm/h loader  → no-rain == 0; ``nonneg_qpepre`` clamps min=0.
+    #  - log1p loader     → no-rain == standardized ``-mu/sigma`` < 0; the
+    #                       ``min=0`` clamp would force every dry pixel up
+    #                       to the channel mean, producing the flat-zero
+    #                       background + spike pattern that makes RMSE
+    #                       blow up during training. We instead clamp
+    #                       ``min=qpepre_floor_std`` if provided, otherwise
+    #                       leave the lower bound to the trained model.
+    #
+    # ``qpepre_clip_std`` is an unconditional upper bound that rejects
+    # runaway model outputs in either encoding.
+    if qpepre_idx >= 0 and (
+        nonneg_qpepre
+        or qpepre_floor_std is not None
+        or qpepre_clip_std is not None
+    ):
+        from .qpepre_transform import _replace_channel as _replace_ch
+        q = x_pred[:, qpepre_idx]
+        if qpepre_log1p:
+            if qpepre_floor_std is not None:
+                q = torch.clamp(q, min=float(qpepre_floor_std))
+        else:
+            if nonneg_qpepre:
+                q = torch.clamp(q, min=0.0)
+        if qpepre_clip_std is not None:
+            q = torch.clamp(q, max=float(qpepre_clip_std))
+        x_pred = _replace_ch(x_pred, qpepre_idx, q)
+
+    # Mask gate: only safe when "0 in the channel's natural space" really
+    # means no rain. For a log1p loader, multiplying the standardized
+    # output by 0 collapses the value to the channel mean (≈ light rain),
+    # not to dry — which is the opposite of what the gate is supposed to
+    # do. So we skip it under qpepre_log1p; the mask head still trains as
+    # an auxiliary signal but is not applied at inference.
+    if (
+        qpepre_idx >= 0
+        and apply_mask_gate
+        and last_m_logits is not None
+        and not qpepre_log1p
+    ):
+        x_pred = apply_rain_mask(
+            x_pred,
+            last_m_logits,
+            qpepre_idx=qpepre_idx,
+            threshold=mask_threshold,
+            hard=True,
+        )
+
+    return x_pred
 
 
 def regression_loss_fn(

@@ -1,4 +1,11 @@
 #!/bin/bash
+# QPEPRE-WEIGHT ABLATION (FlowCast): qpepre channel weight = 2.0.
+# Generated from train_flowcast.sh by the qpepre-weight sweep generator.
+# This file is one of eight scripts (qpw1.0 through qpw2.4 in 0.2 steps);
+# all knobs except channel_weights / experiment_name / training_output_dir
+# are inherited from the base train_flowcast.sh — DO NOT edit those
+# three knobs by hand here, or the sweep gets misaligned. Re-run the
+# generator if the base script changes.
 # Train the StormCast FlowCast student (Conditional Flow Matching on the
 # regression residual R_t = X_t - M_t) on zettabyte cloud, on top of the
 # cleaned dataset and the regression checkpoint trained at step 8000.
@@ -26,8 +33,8 @@ gpus_per_node=4
 # --- General training config ---
 stormcast_train="/workspace/Stormcast-Distilation/stormcast/train_flowcast.py"
 config="--config-name flowcast"
-experiment_name="flowcast_zettabyte_cleaned_4_27_2026"
-training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/flowcast_zettabyte_v1_cleaned_4_27_2026"
+experiment_name="flowcast_qpw2.0_cleaned_4_27_2026"
+training_output_dir="/data/exp_3_train_2_5_yrs_val_1yr_tp1/flowcast_qpw_ablation/qpw2.0"
 run_id="0"
 
 # --- Logging parameters ---
