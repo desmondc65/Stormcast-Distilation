@@ -175,7 +175,8 @@ def flowcast_model_forward(
     Integrates ``dz/dt = v_theta(z, t, condition)`` from t_start to t_end
     starting at ``z(0) ~ N(0, I)`` (standardized space) and returns the
     de-normalized residual ``z(1) * sigma_data``. Used as the generative step
-    on top of the regression mean M_t; the final prediction is ``M_t + R_t``.
+    on top of the regression mean mu_{t+1}; the final prediction is
+    ``mu_{t+1} + r_{t+1}``.
 
     Args:
         model: FlowCastPrecond model (or an EMA shadow of one).

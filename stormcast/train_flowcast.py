@@ -17,9 +17,9 @@
 """Train FlowCast (Conditional Flow Matching) on the StormCast residual.
 
 Adapts the FlowCast paper (Ribeiro & Pucer 2025) to the Taiwan RWRF StormCast
-setup: the regression net M produces the deterministic component and the CFM
-network learns the residual R_t = X_t - M_t in pixel space (no VAE). Sampling
-uses Algorithm 2 (Euler ODE, default 10 steps).
+setup: the regression net F_theta produces the deterministic component mu_{t+1}
+and the CFM network learns the residual r_{t+1} = M_{t+1} - mu_{t+1} in pixel
+space (no VAE). Sampling uses Algorithm 2 (Euler ODE, default 10 steps).
 """
 
 import os

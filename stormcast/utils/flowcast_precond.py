@@ -20,9 +20,9 @@ Wraps a SongUNet to predict a flow-matching vector field v_theta(x_t, t, c)
 for use with Conditional Flow Matching (Lipman et al. 2023; Tong et al. 2024).
 
 Adapted to the StormCast residual pipeline: the target is the per-step
-residual R_t = X_t - M_t produced by the frozen regression model M, and the
-conditioning c bundles (X_{t-1}, S_t, M_t, I). Unlike the EDMPrecond, there
-are no c_skip / c_out scales; the model output IS the velocity estimate.
+residual r_{t+1} = M_{t+1} - mu_{t+1} produced by the frozen regression model
+F_theta, and the conditioning c bundles (M_t, mu_{t+1}, I). Unlike the EDMPrecond,
+there are no c_skip / c_out scales; the model output IS the velocity estimate.
 """
 
 import importlib

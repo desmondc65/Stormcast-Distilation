@@ -16,11 +16,11 @@
 
 """FlowCast (Conditional Flow Matching) training loop.
 
-Trains an I-CFM vector field v_theta on the residual manifold R_t = X_t - M_t
-of the StormCast two-stage setup. The regression model M is kept frozen and
-used purely as conditioning / residual anchor, so inference is
-``M_t + Euler(v_theta)`` exactly as the existing EDM stack does for the
-diffusion residual.
+Trains an I-CFM vector field v_theta on the residual manifold
+r_{t+1} = M_{t+1} - mu_{t+1} of the StormCast two-stage setup. The regression
+model F_theta is kept frozen and used purely as conditioning / residual anchor,
+so inference is ``mu_{t+1} + Euler(v_theta)`` exactly as the existing EDM stack
+does for the diffusion residual.
 """
 
 import contextlib

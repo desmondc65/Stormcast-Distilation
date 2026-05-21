@@ -17,7 +17,7 @@
 """Conditional Flow Matching loss (Ribeiro & Pucer 2025, FlowCast Algorithm 1).
 
 Adapted to StormCast's residual pipeline: ``images`` is expected to be the
-*raw* target residual R_t = X_t - M_t. Internally the loss standardizes by
+*raw* target residual r_{t+1} = M_{t+1} - mu_{t+1}. Internally the loss standardizes by
 ``sigma_data`` so the flow operates on a roughly-unit-variance manifold, and
 supports the same per-channel weighting + qpepre log-PSD regularizer that the
 Consistency Distillation loss already exposes.
@@ -123,7 +123,7 @@ class FlowCastLoss:
             signature ``student(x, t, condition=...)`` and return a tensor of
             the same shape as ``x``.
         images : Tensor
-            Raw target residual R_t of shape (B, C, H, W).
+            Raw target residual r_{t+1} of shape (B, C, H, W).
         condition : Tensor
             Conditioning tensor of shape (B, C_cond, H, W).
 

@@ -12,9 +12,9 @@
 Mirrors ``inference.py`` but swaps the EDM diffusion sampler for the
 fixed-step ODE sampler in ``flowcast_model_forward``. The pipeline is::
 
-    M_t = F_xi(X_{t-1}, S_t, I)                  # frozen regression mean
-    R_t = FlowCast(z, t, condition)              # learned residual
-    X_t = M_t + R_t
+    mu_{t+1} = F_theta(M_t, S_t, I)              # frozen regression mean
+    r_{t+1}  = FlowCast(z, t, condition)         # learned residual
+    M_{t+1}  = mu_{t+1} + r_{t+1}
 
 The FlowCast student weights are loaded from the EMA shadow saved during
 training (``<rundir>/ema_state.pt``); these, NOT the raw student
@@ -157,7 +157,7 @@ def main(cfg: DictConfig):
 
     # Output zarr -- reuse the same writers as inference.py. The "edm" group
     # holds the FlowCast-corrected prediction, the "noedm" group holds the
-    # bare regression mean (M_t alone) for direct comparison.
+    # bare regression mean (mu_{t+1} alone) for direct comparison.
     (
         group,
         target_group,
@@ -194,7 +194,7 @@ def main(cfg: DictConfig):
                 i,
             )
 
-            # Build condition + run frozen regression -> M_t in state_pred
+            # Build condition + run frozen regression -> mu_{t+1} in state_pred
             (condition, _, state_pred) = build_network_condition_and_target(
                 background,
                 [state_pred, state_pred],
@@ -209,7 +209,7 @@ def main(cfg: DictConfig):
 
             state_pred_reg = state_pred.clone()
 
-            # FlowCast residual R_t (already in raw, un-standardised units).
+            # FlowCast residual r_{t+1} (already in raw, un-standardised units).
             residual = flowcast_model_forward(
                 flowcast_model,
                 condition,
