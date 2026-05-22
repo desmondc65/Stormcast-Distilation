@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# ---------------------------------------------------------------------------
+# Bridge inference config
+# ---------------------------------------------------------------------------
+outdir: 'StormCast_bridge/inference'
+experiment_name: 'bridge-inference'
+run_id: 0
+rundir: ${inference.outdir}/${inference.experiment_name}/${inference.run_id}
+
+# Initial autoregressive timestamp (must be present in dataset.valid_dates).
+initial_time: '2022-07-01T00:00:00'
+
+# Number of autoregressive steps (each is dt = 1 h).
+n_steps: 12
+
+# ---------------------------------------------------------------------------
+# Checkpoints
+# ---------------------------------------------------------------------------
+# Frozen regression mean F_theta. The bridge requires this -- it is the
+# prior endpoint of the flow.
+regression_checkpoint: ''
+
+# Bridge student EMA shadow saved by trainer_bridge.py at
+#   <bridge_train_rundir>/ema_state.pt
+# Loading the EMA shadow (NOT the raw student) matches what the trainer uses
+# for its own validation sampler.
+bridge_ema_path: ''
+
+# ---------------------------------------------------------------------------
+# Bridge sampler hyperparameters
+# ---------------------------------------------------------------------------
+bridge:
+  num_steps: 10         # ODE steps.
+  sigma_prior: 0.05     # MUST match training (the prior endpoint variance).
+  solver: 'euler'       # 'euler' or 'midpoint' (midpoint = 2 NFE per step).
+  # Optional per-channel prior std multipliers (Direction 2 ablation). Use
+  # the SAME values you trained with -- mismatched sigma_prior or per-channel
+  # std at inference produces a covariate shift between the trained vector
+  # field and the sampled trajectories.
+  prior_channel_std: null
+
+# ---------------------------------------------------------------------------
+# I/O
+# ---------------------------------------------------------------------------
+plot_var_state: 'qpepre'
+plot_var_background: 't2m'
+output_state_channels: []
+
+save_horizontal_vars: ['t2m', 'u10', 'v10', 'qpepre']
+save_vertical_vars: []
+save_vertical_levels: []

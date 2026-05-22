@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+
+# Model name
+model_name: 'bridge'
+
+# Model conditions.
+# - regression_conditions: inputs used by the frozen regression network.
+# - diffusion_conditions: inputs fed to the bridge backbone (concatenated
+#   with x_t channel-wise). 'regression' MUST be present so that mu_{t+1}
+#   is both the prior endpoint of the bridge AND a conditioning channel.
+regression_conditions: ["state", "background", "invariant"]
+diffusion_conditions: ["state", "regression", "invariant"]
+
+# Model hyperparameters
+spatial_pos_embed: False
+attn_resolutions: []
+
+# Pretrained regression model. Required for the bridge -- it is the prior
+# endpoint, not just conditioning.
+regression_weights: ""
+
+# Bridge parameters.
+# - sigma_data is kept in the config purely for compatibility with the EMA
+#   shadow loader / EDM-side knobs; the BridgeMatchingLoss itself operates
+#   in raw physical units and does NOT divide by sigma_data.
+# - time_scale: the flow time t in [0,1] is multiplied by this before
+#   entering the SongUNet's positional embedding (diffusion-timestep range
+#   preserves embedding resolution).
+sigma_data: 0.5
+time_scale: 1000.0
