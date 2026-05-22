@@ -1,22 +1,26 @@
 #!/bin/bash
-# Train the anchored Stochastic-Interpolant Bridge student on zettabyte cloud.
-# Direction 1 of flowcast_improvement.md. Same dataset / regression
-# checkpoint as the FlowCast zettabyte launcher so the two runs are directly
-# comparable at fixed sample budget.
-#
-# Reframes the residual head as a stochastic interpolant from the regression
-# mean mu_{t+1} to the truth M_{t+1}: the integrator starts at
-# x_0 = mu + sigma_prior * eps (NOT at white noise) and integrates to M_{t+1}
-# directly. The regression network is the structural prior endpoint of the
-# flow, not just a conditioning channel + target shift.
+# Train the StormCast anchored Stochastic-Interpolant Bridge student
+# (Direction 1 of flowcast_improvement.md) on zettabyte cloud, on top of the
+# cleaned dataset and the regression checkpoint trained at step 8000.
 #
 # Pull the dataset onto the worker first (azcopy, see ../../zettabyte/zettabyte.md):
-#   export SAS_URL="https://zbstore2026.blob.core.windows.net/...sig=..."
+#   export SAS_URL="https://zbstore2026.blob.core.windows.net/g-019c8ca2-605d-7bb5-b98b-1c53fbdf2b7f?se=...sig=..."
 #   SRC="${SAS_URL%%\?*}/desmond/dataset/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026?${SAS_URL#*\?}"
 #   azcopy copy "$SRC" /workspace/downloads --recursive
 #
 # Dataset spatial shape: 192 (y) x 96 (x). qpepre is stored as log1p(mm/h);
 # the loader's denormalize_state auto-applies expm1 for downstream metrics.
+# Note that *during training* qpepre is in standardised log1p space, which is
+# exactly what makes the per-channel MSE / spectral terms well-conditioned
+# without any extra weighting beyond ``channel_weights``.
+#
+# Reframes the residual head as a stochastic interpolant from the regression
+# mean mu_{t+1} to the truth M_{t+1}: the integrator starts at
+# x_0 = mu + sigma_prior * eps (NOT at white noise) and integrates to M_{t+1}
+# directly. The regression network is the structural prior endpoint of the
+# flow, not just a conditioning channel + target shift. Same dataset and
+# regression checkpoint as train_flowcast.sh so the two are directly
+# comparable at fixed sample budget.
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
@@ -40,46 +44,44 @@ checkpoint_freq=2500
 validation_freq=250
 num_data_workers=4
 
-# --- Training parameters (FlowCast-style defaults: AdamW, cosine w/ 1% warmup) ---
+# --- Training parameters (FlowCast paper defaults: AdamW, cosine w/ 1% warmup) ---
 batch_size=96
 lr=5E-4
 weight_decay=1.0E-4
 adam_betas="[0.9,0.999]"
 lr_warmup_steps=4000       # ~1% of total_train_steps
-min_lr_ratio=0.01
+min_lr_ratio=0.01          # min_lr = lr * min_lr_ratio
 total_train_steps=400000
 clip_grad_norm=1.0
 loss='bridge'
 fp_optimizations='fp32'
 
 # --- Bridge objective parameters ---
-# sigma_prior  std of the Gaussian perturbation on the prior endpoint
-#              (x_0 = mu + sigma_prior * eps). Small keeps the bridge short.
-# sigma_max    peak of the bridge interior noise term gamma(t)*z. Set to 0
-#              to ablate the stochastic interpolant (collapses to
-#              deterministic residual head).
-# schedule     'quadratic' (gamma = sigma_max*t*(1-t)) or 'trig' (sin(pi t)).
-# coupling     'iid' or 'ot' (minibatch OT-CFM coupling, Direction 3).
-sigma_prior=0.05
-sigma_max=0.5
-schedule='quadratic'
-coupling='iid'
-t_eps=1.0E-5
-ema_decay=0.999
+# Replaces I-CFM's sigma_path with a stochastic-interpolant family
+# (Albergo & Vanden-Eijnden 2023). x_t = alpha(t) x_0 + beta(t) x_1 + gamma(t) z
+# with x_0 = mu + sigma_prior * eps and x_1 = M.
+sigma_prior=0.05           # std of the additive Gaussian on the prior endpoint
+sigma_max=0.5              # peak of the interior noise term gamma(t)*z (0 disables)
+schedule='quadratic'       # 'quadratic' (t*(1-t)) or 'trig' (sin(pi t))
+coupling='iid'             # 'iid' or 'ot' (minibatch OT-CFM, Direction 3)
+t_eps=1.0E-5               # clamp for t ~ U(eps, 1-eps)
+ema_decay=0.999            # FlowCast paper default (fixed)
 
 # --- Sampler (validation only) ---
-valid_num_steps=10
-solver='euler'
+valid_num_steps=10         # Euler steps at validation (paper default)
+solver='euler'             # 'euler' or 'midpoint'
 
-# --- Hybrid loss (per-channel β + log-PSD on qpepre) ---
-# Channel order MUST match kept_HighRes_channels below: u10, v10, t2m, qpepre.
+# --- Hybrid loss (per-channel β + log-PSD on qpepre), mirrors CD spec ---
+# Order of channel_weights MUST match kept_HighRes_channels below: u10, v10, t2m, qpepre.
+# qpepre is now in log1p space (std 0.37, in the same regime as the wind
+# channels), so the 2x boost just nudges the spectral / loss weight without
+# the heavy-tail balancing the raw mm/h channel needed.
 channel_weights="[1.0,1.0,1.0,2.0]"
-spectral_channels="[qpepre]"
-spectral_weight=0.1
-# Per-channel prior noise std multipliers. Optional (Direction 2 ablation).
-# Boosting the qpepre slot pushes the prior toward a heavier-tail
-# approximation of the precipitation residual. Set to [1,1,1,1] for parity
-# with the FlowCast baseline.
+spectral_channels="[qpepre]"          # channels to add radial log-PSD term
+spectral_weight=0.1                   # α_spec
+# Per-channel prior noise std multipliers (Direction 2 ablation). Set to
+# [1,1,1,1] for parity with the FlowCast baseline; bump the qpepre slot for
+# the heavier-tail prior experiment.
 prior_channel_std="[1.0,1.0,1.0,1.0]"
 
 # --- Validation parameters ---
@@ -97,16 +99,20 @@ train_dates="[2019/08/01,2021/12/31]"
 exp_valid_zarrs="[stormcast_test_valid]"
 valid_dates="[2022/01/01,2022/12/31]"
 kept_LowRes_channels="all"
+# Match the channel order used by regression / consistency / diffusion / flowcast
+# scripts so the resulting Bridge student is drop-in compatible with the rest
+# of the run.
 kept_HighRes_channels="[u10, v10, t2m, qpepre]"
 qpepre_log1p="true"
 
 # --- Model parameters ---
-# Bridge backbone is the same SongUNet as FlowCast / EDM. The frozen
-# regression net provides mu_{t+1} as BOTH the prior endpoint of the bridge
-# AND a conditioning channel -- the bridge needs it twice over.
+# Bridge is a one-stage flow-matching net learning to integrate from the
+# frozen regression mean mu_{t+1} to M_{t+1} directly. The regression net
+# is used BOTH as the prior endpoint AND as a conditioning channel.
+# No diffusion teacher is used (unlike CD / PD).
 regression_weights="/data/exp_3_train_2_5_yrs_val_1yr_tp1/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus"
-sigma_data=0.5             # kept for parity; BridgeMatchingLoss itself operates in raw space
-time_scale=1000.0
+sigma_data=0.5             # kept for parity; BridgeMatchingLoss operates in raw space
+time_scale=1000.0          # scales t ∈ [0,1] into SongUNet's positional-embed range
 spatial_pos_embed="True"
 
 # Execute training with torchrun
