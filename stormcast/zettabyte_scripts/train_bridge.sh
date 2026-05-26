@@ -28,32 +28,51 @@ conda activate stormcast_env
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 # --- Log capture + auto-commit ---
-# Tee training output to a git-tracked log inside the repo, then on exit
-# (success, failure, or Ctrl-C) commit & push just the log file on the current
-# branch. Only the log is staged -- other dirty files in the worktree are left
-# alone.
+# Tee training output to a git-tracked log inside the repo, then on ANY exit
+# (success, non-zero, Ctrl-C, SIGTERM, torchrun crash) commit & push just the
+# log file. Only the log is staged -- other dirty files in the worktree are
+# left alone. Every git step is allowed to fail independently so a broken
+# remote / hook / auth doesn't lose the local commit.
 repo_root="/workspace/Stormcast-Distilation"
 log_file="${repo_root}/zettabyte/bridge_train.log"
 mkdir -p "$(dirname "${log_file}")"
 
 commit_and_push_log() {
     local status=$?
+    # Disarm immediately so a failure inside this handler can't re-enter it.
+    trap - EXIT INT TERM
     echo "[train_bridge] training exited with status ${status}; committing log"
-    if [[ -f "${log_file}" ]] && [[ -d "${repo_root}/.git" ]]; then
-        (
-            cd "${repo_root}" || exit 1
-            git add -- "${log_file#${repo_root}/}"
-            if ! git diff --cached --quiet -- "${log_file#${repo_root}/}"; then
-                git commit -m "chore(log): bridge_train.log @ $(date -u '+%Y-%m-%dT%H:%M:%SZ') (exit ${status})" \
-                    -- "${log_file#${repo_root}/}" \
-                    && git push
-            else
-                echo "[train_bridge] no log changes staged; skipping commit"
-            fi
-        )
-    else
-        echo "[train_bridge] log file or repo missing; skipping commit"
+
+    if [[ ! -f "${log_file}" ]]; then
+        echo "[train_bridge] log file ${log_file} missing -- nothing to commit"
+        exit "${status}"
     fi
+    if [[ ! -d "${repo_root}/.git" ]]; then
+        echo "[train_bridge] ${repo_root} is not a git repo -- skipping commit"
+        exit "${status}"
+    fi
+
+    (
+        cd "${repo_root}" || exit 0
+        rel="${log_file#${repo_root}/}"
+        git add -- "${rel}" || echo "[train_bridge] git add failed (continuing)"
+        if git diff --cached --quiet -- "${rel}"; then
+            echo "[train_bridge] no log changes staged -- skipping commit"
+        else
+            local outcome
+            if [[ "${status}" == "0" ]]; then
+                outcome="training ok"
+            else
+                outcome="training exit ${status}"
+            fi
+            local msg="chore(log): bridge_train.log @ $(date -u '+%Y-%m-%dT%H:%M:%SZ') (${outcome})"
+            if git commit -m "${msg}" -- "${rel}"; then
+                git push || echo "[train_bridge] git push failed -- log is committed locally, push it manually later"
+            else
+                echo "[train_bridge] git commit failed -- log is staged, commit it manually later"
+            fi
+        fi
+    )
     exit "${status}"
 }
 trap commit_and_push_log EXIT INT TERM
