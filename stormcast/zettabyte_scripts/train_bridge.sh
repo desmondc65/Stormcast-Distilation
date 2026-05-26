@@ -55,7 +55,8 @@ commit_and_push_log() {
     (
         cd "${repo_root}" || exit 0
         rel="${log_file#${repo_root}/}"
-        git add -- "${rel}" || echo "[train_bridge] git add failed (continuing)"
+        # -f because zettabyte/* and *.log are both gitignored.
+        git add -f -- "${rel}" || echo "[train_bridge] git add failed (continuing)"
         if git diff --cached --quiet -- "${rel}"; then
             echo "[train_bridge] no log changes staged -- skipping commit"
         else
