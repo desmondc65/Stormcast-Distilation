@@ -27,6 +27,37 @@ conda activate stormcast_env
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
+# --- Log capture + auto-commit ---
+# Tee training output to a git-tracked log inside the repo, then on exit
+# (success, failure, or Ctrl-C) commit & push just the log file on the current
+# branch. Only the log is staged -- other dirty files in the worktree are left
+# alone.
+repo_root="/workspace/Stormcast-Distilation"
+log_file="${repo_root}/zettabyte/bridge_train.log"
+mkdir -p "$(dirname "${log_file}")"
+
+commit_and_push_log() {
+    local status=$?
+    echo "[train_bridge] training exited with status ${status}; committing log"
+    if [[ -f "${log_file}" ]] && [[ -d "${repo_root}/.git" ]]; then
+        (
+            cd "${repo_root}" || exit 1
+            git add -- "${log_file#${repo_root}/}"
+            if ! git diff --cached --quiet -- "${log_file#${repo_root}/}"; then
+                git commit -m "chore(log): bridge_train.log @ $(date -u '+%Y-%m-%dT%H:%M:%SZ') (exit ${status})" \
+                    -- "${log_file#${repo_root}/}" \
+                    && git push
+            else
+                echo "[train_bridge] no log changes staged; skipping commit"
+            fi
+        )
+    else
+        echo "[train_bridge] log file or repo missing; skipping commit"
+    fi
+    exit "${status}"
+}
+trap commit_and_push_log EXIT INT TERM
+
 # --- Torchrun settings ---
 number_of_nodes=1
 gpus_per_node=4
@@ -115,7 +146,9 @@ sigma_data=0.5             # kept for parity; BridgeMatchingLoss operates in raw
 time_scale=1000.0          # scales t ∈ [0,1] into SongUNet's positional-embed range
 spatial_pos_embed="True"
 
-# Execute training with torchrun
+# Execute training with torchrun. pipefail so tee doesn't mask a torchrun
+# failure -- the EXIT trap reads $? to record the real status in the commit.
+set -o pipefail
 python -m torch.distributed.run --standalone --nnodes="${number_of_nodes}" --nproc_per_node="${gpus_per_node}" "${stormcast_train}" ${config} \
     "hydra.run.dir=${training_output_dir}" \
     "++training.experiment_name=${experiment_name}" \
@@ -162,4 +195,4 @@ python -m torch.distributed.run --standalone --nnodes="${number_of_nodes}" --npr
     "++model.regression_weights=${regression_weights}" \
     "++model.sigma_data=${sigma_data}" \
     "++model.time_scale=${time_scale}" \
-    "++model.spatial_pos_embed=${spatial_pos_embed}"
+    "++model.spatial_pos_embed=${spatial_pos_embed}" 2>&1 | tee "${log_file}"
