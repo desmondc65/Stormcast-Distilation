@@ -238,10 +238,10 @@ class Dataset(StormCastDataset):
     def _load_valid_mask(self, ds: xr.Dataset, store_path: str) -> np.ndarray:
         """Return the boolean valid mask for a dataset; assume all valid if missing."""
         if "valid" not in ds.variables:
-            self.logger0.warning(
-                "Zarr store %s lacks 'valid' variable; assuming all timestamps are valid",
-                store_path,
-            )
+            # self.logger0.warning(
+            #     "Zarr store %s lacks 'valid' variable; assuming all timestamps are valid",
+            #     store_path,
+            # )
             return np.ones(ds.dims["time"], dtype=bool)
         mask = np.asarray(ds["valid"].values)
         if mask.ndim > 1:
