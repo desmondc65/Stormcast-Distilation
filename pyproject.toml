@@ -31,7 +31,6 @@ dependencies = [
     "setuptools>=77.0.3",
     "torch",
     "cfgrib",
-    "tqdm>=4.60.0",
     "psutil>=6.0.0",
     "pytest",
     "typer>=0.16.0",

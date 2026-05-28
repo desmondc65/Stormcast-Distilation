@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+
+# General training config items
+outdir: 'StormCast_bridge'
+experiment_name: 'bridge_anchored'
+run_id: '0'
+rundir: ./${training.outdir}/${training.experiment_name}/${training.run_id}
+num_data_workers: 4
+log_to_wandb: False
+wandb_mode: "online"
+seed: -1
+cudnn_benchmark: True
+resume_checkpoint: "latest"
+initial_weights: ""
+
+# Logging frequency
+print_progress_freq: 1
+checkpoint_freq: 5000
+validation_freq: 500
+
+# Optimization hyperparameters (FlowCast-style defaults: AdamW, lr=5e-4,
+# weight_decay=1e-4, 1% linear warmup into cosine decay to min_lr_ratio).
+batch_size: 64
+batch_size_per_gpu: "auto"
+lr: 5E-4
+weight_decay: 1.0E-4
+adam_betas: [0.9, 0.999]
+lr_warmup_steps: 4000
+min_lr_ratio: 0.01
+total_train_steps: 400000
+clip_grad_norm: 1.0
+loss: 'bridge'
+fp_optimizations: fp32
+compile_model: False
+
+# Bridge objective parameters.
+# sigma_prior : std of the Gaussian perturbation on the prior endpoint
+#               x_0 = mu + sigma_prior * eps. Small keeps the bridge short.
+# sigma_max   : peak of the bridge interior noise term gamma(t)*z. 0 disables
+#               the stochastic interpolant (collapses to deterministic
+#               residual head).
+# schedule    : 'quadratic' (gamma = sigma_max * t * (1-t)) or 'trig'
+#               (gamma = sigma_max * sin(pi*t)). Both vanish at the endpoints.
+# coupling    : 'iid' or 'ot' (minibatch OT-CFM coupling, Direction 3).
+# t_eps       : clamp for t ~ U(eps, 1-eps).
+# ema_decay   : EMA shadow decay (matches FlowCast default).
+sigma_prior: 0.05
+sigma_max: 0.5
+schedule: 'quadratic'
+coupling: 'iid'
+t_eps: 1.0E-5
+ema_decay: 0.999
+
+# Per-channel prior noise std multipliers. Optional. If unset (null), all
+# channels get sigma_prior * N(0,1). Setting larger values for the qpepre
+# channel implements Direction 2 (channel-aware heavier prior).
+prior_channel_std: null
+
+# Sampler parameters used only for validation diagnostics.
+valid_num_steps: 10
+solver: 'euler'
+
+# Hybrid loss knobs: per-channel beta weights and an optional log-PSD
+# regularizer on qpepre to keep the heavy-tailed spectrum calibrated.
+channel_weights: [1.0, 1.0, 1.0, 2.0]
+spectral_channels: ["qpepre"]
+spectral_weight: 0.1
+
+# Validation options
+validation_plot_variables: ["t2m", "u10", "v10", "qpepre"]
+
+# Output nc
+output_nc: False
+output_nc_freq: 5

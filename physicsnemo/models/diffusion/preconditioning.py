@@ -690,6 +690,160 @@ class EDMPrecond(Module):
 
 
 @dataclass
+class ConsistencyPrecondMetaData(ModelMetaData):
+    """ConsistencyPrecond meta data"""
+
+    name: str = "ConsistencyPrecond"
+    # Optimization
+    jit: bool = False
+    cuda_graphs: bool = False
+    amp_cpu: bool = False
+    amp_gpu: bool = True
+    torch_fx: bool = False
+    # Data type
+    bf16: bool = False
+    # Inference
+    onnx: bool = False
+    # Physics informed
+    func_torch: bool = False
+    auto_grad: bool = False
+
+
+class ConsistencyPrecond(Module):
+    """
+    Preconditioning for Consistency Models (Song et al., 2023).
+
+    Uses the same inner network (e.g. SongUNet) as EDMPrecond, but with
+    modified skip and output scaling that enforce the boundary condition
+    f(x, epsilon) = x.  At sigma = sigma_min (epsilon), c_skip = 1 and
+    c_out = 0, so the model output equals the input exactly.
+
+    Parameters
+    ----------
+    img_resolution : int or tuple
+        Image resolution.
+    img_channels : int
+        Number of color channels (input + conditional channels combined).
+    label_dim : int
+        Number of class labels, 0 = unconditional, by default 0.
+    use_fp16 : bool
+        Execute the underlying model at FP16 precision, by default False.
+    sigma_min : float
+        Minimum noise level (epsilon for the boundary condition), by default 0.002.
+    sigma_max : float
+        Maximum noise level, by default 80.0.
+    sigma_data : float
+        Expected standard deviation of the training data, by default 0.5.
+    model_type : str
+        Class name of the underlying model, by default "SongUNet".
+    img_in_channels : int, optional
+        Override input channels if different from img_channels.
+    img_out_channels : int, optional
+        Override output channels if different from img_channels.
+    **model_kwargs : dict
+        Keyword arguments for the underlying model.
+
+    Note
+    ----
+    Reference: Song, Y., Dhariwal, P., Chen, M. and Sutskever, I., 2023.
+    Consistency Models. ICML 2023.
+    """
+
+    def __init__(
+        self,
+        img_resolution,
+        img_channels,
+        label_dim=0,
+        use_fp16=False,
+        sigma_min=0.002,
+        sigma_max=80.0,
+        sigma_data=0.5,
+        model_type="SongUNet",
+        img_in_channels=None,
+        img_out_channels=None,
+        **model_kwargs,
+    ):
+        super().__init__(meta=ConsistencyPrecondMetaData)
+        self.img_resolution = img_resolution
+        if img_in_channels is None:
+            img_in_channels = img_channels
+        if img_out_channels is None:
+            img_out_channels = img_channels
+
+        self.label_dim = label_dim
+        self.use_fp16 = use_fp16
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
+        self.sigma_data = sigma_data
+
+        model_class = getattr(network_module, model_type)
+        self.model = model_class(
+            img_resolution=img_resolution,
+            in_channels=img_in_channels,
+            out_channels=img_out_channels,
+            label_dim=label_dim,
+            **model_kwargs,
+        )
+
+    def forward(
+        self,
+        x,
+        sigma,
+        condition=None,
+        class_labels=None,
+        force_fp32=False,
+        **model_kwargs,
+    ):
+        x = x.to(torch.float32)
+        sigma = sigma.to(torch.float32).reshape(-1, 1, 1, 1)
+        class_labels = (
+            None
+            if self.label_dim == 0
+            else torch.zeros([1, self.label_dim], device=x.device)
+            if class_labels is None
+            else class_labels.to(torch.float32).reshape(-1, self.label_dim)
+        )
+        dtype = (
+            torch.float16
+            if (self.use_fp16 and not force_fp32 and x.device.type == "cuda")
+            else torch.float32
+        )
+
+        eps = self.sigma_min
+        c_skip = self.sigma_data**2 / ((sigma - eps) ** 2 + self.sigma_data**2)
+        c_out = (
+            (sigma - eps)
+            * self.sigma_data
+            / (sigma**2 + self.sigma_data**2).sqrt()
+        )
+        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
+        c_noise = sigma.log() / 4
+
+        arg = c_in * x
+        if condition is not None:
+            arg = torch.cat([arg, condition], dim=1)
+
+        F_x = self.model(
+            arg.to(dtype),
+            c_noise.flatten(),
+            class_labels=class_labels,
+            **model_kwargs,
+        )
+
+        if (F_x.dtype != dtype) and not torch.is_autocast_enabled():
+            raise ValueError(
+                f"Expected the dtype to be {dtype}, but got {F_x.dtype} instead."
+            )
+        D_x = c_skip * x + c_out * F_x.to(torch.float32)
+        return D_x
+
+    @staticmethod
+    def round_sigma(sigma: Union[float, List, torch.Tensor]):
+        """Convert sigma value(s) to a tensor representation."""
+        return torch.as_tensor(sigma)
+
+
+@dataclass
 class EDMPrecondSuperResolutionMetaData(ModelMetaData):
     """EDMPrecondSuperResolution meta data"""
 

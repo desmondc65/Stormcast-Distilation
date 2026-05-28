@@ -1,9 +1,17 @@
 #!/bin/bash
+<<<<<<< HEAD
 export CUDA_VISIBLE_DEVICES=0,1,2
 
 # --- Torchrun settings ---
 number_of_nodes=1
 gpus_per_node=3
+=======
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+
+# --- Torchrun settings ---
+number_of_nodes=1
+gpus_per_node=4
+>>>>>>> 41cba2ac6b0018eefcbaa2bb3b8bac4ce51eafc9
 
 # --- General training config ---
 stormcast_train="/workspace/Stormcast-Distilation/stormcast/train.py"
@@ -33,7 +41,7 @@ validation_plot_variables="[t2m,u10,v10,qpepre]"
 # When set to true, NetCDF files for validation fields will be written to
 # ${training_output_dir}/${experiment_name}/run_${run_id}/netcdf_outputs/<field>.
 # Default is false.
-output_nc="true"
+output_nc="false"
 # Output NetCDF every X validations (e.g., if set to 5, only output when validation_counter % 5 == 0).
 # Default is 1 (output every validation).
 output_nc_freq=5

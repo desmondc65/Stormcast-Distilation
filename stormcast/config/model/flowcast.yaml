@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# Model name
+model_name: 'flowcast'
+
+# Model conditions.
+# - regression_conditions: inputs used by the frozen regression network.
+# - diffusion_conditions: inputs concatenated with x_t for the CFM network
+#   (keep "regression" so the mean M_t is available as a conditioning channel
+#   and the CFM residual anchor stays aligned with the EDM teacher's setup).
+regression_conditions: ["state", "background", "invariant"]
+diffusion_conditions: ["state", "regression", "invariant"]
+
+# Model hyperparameters
+spatial_pos_embed: False
+attn_resolutions: []
+
+# Pretrained regression model (used only as conditioning; not trained here).
+regression_weights: ""
+
+# CFM parameters.
+# - sigma_data is the standard deviation of the raw residual R_t and is used
+#   to standardize inputs / de-standardize the sampler output. Keep matched
+#   to the EDM teacher so metrics are directly comparable.
+# - time_scale applies to the flow time t before it enters SongUNet's
+#   positional embedding (diffusion-timestep range keeps enough resolution).
+sigma_data: 0.5
+time_scale: 1000.0

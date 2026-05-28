@@ -1,0 +1,49 @@
+flowchart TD
+    A[Load YAML Config\nand CLI Arguments] --> B[Initialize Pipeline\nSet paths, domain size,\nlat/lon bounds, variables]
+
+    B --> C[Determine Data Splits\ntrain / valid / combined]
+    C --> D[Generate Hourly Datetimes\nfrom Date Ranges]
+
+    D --> E[Build File Indexes]
+    E --> E1[Scan ERA5 NetCDF Files\nIndex by variable and date]
+    E --> E2[Scan RWRF NetCDF Files\nIndex by datetime folder]
+    E --> E3[Scan QPEPRE Text Files\nIndex by start/end timestamps]
+
+    E1 --> F{Shared Index\nEnabled?}
+    E2 --> F
+    E3 --> F
+    F -- Yes --> G[Write Combined Index\nto Shared JSON File]
+    F -- No --> H[Pass Indexes Directly\nto Worker Processes]
+    G --> I
+    H --> I
+
+    I[Precompute Validity Mask\nCheck ERA5 + RWRF + QPEPRE\nexist for each timestep]
+
+    I --> J[Extract Invariant Fields\nfrom first valid RWRF file]
+    J --> J1[Crop to Domain Bounds\nand Resize to Target Grid]
+    J1 --> J2[Write Invariants\nto Zarr Store]
+
+    I --> K[Process LowRes - ERA5]
+    I --> L[Process HighRes - RWRF]
+
+    K --> K1[For Each Valid Timestep\nDispatch to Worker Pool]
+    K1 --> K2[Open ERA5 NetCDF\nSelect Time and Level]
+    K2 --> K3[Slice Lat/Lon\nto Domain Bounds]
+    K3 --> K4[Resize to Target Grid\nvia Downsample or Interpolate]
+    K4 --> K5[Stack All Variables\ninto Data Cube]
+    K5 --> K6[Write LowRes Zarr\ntime x channel x y x x]
+
+    L --> L1[For Each Valid Timestep\nDispatch to Worker Pool]
+    L1 --> L2[Open RWRF NetCDF\nSelect Time Index]
+    L2 --> L3[Slice Lat/Lon\nto Domain Bounds]
+    L3 --> L4[Resize to Target Grid]
+    L1 --> L5[Load QPEPRE Text File\nGrid Precipitation Data]
+    L5 --> L6[Resize QPEPRE\nto Target Grid]
+    L4 --> L7[Combine RWRF + QPEPRE\ninto Data Cube]
+    L6 --> L7
+    L7 --> L8[Write HighRes Zarr\ntime x channel x y x x]
+
+    K6 --> M[Compute and Save\nPer-Channel Mean and Std]
+    L8 --> M
+
+    M --> N[Report Validity Summary\nLog missing counts and\nLowRes/HighRes overlap]

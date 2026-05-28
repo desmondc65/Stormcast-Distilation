@@ -35,3 +35,8 @@ input_channels: 'all'
 diffusion_channels: ['t2m', 'u10', 'v10', 'qpepre'] #'all' or list of channels to condition on
 kept_LowRes_channels: all
 kept_HighRes_channels: all
+
+# qpepre preprocessing (applied at clean_zarr.py time, inverted in
+# denormalize_state). Set to false ONLY when pointing at a legacy raw dataset
+# whose qpepre channel is in mm/h instead of log1p(mm/h).
+qpepre_log1p: true

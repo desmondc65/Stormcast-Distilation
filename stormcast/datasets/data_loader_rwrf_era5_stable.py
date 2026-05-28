@@ -85,6 +85,16 @@ class Dataset(StormCastDataset):
         )[kept_LowRes_idx, None, None]
         self.invariants = params.invariants
 
+        # If the dataset on disk has had log1p applied to the qpepre channel
+        # at preprocessing time (clean_zarr.py), denormalize_state must invert
+        # it (expm1) to return real mm/h. Defaults to True because that is now
+        # the canonical preprocessing; set to False for legacy raw datasets.
+        self.qpepre_log1p = bool(getattr(params, "qpepre_log1p", True))
+        try:
+            self._qpepre_idx = self.kept_HighRes_channels.index("qpepre")
+        except ValueError:
+            self._qpepre_idx = None
+
     def background_channels(self):
         """Metadata for the background channels. A list of channel names, one for each channel"""
         return self.kept_LowRes_channels
@@ -238,10 +248,16 @@ class Dataset(StormCastDataset):
     def _load_valid_mask(self, ds: xr.Dataset, store_path: str) -> np.ndarray:
         """Return the boolean valid mask for a dataset; assume all valid if missing."""
         if "valid" not in ds.variables:
+<<<<<<< HEAD
             # self.logger0.warning(
             #     "Zarr store %s lacks 'valid' variable; assuming all timestamps are valid",
             #     store_path,
             # )
+=======
+            self.logger0.warning(
+                f"Zarr store {store_path} lacks 'valid' variable; assuming all timestamps are valid"
+            )
+>>>>>>> 41cba2ac6b0018eefcbaa2bb3b8bac4ce51eafc9
             return np.ones(ds.dims["time"], dtype=bool)
         mask = np.asarray(ds["valid"].values)
         if mask.ndim > 1:
@@ -350,10 +366,21 @@ class Dataset(StormCastDataset):
         return x
 
     def denormalize_state(self, x: np.ndarray) -> np.ndarray:
-        """Convert state from normalized data to physical units."""
+        """Convert state from normalized data back to physical units (e.g.
+        K for t2m, m/s for u10/v10, mm/h for qpepre).
+
+        Inverts both:
+          1. standard-score normalization (``x * std + mean``), and
+          2. dataset-level pre-processing applied during clean_zarr -- on the
+             ``qpepre`` channel only, ``expm1`` to undo the ``log1p`` that
+             clean_zarr.py applied. Gated by ``self.qpepre_log1p`` so legacy
+             raw datasets (without log1p) still round-trip correctly.
+        """
         if self.normalize:
             x *= self.stds_HighRes
             x += self.means_HighRes
+        if self.qpepre_log1p and self._qpepre_idx is not None:
+            x[..., self._qpepre_idx, :, :] = np.expm1(x[..., self._qpepre_idx, :, :])
         return x
 
     def _get_LowRes(self, ts_inp, ts_tar):

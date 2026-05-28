@@ -1,0 +1,165 @@
+======================================================================
+  Inspecting Output Directory: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full
+======================================================================
+
+  Directory Contents:
+    [DIR]  HighRes/
+    [DIR]  LowRes/
+    [DIR]  invariants/
+
+
+======================================================================
+  Zarr Store: stormcast_test_train.zarr
+======================================================================
+  Full Path: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_train.zarr
+
+  Dimensions:
+    time: 21216
+    channel: 24
+    y: 224
+    x: 128
+
+  Coordinates:
+    channel: 24 channels
+      ['mslp', 't2m', 'u10', 'v10', 'q1000', 'q850', 'q500', 'q250', 't1000', 't850', 't500', 't250', 'u1000', 'u850', 'u500', 'u250', 'v1000', 'v850', 'v500', 'v250', 'z1000', 'z850', 'z500', 'z250']
+    latitude: shape=(224, 128), range=[21.6000, 25.6000]
+    longitude: shape=(224, 128), range=[119.7500, 122.2500]
+    time: 21216 steps, range=[1564617600000000000 -> 1640991600000000000], step=3600000000000
+
+  Data Variables:
+    LowRes:
+      dims: ('time', 'channel', 'y', 'x')
+      shape: (21216, 24, 224, 128)
+      dtype: float32
+      chunks: ((1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326, 1326), (3, 3, 3, 3, 3, 3, 3, 3), (28, 28, 28, 28, 28, 28, 28, 28), (16, 16, 16, 16, 16, 16, 16, 16))
+======================================================================
+  Zarr Store: stormcast_test_valid.zarr
+======================================================================
+  Full Path: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_valid.zarr
+
+  Dimensions:
+    time: 8760
+    channel: 24
+    y: 224
+    x: 128
+
+  Coordinates:
+    channel: 24 channels
+      ['mslp', 't2m', 'u10', 'v10', 'q1000', 'q850', 'q500', 'q250', 't1000', 't850', 't500', 't250', 'u1000', 'u850', 'u500', 'u250', 'v1000', 'v850', 'v500', 'v250', 'z1000', 'z850', 'z500', 'z250']
+    latitude: shape=(224, 128), range=[21.6000, 25.6000]
+    longitude: shape=(224, 128), range=[119.7500, 122.2500]
+    time: 8760 steps, range=[1640995200000000000 -> 1672527600000000000], step=3600000000000
+
+  Data Variables:
+    LowRes:
+      dims: ('time', 'channel', 'y', 'x')
+      shape: (8760, 24, 224, 128)
+      dtype: float32
+      chunks: ((1095, 1095, 1095, 1095, 1095, 1095, 1095, 1095), (3, 3, 3, 3, 3, 3, 3, 3), (28, 28, 28, 28, 28, 28, 28, 28), (16, 16, 16, 16, 16, 16, 16, 16))
+
+
+======================================================================
+  Statistics: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stats
+======================================================================
+
+  Means: shape=(24,)
+    [ 1.01325766e+05  2.96150421e+02 -1.99252462e+00 -2.45118546e+00
+  1.43198622e-02  1.02797225e-02  2.16813153e-03  1.40766555e-04
+  2.96686646e+02  2.89078491e+02  2.67312225e+02  2.33480331e+02
+ -2.35705948e+00 -8.31708550e-01  1.01753054e+01  1.65742817e+01
+ -2.85336041e+00  3.43509793e-01  2.37865829e+00  1.64086783e+00
+  1.11694092e+03  1.48246152e+04  5.73861133e+04  1.07376664e+05]
+
+  Stds: shape=(24,)
+    [5.3665735e+02 5.0029259e+00 3.6797278e+00 5.1377378e+00 4.0430310e-03
+ 2.7880918e-03 1.5086121e-03 1.2239591e-04 4.6757679e+00 4.4531617e+00
+ 2.5932090e+00 1.8553936e+00 4.3175340e+00 5.1267571e+00 1.1933516e+01
+ 1.9462269e+01 6.0847049e+00 4.6450462e+00 5.3313475e+00 8.3166523e+00
+ 4.3753326e+02 2.7437735e+02 4.2372043e+02 7.1341864e+02]
+
+
+======================================================================
+  Zarr Store: stormcast_test_train.zarr
+======================================================================
+  Full Path: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_train.zarr
+
+  Dimensions:
+    time: 21216
+    channel: 4
+    y: 224
+    x: 128
+
+  Coordinates:
+    channel: 4 channels
+      ['t2m', 'u10', 'v10', 'qpepre']
+    latitude: shape=(224, 128), range=[21.6000, 25.6000]
+    longitude: shape=(224, 128), range=[119.7500, 122.2500]
+    time: 21216 steps, range=[1564617600000000000 -> 1640991600000000000], step=3600000000000
+
+  Data Variables:
+    HighRes:
+      dims: ('time', 'channel', 'y', 'x')
+      shape: (21216, 4, 224, 128)
+      dtype: float32
+      chunks: ((2652, 2652, 2652, 2652, 2652, 2652, 2652, 2652), (1, 1, 1, 1), (28, 28, 28, 28, 28, 28, 28, 28), (16, 16, 16, 16, 16, 16, 16, 16))
+======================================================================
+  Zarr Store: stormcast_test_valid.zarr
+======================================================================
+  Full Path: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_valid.zarr
+
+  Dimensions:
+    time: 8760
+    channel: 4
+    y: 224
+    x: 128
+
+  Coordinates:
+    channel: 4 channels
+      ['t2m', 'u10', 'v10', 'qpepre']
+    latitude: shape=(224, 128), range=[21.6000, 25.6000]
+    longitude: shape=(224, 128), range=[119.7500, 122.2500]
+    time: 8760 steps, range=[1640995200000000000 -> 1672527600000000000], step=3600000000000
+
+  Data Variables:
+    HighRes:
+      dims: ('time', 'channel', 'y', 'x')
+      shape: (8760, 4, 224, 128)
+      dtype: float32
+      chunks: ((1095, 1095, 1095, 1095, 1095, 1095, 1095, 1095), (1, 1, 1, 1), (28, 28, 28, 28, 28, 28, 28, 28), (32, 32, 32, 32))
+
+
+======================================================================
+  Statistics: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stats
+======================================================================
+
+  Means: shape=(4,)
+    [ 2.9597751e+02 -1.5843338e+00 -2.6461620e+00  1.8179819e-01]
+
+  Stds: shape=(4,)
+    [5.60805   3.8427594 5.661021  9.123841 ]
+
+
+======================================================================
+  Zarr Store: invariants.zarr
+======================================================================
+  Full Path: /home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/invariants/invariants.zarr
+
+  Dimensions:
+    channel: 2
+    y: 224
+    x: 128
+
+  Coordinates:
+    channel: 2 channels
+      ['lsm', 'orog']
+    latitude: shape=(224, 128), range=[21.6000, 25.6000]
+    longitude: shape=(224, 128), range=[119.7500, 122.2500]
+
+  Data Variables:
+    HighRes_invariants:
+      dims: ('channel', 'y', 'x')
+      shape: (2, 224, 128)
+      dtype: float32
+      chunks: ((2,), (224,), (128,))
+======================================================================
+Inspection complete.

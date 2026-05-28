@@ -28,6 +28,7 @@ from .song_unet import SongUNet, SongUNetPosEmbd, SongUNetPosLtEmbd
 from .dhariwal_unet import DhariwalUNet
 from .unet import UNet, StormCastUNet
 from .preconditioning import (
+    ConsistencyPrecond,
     EDMPrecond,
     EDMPrecondSuperResolution,
     EDMPrecondSR,

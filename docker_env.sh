@@ -39,12 +39,13 @@ shell_container() {
   docker exec -it "${CONTAINER_NAME}" bash
 }
 
-if [[ $# -lt 1 ]]; then
-  usage
-  exit 1
-fi
+# Default behavior: run container when no subcommand is provided.
+cmd="${1:-run}"
 
-case "$1" in
+case "${cmd}" in
+  -h|--help|help)
+    usage
+    ;;
   build)
     build_image
     ;;

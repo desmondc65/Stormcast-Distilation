@@ -10,6 +10,7 @@
 - [專案結構](#專案結構)
 - [StormCast 架構概覽](#stormcast-架構概覽)
 - [虛擬環境設置](#虛擬環境設置)
+- [Docker 環境快速建立](#docker-環境快速建立)
 - [資料來源與用途](#資料來源與用途-data-sources-and-roles)
 - [資料預處理](#資料預處理)
   - [資料放置](#資料放置)
@@ -108,6 +109,41 @@ cd stormcast-ncdr
 pip install -e .
 ```
 ---
+
+<div style="page-break-after: always;"></div>
+
+## **Docker 環境快速建立**
+
+專案根目錄已提供以下檔案：
+- `Dockerfile`
+- `docker_env.sh`
+
+### 1. 建置映像檔
+```bash
+./docker_env.sh build
+```
+
+### 2. 啟動容器（掛載目前專案目錄）
+```bash
+./docker_env.sh run
+```
+
+或直接執行（預設等同 `run`）：
+```bash
+./docker_env.sh
+```
+
+### 3. 進入已在執行中的容器
+```bash
+./docker_env.sh shell
+```
+
+### 4. CPU-only 模式（沒有 NVIDIA GPU 時）
+```bash
+GPU_FLAG='' ./docker_env.sh run
+```
+
+> 預設使用 `--gpus all`，若主機沒有安裝 NVIDIA Container Toolkit，請使用 CPU-only 模式。
 
 <div style="page-break-after: always;"></div>
 

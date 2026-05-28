@@ -1,0 +1,14 @@
+.git
+.github
+.vscode
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info
+.pytest_cache
+.mypy_cache
+.DS_Store
+README.pdf
+inference_ncdr_README.pdf

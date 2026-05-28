@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# ---------------------------------------------------------------------------
+# FlowCast inference config
+# ---------------------------------------------------------------------------
+outdir: 'StormCast_flowcast/inference'
+experiment_name: 'flowcast-inference'
+run_id: 0
+rundir: ${inference.outdir}/${inference.experiment_name}/${inference.run_id}
+
+# Initial autoregressive timestamp (must be present in dataset.valid_dates).
+initial_time: '2022-07-01T00:00:00'
+
+# Number of autoregressive steps (each is dt = 1 h).
+n_steps: 12
+
+# ---------------------------------------------------------------------------
+# Checkpoints
+# ---------------------------------------------------------------------------
+# Frozen regression mean F_xi.
+regression_checkpoint: ''
+
+# FlowCast student EMA shadow saved by trainer_flowcast.py at
+#   <flowcast_train_rundir>/ema_state.pt
+# Loading the EMA shadow (NOT the raw student) matches what trainer_flowcast
+# uses for its own validation sampler.
+flowcast_ema_path: ''
+
+# ---------------------------------------------------------------------------
+# FlowCast sampler hyperparameters
+# ---------------------------------------------------------------------------
+flowcast:
+  num_steps: 10        # ODE steps (FlowCast paper default).
+  solver: 'euler'      # 'euler' or 'midpoint' (midpoint = 2 NFE per step).
+
+# ---------------------------------------------------------------------------
+# I/O
+# ---------------------------------------------------------------------------
+plot_var_state: 'qpepre'           # variable to plot from state predictions
+plot_var_background: 't2m'         # variable to plot from background
+output_state_channels: []          # empty == all state channels
+
+save_horizontal_vars: ['t2m', 'u10', 'v10', 'qpepre']
+save_vertical_vars: []
+save_vertical_levels: []
