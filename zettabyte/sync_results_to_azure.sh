@@ -27,9 +27,11 @@
 
 set -uo pipefail
 
-# Same SAS as azcopy_transfer.sh -- keep them in lockstep.
-SAS_BASE="https://zbstore2026.blob.core.windows.net/g-019c8ca2-605d-7bb5-b98b-1c53fbdf2b7f"
-SAS_QUERY="se=2026-09-14T06%3A47%3A36Z&sp=rwdl&sv=2026-02-06&sr=c&sig=oK8hMT%2BAJiBIzbozGc%2BgVk3N2e861Nm%2B9MvMyoi6UMg%3D"
+# Same SAS as azcopy_transfer.sh -- read from the environment so secrets
+# never live in git. Export SAS_BASE and SAS_QUERY in your shell (e.g.
+# source a gitignored ~/.azcopy_sas.env) before invoking this script.
+: "${SAS_BASE:?set SAS_BASE in env (container URL, no query string)}"
+: "${SAS_QUERY:?set SAS_QUERY in env (SAS token query string, no leading '?')}"
 
 # Defaults match the regression run wired in zettabyte_scripts/train_regression.sh.
 DEFAULT_SRC="/data/exp_3_train_2_5_yrs_val_1yr_tp1/bridge_zettabyte_v1_cleaned_4_27_2026"
