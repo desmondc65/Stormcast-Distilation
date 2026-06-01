@@ -18,8 +18,11 @@
 
 set -euo pipefail
 
-SAS_BASE=
-SAS_QUERY=
+# SAS credentials come from the environment so they never live in git.
+# Export SAS_BASE and SAS_QUERY in your shell (e.g. from a gitignored
+# ~/.azcopy_sas.env you ``source``) before invoking this script.
+: "${SAS_BASE:?set SAS_BASE in env (container URL, no query string)}"
+: "${SAS_QUERY:?set SAS_QUERY in env (SAS token query string, no leading '?')}"
 
 remote_url() {
     local rel="${1:-}"
