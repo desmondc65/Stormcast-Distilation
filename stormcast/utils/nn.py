@@ -22,6 +22,7 @@ from physicsnemo.models.diffusion import EDMPrecond, StormCastUNet
 from physicsnemo.utils.diffusion import deterministic_sampler
 
 from .flowcast_precond import FlowCastPrecond
+from .meanflow_precond import MeanFlowPrecond
 
 
 def get_preconditioned_architecture(
@@ -57,6 +58,18 @@ def get_preconditioned_architecture(
 
     elif name == "flowcast":
         return FlowCastPrecond(
+            img_resolution=img_resolution,
+            img_channels=target_channels + conditional_channels,
+            img_in_channels=target_channels + conditional_channels,
+            img_out_channels=target_channels,
+            model_type="SongUNet",
+            channel_mult=[1, 2, 2, 2, 2],
+            attn_resolutions=attn_resolutions,
+            additive_pos_embed=spatial_embedding,
+        )
+
+    elif name == "meanflow":
+        return MeanFlowPrecond(
             img_resolution=img_resolution,
             img_channels=target_channels + conditional_channels,
             img_in_channels=target_channels + conditional_channels,
@@ -215,6 +228,56 @@ def flowcast_model_forward(
         else:  # euler
             v = model(z, t_vec, condition=condition)
         z = z + v * dt
+
+    return z * sigma_data
+
+
+def meanflow_model_forward(
+    model,
+    condition,
+    shape,
+    num_steps: int = 2,
+    sigma_data: float = 0.5,
+    t_start: float = 0.0,
+    t_end: float = 1.0,
+):
+    """Sample the MeanFlow residual with one or a few average-velocity steps.
+
+    Splits [t_start, t_end] into ``num_steps`` segments and applies the
+    learned average velocity over each:
+
+        z_{t_{i+1}} = z_{t_i} + (t_{i+1} - t_i) * u_theta(z_{t_i}, t_i, t_{i+1}, c)
+
+    starting at ``z(0) ~ N(0, I)`` (standardized space). num_steps=1 is the
+    headline one-NFE sampler; small step counts (2-4) trade a little compute
+    for sharper residuals. Returns the de-normalized residual
+    ``z(1) * sigma_data``, ready to add to the regression mean mu_{t+1}.
+
+    Args:
+        model: MeanFlowPrecond model (or an EMA shadow of one).
+        condition: conditioning tensor [B, C_cond, H, W].
+        shape: shape of the output tensor [B, C_target, H, W].
+        num_steps: number of average-velocity segments (NFE).
+        sigma_data: standard deviation used for standardization at train time.
+        t_start, t_end: integration bounds along the flow axis.
+
+    Returns:
+        Predicted residual R_hat of shape ``shape`` (in raw, un-standardized
+        units), ready to add to the regression mean.
+    """
+    device = condition.device
+    dtype = condition.dtype
+
+    z = torch.randn(*shape, device=device, dtype=dtype)
+    dt = (t_end - t_start) / num_steps
+
+    for i in range(num_steps):
+        r_i = t_start + i * dt
+        t_i = t_start + (i + 1) * dt
+        r_vec = torch.full([shape[0]], r_i, device=device, dtype=dtype)
+        t_vec = torch.full([shape[0]], t_i, device=device, dtype=dtype)
+        u = model(z, r_vec, t_vec, condition=condition)
+        z = z + u * dt
 
     return z * sigma_data
 
