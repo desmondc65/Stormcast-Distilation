@@ -48,7 +48,7 @@ weight_decay=1.0E-4
 adam_betas="[0.9,0.999]"
 lr_warmup_steps=4000       # ~1% of total_train_steps
 min_lr_ratio=0.01          # min_lr = lr * min_lr_ratio
-total_train_steps=400000
+total_train_steps=40000
 clip_grad_norm=1.0
 loss='meanflow'
 fp_optimizations='fp32'
