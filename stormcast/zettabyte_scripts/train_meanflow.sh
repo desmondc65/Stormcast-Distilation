@@ -34,7 +34,7 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6
 
 # --- Torchrun settings ---
 number_of_nodes=1
-gpus_per_node=4
+gpus_per_node=7
 
 # --- General training config ---
 stormcast_train="/workspace/Stormcast-Distilation/stormcast/train_meanflow.py"
@@ -50,7 +50,7 @@ validation_freq=250
 num_data_workers=4
 
 # --- Training parameters (matched to FlowCast: AdamW, cosine w/ 1% warmup) ---
-batch_size=96
+batch_size=112        # 7 GPUs x 16/GPU (must be a multiple of world_size=7)
 lr=5E-4
 weight_decay=1.0E-4
 adam_betas="[0.9,0.999]"
