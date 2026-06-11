@@ -11,7 +11,7 @@ number_of_nodes=1
 gpus_per_node=2
 
 # --- General training config ---
-stormcast_train="$(dirname "$0")/train_bridge.py"
+stormcast_train="$(dirname "$0")/../train_bridge.py"
 config="--config-name bridge"
 experiment_name="bridge_anchored"
 training_output_dir="$(pwd)/StormCast_bridge"

@@ -59,6 +59,9 @@ from omegaconf import OmegaConf
 REPO_ROOT = Path(__file__).resolve().parents[1]
 STORMCAST_ROOT = REPO_ROOT / "stormcast"
 sys.path.insert(0, str(STORMCAST_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import thesis_style as ts  # noqa: E402  viridis-consistent palette (see thesis_style.py)
 
 from physicsnemo.distributed import DistributedManager  # noqa: E402
 from physicsnemo.models import Module  # noqa: E402
@@ -197,13 +200,18 @@ def rollout(*, model, method, regression, invariant, dataset, t0_idx, n_steps,
 
 # ---- Plotting --------------------------------------------------------------
 def _channel_scale(channel, stack):
-    """Return (vmin, vmax, cmap) for the given channel across a stacked field."""
+    """Return (vmin, vmax, cmap) for the given channel across a stacked field.
+
+    Thesis colour convention (thesis_style / plot_weight_comparison_grid):
+    every field panel uses the viridis ramp. qpepre clips the extreme tail so
+    convective structure stays legible; the other channels share the global
+    min/max across all panels (clim_for style — viridis is sequential, so no
+    mean-centring).
+    """
     if channel == "qpepre":
         vmax = float(np.quantile(stack, 0.995) + 1e-3)
-        return 0.0, vmax, "Blues"
-    fm = float(np.mean(stack))
-    fabs = float(np.quantile(np.abs(stack - fm), 0.99) + 1e-9)
-    return fm - fabs, fm + fabs, "RdBu_r"
+        return 0.0, vmax, ts.FIELD_CMAP
+    return float(stack.min()), float(stack.max()), ts.FIELD_CMAP
 
 
 def plot_channel_grid(
@@ -217,16 +225,14 @@ def plot_channel_grid(
     out_path: Path,
     t0_label: str,
 ):
-    # Row sequence matches the column order in run_single_time_exp.py:
-    # legacy StormCast, RWRF truth, cleaned StormCast, CFM. Headers carry
-    # the actual grid shape (e.g. "StormCast (224x128)") instead of a
-    # generic "original/new domain" tag.
+    # Row order: RWRF truth on TOP as the reference, then the model rows
+    # (legacy StormCast, cleaned StormCast, CFM). Headers carry the actual
+    # grid shape (e.g. "StormCast (224x128)").
     cln_shape = f"{truth_new.shape[-2]}x{truth_new.shape[-1]}"
-    rows_data = []
+    rows_data = [(f"RWRF ({cln_shape})", truth_new)]
     if orig_pred is not None:
         leg_shape = f"{orig_pred.shape[-2]}x{orig_pred.shape[-1]}"
         rows_data.append((f"StormCast ({leg_shape})", orig_pred))
-    rows_data.append((f"RWRF ({cln_shape})", truth_new))
     if new_edm_pred is not None:
         rows_data.append((f"StormCast ({cln_shape})", new_edm_pred))
     if flow_pred is not None:
@@ -307,9 +313,15 @@ def main():
     ap.add_argument("--new-hr-size", nargs=2, type=int, default=[192, 96])
 
     ap.add_argument(
-        "--t0-idx", type=int, default=4128,
-        help="Validation-set hourly index for the rollout start. Default 4128 "
-             "= 2022-06-23 00:00 (8760 hourly samples in 2022).",
+        "--t0-idx", type=int, nargs="+", default=[4128],
+        help="Validation-set hourly indices for the rollout starts (one figure "
+             "set per index). Default 4128 = 2022-06-23 00:00.",
+    )
+    ap.add_argument(
+        "--auto-t0", type=int, default=None, metavar="N",
+        help="Ignore --t0-idx and instead pick N evenly-spaced initial times "
+             "across the validation year (leaving room for --n-steps). Use for "
+             "candidate generation, e.g. --auto-t0 20.",
     )
     ap.add_argument("--n-steps", type=int, default=12,
                     help="Autoregressive horizon in hours.")
@@ -351,13 +363,8 @@ def main():
         )
 
     print(f"[device] {device}")
-    print(f"[t0] valid index {args.t0_idx} (rollout to +{args.n_steps}h)")
 
-    torch.manual_seed(args.seed)
-    if device.type == "cuda":
-        torch.cuda.manual_seed_all(args.seed)
-
-    # ---- New-domain pipeline: dataset, regression, EDM, FlowCast ----------
+    # ---- Datasets (build both up-front so t0 bounds account for each) -----
     new_cfg = make_dataset_cfg(
         args.new_data, args.valid_dates, args.new_hr_size,
         qpepre_log1p=True, kept_HR=NEW_CHANNELS,
@@ -365,44 +372,89 @@ def main():
     new_ds, new_inv = build_dataset(new_cfg, device)
     new_ch = list(new_ds.state_channels())
     print(f"[data] new-domain: samples={len(new_ds)}  channels={new_ch}")
-    if args.t0_idx + args.n_steps > len(new_ds):
-        raise SystemExit(
-            f"--t0-idx {args.t0_idx} + n_steps {args.n_steps} > new-domain len "
-            f"{len(new_ds)}"
+
+    orig_ds = orig_inv = orig_ch = None
+    if not args.skip_original:
+        orig_cfg = make_dataset_cfg(
+            args.original_data, args.valid_dates, args.original_hr_size,
+            qpepre_log1p=False, kept_HR=ORIG_CHANNELS,
         )
+        orig_ds, orig_inv = build_dataset(orig_cfg, device)
+        orig_ch = list(orig_ds.state_channels())
+        print(f"[data] original-domain: samples={len(orig_ds)}  channels={orig_ch}")
+
+    # ---- Resolve the initial-time list -------------------------------------
+    t0_limit = len(new_ds) - args.n_steps - 1
+    if orig_ds is not None:
+        t0_limit = min(t0_limit, len(orig_ds) - args.n_steps - 1)
+    if args.auto_t0:
+        t0_list = sorted(
+            dict.fromkeys(np.linspace(0, t0_limit, args.auto_t0).astype(int).tolist())
+        )
+    else:
+        t0_list = list(args.t0_idx)
+        bad = [t for t in t0_list if t < 0 or t > t0_limit]
+        if bad:
+            raise SystemExit(f"--t0-idx {bad} out of range [0, {t0_limit}]")
+
+    import datetime as _dt
+    y0, m0, d0 = (int(x) for x in args.valid_dates[0].split("/"))
+    base_dt = _dt.datetime(y0, m0, d0)
+
+    def t0_datetime(t0_idx: int) -> _dt.datetime:
+        return base_dt + _dt.timedelta(hours=int(t0_idx))
+
+    print(f"[t0] {len(t0_list)} initial time(s), rollout to +{args.n_steps}h: "
+          + ", ".join(f"{t}({t0_datetime(t):%m-%d %H}Z)" for t in t0_list))
+
+    def _seed_all():
+        """Reseed before each rollout so every (model, t0) draw is reproducible."""
+        torch.manual_seed(args.seed)
+        if device.type == "cuda":
+            torch.cuda.manual_seed_all(args.seed)
 
     print(f"[load] new-domain regression {args.new_regression}")
     new_reg = (
         Module.from_checkpoint(str(args.new_regression)).to(device).eval()
     )
 
-    new_truth = None
-    new_edm_pred = None
+    # Per-t0 prediction stores: {t0_idx: (T, C, H, W) physical units}.
+    new_truths: dict[int, np.ndarray] = {}
+    new_edm_preds: dict[int, np.ndarray] = {}
+    flow_preds: dict[int, np.ndarray] = {}
+    orig_preds: dict[int, np.ndarray] = {}
+
+    diff_kwargs = dict(
+        num_steps=args.diffusion_num_steps,
+        sigma_min=args.sigma_min, sigma_max=args.sigma_max,
+        rho=args.rho, solver=args.diffusion_solver,
+    )
+
     if not args.skip_new_edm:
         print(f"[load] new-domain diffusion {args.new_diffusion}")
         new_edm = (
             Module.from_checkpoint(str(args.new_diffusion)).to(device).eval()
         )
-        diff_kwargs = dict(
-            num_steps=args.diffusion_num_steps,
-            sigma_min=args.sigma_min, sigma_max=args.sigma_max,
-            rho=args.rho, solver=args.diffusion_solver,
-        )
-        print(f"[run] new-domain EDM rollout ({args.n_steps}h, NFE/step="
-              f"{2 * args.diffusion_num_steps if args.diffusion_solver == 'heun' else args.diffusion_num_steps})")
-        t0 = time.perf_counter()
-        new_edm_pred, new_truth = rollout(
-            model=new_edm, method="diffusion",
-            regression=new_reg, invariant=new_inv,
-            dataset=new_ds, t0_idx=args.t0_idx, n_steps=args.n_steps,
-            sampler_kwargs=diff_kwargs, device=device,
-        )
-        print(f"[run]   done in {time.perf_counter() - t0:.1f}s")
+        nfe_step = (2 * args.diffusion_num_steps if args.diffusion_solver == "heun"
+                    else args.diffusion_num_steps)
+        print(f"[run] new-domain EDM rollouts ({args.n_steps}h, NFE/step={nfe_step})")
+        for i, t0_idx in enumerate(t0_list):
+            _seed_all()
+            tw = time.perf_counter()
+            pred, truth = rollout(
+                model=new_edm, method="diffusion",
+                regression=new_reg, invariant=new_inv,
+                dataset=new_ds, t0_idx=t0_idx, n_steps=args.n_steps,
+                sampler_kwargs=diff_kwargs, device=device,
+            )
+            new_edm_preds[t0_idx] = pred
+            new_truths.setdefault(t0_idx, truth)
+            print(f"[run]   EDM {i + 1}/{len(t0_list)} t0={t0_idx} "
+                  f"({t0_datetime(t0_idx):%m-%d %H}Z) in {time.perf_counter() - tw:.1f}s")
         del new_edm
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
-    flow_pred = None
     if not args.skip_flowcast:
         print(f"[load] flowcast {args.new_flowcast}")
         flow_model = (
@@ -412,17 +464,20 @@ def main():
             num_steps=args.flowcast_num_steps,
             sigma_data=args.sigma_data, solver=args.flowcast_solver,
         )
-        print(f"[run] FlowCast rollout (NFE={args.flowcast_num_steps})")
-        t0 = time.perf_counter()
-        flow_pred, flow_truth = rollout(
-            model=flow_model, method="flowcast",
-            regression=new_reg, invariant=new_inv,
-            dataset=new_ds, t0_idx=args.t0_idx, n_steps=args.n_steps,
-            sampler_kwargs=flow_kwargs, device=device,
-        )
-        print(f"[run]   done in {time.perf_counter() - t0:.1f}s")
-        if new_truth is None:
-            new_truth = flow_truth
+        print(f"[run] FlowCast rollouts (NFE={args.flowcast_num_steps})")
+        for i, t0_idx in enumerate(t0_list):
+            _seed_all()
+            tw = time.perf_counter()
+            pred, truth = rollout(
+                model=flow_model, method="flowcast",
+                regression=new_reg, invariant=new_inv,
+                dataset=new_ds, t0_idx=t0_idx, n_steps=args.n_steps,
+                sampler_kwargs=flow_kwargs, device=device,
+            )
+            flow_preds[t0_idx] = pred
+            new_truths.setdefault(t0_idx, truth)
+            print(f"[run]   CFM {i + 1}/{len(t0_list)} t0={t0_idx} "
+                  f"({t0_datetime(t0_idx):%m-%d %H}Z) in {time.perf_counter() - tw:.1f}s")
         del flow_model
         if device.type == "cuda":
             torch.cuda.empty_cache()
@@ -431,23 +486,8 @@ def main():
     if device.type == "cuda":
         torch.cuda.empty_cache()
 
-    # ---- Original-domain pipeline -----------------------------------------
-    orig_pred = None
-    orig_ch = None
+    # ---- Original-domain pipeline (dataset already built up-front) ---------
     if not args.skip_original:
-        orig_cfg = make_dataset_cfg(
-            args.original_data, args.valid_dates, args.original_hr_size,
-            qpepre_log1p=False, kept_HR=ORIG_CHANNELS,
-        )
-        orig_ds, orig_inv = build_dataset(orig_cfg, device)
-        orig_ch = list(orig_ds.state_channels())
-        print(f"[data] original-domain: samples={len(orig_ds)}  channels={orig_ch}")
-        if args.t0_idx + args.n_steps > len(orig_ds):
-            raise SystemExit(
-                f"--t0-idx {args.t0_idx} + n_steps {args.n_steps} > original-domain "
-                f"len {len(orig_ds)}"
-            )
-
         print(f"[load] original-domain regression {args.original_regression}")
         orig_reg = (
             Module.from_checkpoint(str(args.original_regression)).to(device).eval()
@@ -456,62 +496,76 @@ def main():
         orig_edm = (
             Module.from_checkpoint(str(args.original_diffusion)).to(device).eval()
         )
-        diff_kwargs = dict(
-            num_steps=args.diffusion_num_steps,
-            sigma_min=args.sigma_min, sigma_max=args.sigma_max,
-            rho=args.rho, solver=args.diffusion_solver,
-        )
-        print(f"[run] original-domain EDM rollout ({args.n_steps}h)")
-        t0 = time.perf_counter()
-        orig_pred, _ = rollout(
-            model=orig_edm, method="diffusion",
-            regression=orig_reg, invariant=orig_inv,
-            dataset=orig_ds, t0_idx=args.t0_idx, n_steps=args.n_steps,
-            sampler_kwargs=diff_kwargs, device=device,
-        )
-        print(f"[run]   done in {time.perf_counter() - t0:.1f}s")
+        print(f"[run] original-domain EDM rollouts ({args.n_steps}h)")
+        for i, t0_idx in enumerate(t0_list):
+            _seed_all()
+            tw = time.perf_counter()
+            pred, _ = rollout(
+                model=orig_edm, method="diffusion",
+                regression=orig_reg, invariant=orig_inv,
+                dataset=orig_ds, t0_idx=t0_idx, n_steps=args.n_steps,
+                sampler_kwargs=diff_kwargs, device=device,
+            )
+            orig_preds[t0_idx] = pred
+            print(f"[run]   legacy {i + 1}/{len(t0_list)} t0={t0_idx} "
+                  f"({t0_datetime(t0_idx):%m-%d %H}Z) in {time.perf_counter() - tw:.1f}s")
         del orig_edm, orig_reg
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
-    if new_truth is None:
+    if not new_truths:
         raise SystemExit(
             "No rollout produced a truth field. At least one of "
             "--skip-new-edm / --skip-flowcast must be False."
         )
 
-    # Translate a t0 index to a human-readable label (each step = 1h after
-    # the first valid date).
-    y0, m0, d0 = (int(x) for x in args.valid_dates[0].split("/"))
-    import datetime as _dt
-    t0_label = (
-        _dt.datetime(y0, m0, d0) + _dt.timedelta(hours=args.t0_idx)
-    ).strftime("t0 = %Y-%m-%d %H:00 UTC")
-
-    # ---- Render one PNG per channel ----------------------------------------
+    # ---- Render one PNG per (t0, channel) into per-t0 subdirs --------------
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    for ch in args.channels_to_plot:
-        truth_arr = new_truth[:, new_ch.index(ch)]
-        edm_arr = (
-            new_edm_pred[:, new_ch.index(ch)] if new_edm_pred is not None else None
-        )
-        flow_arr = (
-            flow_pred[:, new_ch.index(ch)] if flow_pred is not None else None
-        )
-        orig_arr = (
-            orig_pred[:, orig_ch.index(ch)] if orig_pred is not None else None
-        )
+    qp_idx = new_ch.index("qpepre") if "qpepre" in new_ch else None
+    candidates = []  # (t0_idx, datetime, max_rain, wet0p1, wet1p0, subdir)
+    for t0_idx in t0_list:
+        dt0 = t0_datetime(t0_idx)
+        sub = args.output_dir / f"t0_{t0_idx:04d}_{dt0:%Y%m%d_%H}"
+        t0_label = dt0.strftime("t0 = %Y-%m-%d %H:00 UTC")
+        truth = new_truths[t0_idx]
+        for ch in args.channels_to_plot:
+            plot_channel_grid(
+                channel=ch,
+                truth_new=truth[:, new_ch.index(ch)],
+                orig_pred=(orig_preds[t0_idx][:, orig_ch.index(ch)]
+                           if t0_idx in orig_preds else None),
+                new_edm_pred=(new_edm_preds[t0_idx][:, new_ch.index(ch)]
+                              if t0_idx in new_edm_preds else None),
+                flow_pred=(flow_preds[t0_idx][:, new_ch.index(ch)]
+                           if t0_idx in flow_preds else None),
+                hours=args.hours_to_plot,
+                out_path=sub / f"rollout_12h_{ch}.png",
+                t0_label=t0_label,
+            )
+        if qp_idx is not None:
+            qp = truth[:, qp_idx]  # (T, H, W) mm/h
+            candidates.append((
+                t0_idx, dt0, float(qp.max()),
+                100.0 * float((qp >= 0.1).mean()),
+                100.0 * float((qp >= 1.0).mean()),
+                sub.name,
+            ))
 
-        plot_channel_grid(
-            channel=ch,
-            truth_new=truth_arr,
-            orig_pred=orig_arr,
-            new_edm_pred=edm_arr,
-            flow_pred=flow_arr,
-            hours=args.hours_to_plot,
-            out_path=args.output_dir / f"rollout_12h_{ch}.png",
-            t0_label=t0_label,
-        )
+    # ---- Rain-activity summary for picking a thesis case study -------------
+    if candidates:
+        md = args.output_dir / "candidates.md"
+        with md.open("w") as f:
+            f.write("# Rollout candidates — truth qpepre activity over the "
+                    f"+1..+{args.n_steps}h window\n\n")
+            f.write("Sorted by wet-pixel fraction at >=1 mm/h (most active first).\n\n")
+            f.write("| t0 idx | t0 (UTC) | max rain (mm/h) | wet >=0.1 (%) | "
+                    "wet >=1.0 (%) | figures |\n")
+            f.write("|---:|---|---:|---:|---:|---|\n")
+            for t0_idx, dt0, mx, w01, w10, name in sorted(
+                    candidates, key=lambda c: -c[4]):
+                f.write(f"| {t0_idx} | {dt0:%Y-%m-%d %H:00} | {mx:.1f} | "
+                        f"{w01:.1f} | {w10:.2f} | `{name}/` |\n")
+        print(f"[done] candidate summary -> {md}")
 
     print(f"[done] outputs in {args.output_dir}")
 

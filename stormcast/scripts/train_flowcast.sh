@@ -9,7 +9,7 @@ number_of_nodes=1
 gpus_per_node=2
 
 # --- General training config ---
-stormcast_train="$(dirname "$0")/train_flowcast.py"
+stormcast_train="$(dirname "$0")/../train_flowcast.py"
 config="--config-name flowcast"
 experiment_name="flowcast_cfm"
 training_output_dir="$(pwd)/StormCast_flowcast"

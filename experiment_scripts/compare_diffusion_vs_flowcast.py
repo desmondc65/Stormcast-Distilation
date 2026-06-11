@@ -503,8 +503,16 @@ def plot_panels(
         (out_dir / ch).mkdir(parents=True, exist_ok=True)
         (diff_root / ch).mkdir(parents=True, exist_ok=True)
 
-    field_cmaps = {"qpepre": "Blues", "t2m": "RdBu_r", "u10": "RdBu_r", "v10": "RdBu_r"}
-    diff_cmap = "RdBu_r"  # symmetric around zero for every channel
+    # Thesis colour convention (matches plot_weight_comparison_grid.py /
+    # validation_plot): all 2-D fields use the viridis ramp; signed (pred-truth)
+    # fields keep a diverging map. Centralised in thesis_style so old and new
+    # figures stay on one palette.
+    try:
+        from thesis_style import FIELD_CMAP, DIFF_CMAP
+    except Exception:  # keep the harness importable even without thesis_style
+        FIELD_CMAP, DIFF_CMAP = "viridis", "RdBu_r"
+    field_cmaps = {ch: FIELD_CMAP for ch in ("qpepre", "t2m", "u10", "v10")}
+    diff_cmap = DIFF_CMAP  # symmetric around zero for every channel
     has_flow = flowcast_pred_mean is not None
 
     field_titles = ["truth", "diffusion (mean)"] + (["flowcast (mean)"] if has_flow else [])
@@ -522,12 +530,15 @@ def plot_panels(
                 field_arrs = [truth[c], diff[c]] + ([flow[c]] if has_flow else [])
                 field_stack = np.stack(field_arrs)
                 if ch == "qpepre":
+                    # precip: clip the extreme tail so convective structure stays
+                    # legible under the sequential viridis ramp.
                     f_vmin = 0.0
                     f_vmax = float(np.quantile(field_stack, 0.995) + 1e-3)
                 else:
-                    fm = float(np.mean(field_stack))
-                    fabs = float(np.quantile(np.abs(field_stack - fm), 0.99))
-                    f_vmin, f_vmax = fm - fabs, fm + fabs
+                    # viridis is sequential: share one global (vmin, vmax) across
+                    # truth + predictions (clim_for style), not a mean-centred one.
+                    f_vmin = float(field_stack.min())
+                    f_vmax = float(field_stack.max())
                 f_cmap = field_cmaps.get(ch, "viridis")
 
                 # ---- diff row colour scale (shared between diffusion and flowcast diffs) ----

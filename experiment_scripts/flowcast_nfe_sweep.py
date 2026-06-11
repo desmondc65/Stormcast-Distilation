@@ -48,6 +48,8 @@ STORMCAST_ROOT = REPO_ROOT / "stormcast"
 sys.path.insert(0, str(STORMCAST_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import thesis_style as ts  # noqa: E402  viridis-consistent palette (see thesis_style.py)
+
 # Reuse the heavy lifting from compare_diffusion_vs_flowcast.py.
 from compare_diffusion_vs_flowcast import (  # noqa: E402
     FSS_WINDOWS_PIX,
@@ -147,7 +149,7 @@ def _plot_quality_vs_nfe(rows: list[dict], channels: list[str], out_path: Path) 
     csi_m = np.array([r["csi_m"] for r in rows])
 
     fig, ax1 = plt.subplots(figsize=(7, 4.5), constrained_layout=True)
-    color_l, color_r = "tab:blue", "tab:red"
+    color_l, color_r = ts.categorical_palette(2)  # viridis low (CRPS) / high (CSI)
     ax1.set_xscale("log")
     ax1.set_xlabel("NFE (number of Euler steps)")
     ax1.set_ylabel("CRPS qpepre  (mm/h, lower = better)", color=color_l)
@@ -173,7 +175,7 @@ def _plot_time_vs_nfe(rows: list[dict], out_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(7, 4.5), constrained_layout=True)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.plot(nfes, times, "o-", color="tab:green")
+    ax.plot(nfes, times, "o-", color=ts.categorical_palette(1)[0])
     ax.set_xlabel("NFE (number of Euler steps)")
     ax.set_ylabel("Wall-clock per sequence (s)")
     ax.set_title("FlowCast latency vs. NFE")
@@ -196,7 +198,7 @@ def _plot_pareto(rows: list[dict], channels: list[str], out_path: Path) -> None:
     crps = np.array([r[f"crps_{channels[qp_idx]}"] for r in rows])
     nfes = np.array([r["nfe"] for r in rows], dtype=int)
     fig, ax = plt.subplots(figsize=(7, 4.5), constrained_layout=True)
-    ax.plot(times, crps, "o-", color="tab:purple")
+    ax.plot(times, crps, "o-", color=ts.categorical_palette(1)[0])
     for x, y, n in zip(times, crps, nfes):
         ax.annotate(str(n), (x, y), textcoords="offset points", xytext=(4, 4), fontsize=7)
     ax.set_xscale("log")
