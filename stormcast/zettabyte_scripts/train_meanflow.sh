@@ -22,7 +22,7 @@
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6
 
 # --- Torchrun settings ---
 number_of_nodes=1
