@@ -3,10 +3,9 @@
 
 Reads the harness CSV/MD outputs under ``experiment_scripts/results/`` and emits
 one master ``results.md`` (default: ``experiment_scripts/results.md``) with the
-headline numbers, per-channel / per-threshold breakdowns, the encoding and
-NFE/qpw ablations, and the supplementary Bridge comparison. Every section
-states its provenance (which CSV, which checkpoints) so the document is
-traceable and regenerable.
+headline numbers, per-channel / per-threshold breakdowns, and the encoding and
+NFE/qpw ablations. Every section states its provenance (which CSV, which
+checkpoints) so the document is traceable and regenerable.
 
 Pure file reads; no GPU, no inference. Run after the experiments have populated
 ``results/`` (see ``run_main_experiment.sh``, ``run_log1p_ablation.sh``,
@@ -146,25 +145,6 @@ def sec_nfe() -> str:
     return md_table(list(header), rows)
 
 
-def sec_bridge() -> str:
-    """Supplementary: the mu->M Bridge head (results.md only; not in the thesis)."""
-    parts = []
-    header, data = read_csv(RESULTS / "diffusion_vs_flowcast_vs_bridge" / "scoreboard.csv")
-    if header is None:
-        parts.append(missing("diffusion_vs_flowcast_vs_bridge/scoreboard.csv",
-                             "run_compare_diffusion_vs_flowcast.sh (3-way incl. bridge)"))
-    else:
-        rows = [[label(r[0])] + [fnum(v) for v in r[1:]] for r in data]
-        parts.append("**Cleaned 192x96 3-way incl. Bridge (single-step ensemble):**\n\n"
-                     + md_table(["Method"] + list(header[1:]), rows))
-    header, data = read_csv(RESULTS / "qpepre_legacy_vs_cleaned" / "qpepre_scoreboard.csv")
-    if header is not None:
-        rows = [[fnum(v) if i >= 3 else v for i, v in enumerate(r)] for r in data]
-        parts.append("**Cross-grid qpepre scoreboard (mm/h):**\n\n"
-                     + md_table(list(header), rows))
-    return "\n\n".join(parts)
-
-
 # ---------------------------------------------------------------------------
 def build(out: Path):
     chunks = []
@@ -222,11 +202,6 @@ def build(out: Path):
         "spot. Above qpw=2.0 skill degrades across the board. The per-run "
         "validation CSVs are under `runs/flowcast_qpw_ablation/qpw*/.../run_0/`.",
         "Source: training-loop validation CSVs (not a single harness scoreboard).")
-    add("9. Supplementary — Bridge (mu->M) head",
-        sec_bridge(),
-        "**Not part of the thesis** (the thesis is a clean legacy->EDM->FlowCast "
-        "comparison). Recorded here for completeness since the Bridge head has "
-        "computed results in the tree.")
 
     out.write_text("\n".join(chunks).rstrip() + "\n")
     print(f"[export_results_md] wrote {out}")

@@ -58,7 +58,7 @@ NFES="${NFES:-1 2 3 4 5 6 8 10 12 16 20 25 32 40 50}"
 # len(NFES) times, with the per-NFE cost roughly proportional to its NFE.
 N_SEQUENCES="${N_SEQUENCES:-12}"
 N_STEPS="${N_STEPS:-1}"       # single-step skill, matches FlowCast Fig. 5
-ENSEMBLE="${ENSEMBLE:-4}"
+ENSEMBLE="${ENSEMBLE:-10}"    # 10-member standard (matches run_main_experiment.sh)
 SEED="${SEED:-0}"
 SOLVER="${SOLVER:-euler}"
 

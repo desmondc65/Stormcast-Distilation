@@ -1,8 +1,0 @@
-[2026-05-22 02:59:56,399][train_bridge][INFO] - [94mLoading dataset...[0m
-[2026-05-22 02:59:56,399][train_bridge][INFO] - [94mDataset class: Dataset[0m
-[2026-05-22 02:59:56,399][dataset][INFO] - [94mlist of all LowRes paths: [][0m
-[2026-05-22 02:59:56,399][dataset][INFO] - [94mlist of all LowRes paths after filtering: [][0m
-[2026-05-26 20:42:50,420][train_bridge][INFO] - [94mLoading dataset...[0m
-[2026-05-26 20:42:50,421][train_bridge][INFO] - [94mDataset class: Dataset[0m
-[2026-05-26 20:42:50,421][dataset][INFO] - [94mlist of all LowRes paths: [][0m
-[2026-05-26 20:42:50,421][dataset][INFO] - [94mlist of all LowRes paths after filtering: [][0m

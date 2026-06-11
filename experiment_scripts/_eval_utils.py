@@ -38,6 +38,14 @@ from physicsnemo.distributed import DistributedManager  # noqa: E402
 from physicsnemo.models import Module  # noqa: E402
 
 from datasets import dataset_classes  # noqa: E402
+
+# Thesis colour convention: all 2-D field panels use the viridis ramp
+# (thesis_style.py / trainer-time validation_plot). Fallback keeps this module
+# importable standalone.
+try:
+    from thesis_style import FIELD_CMAP as _FIELD_CMAP
+except Exception:
+    _FIELD_CMAP = "viridis"
 from utils.nn import (  # noqa: E402
     build_network_condition_and_target,
     diffusion_model_forward,
@@ -601,7 +609,7 @@ def plot_rollout_qpepre_panel(out_path: str, rollouts: dict[str, list], case_idx
     for ri, h in enumerate(horizons):
         truth = rollouts[runs[0]][case_idx]["truths"][h, qidx]
         ax = axes[ri, 0]
-        im = ax.imshow(truth, origin="lower", cmap="Blues", vmin=0, vmax=vmax)
+        im = ax.imshow(truth, origin="lower", cmap=_FIELD_CMAP, vmin=0, vmax=vmax)
         ax.set_ylabel(f"+{h+1}h")
         if ri == 0:
             ax.set_title("truth")
@@ -609,7 +617,7 @@ def plot_rollout_qpepre_panel(out_path: str, rollouts: dict[str, list], case_idx
         for ci, run in enumerate(runs):
             pred = rollouts[run][case_idx]["preds"][h, qidx]
             ax = axes[ri, 1 + ci]
-            ax.imshow(pred, origin="lower", cmap="Blues", vmin=0, vmax=vmax)
+            ax.imshow(pred, origin="lower", cmap=_FIELD_CMAP, vmin=0, vmax=vmax)
             if ri == 0:
                 ax.set_title(run, fontsize=8)
             ax.set_xticks([]); ax.set_yticks([])

@@ -91,7 +91,9 @@ mkdir -p "${OUT_DIR}"
 
 N_SEQUENCES="${N_SEQUENCES:-10}"
 N_STEPS="${N_STEPS:-12}"                  # autoregressive horizon, hours
-ENSEMBLE="${ENSEMBLE:-4}"
+# 10 members = the project's metrics-plan standard (CLAUDE.md §7) and the
+# HREF-class convection-permitting EPS bracket; enables rank histograms.
+ENSEMBLE="${ENSEMBLE:-10}"
 DIFFUSION_NFE="${DIFFUSION_NFE:-18}"      # 18 Heun steps = 36 NFE
 # Space-separated list — each NFE becomes its own row flowcast_nfe<N>.
 FLOWCAST_NFES="${FLOWCAST_NFES:-10 15 20}"

@@ -75,7 +75,6 @@ def diverging_clim(arr) -> tuple[float, float]:
 _METHOD_POS = {
     "legacy":          0.04,   # legacy old-StormCast EDM (224x128, raw)
     "diffusion":       0.30,   # cleaned EDM teacher
-    "bridge":          0.46,   # mu->M bridge head (results.md only; not in thesis)
     "flowcast":        0.66,   # single-NFE FlowCast student
     "flowcast_nfe10":  0.55,
     "flowcast_nfe15":  0.68,
@@ -86,7 +85,6 @@ _METHOD_POS = {
 _METHOD_LABELS = {
     "legacy":          r"Legacy EDM (224$\times$128)",
     "diffusion":       "EDM diffusion",
-    "bridge":          "Bridge",
     "flowcast":        "FlowCast",
     "flowcast_nfe10":  "FlowCast ($K{=}10$)",
     "flowcast_nfe15":  "FlowCast ($K{=}15$)",
@@ -99,8 +97,6 @@ _METHOD_ALIASES = {
     "cleaned_edm": "diffusion",
     "edm": "diffusion",
     "diffusion": "diffusion",
-    "cleaned_bridge": "bridge",
-    "bridge": "bridge",
     "cleaned_flow": "flowcast",
     "flowcast": "flowcast",
     "cleaned_flow_nfe10": "flowcast_nfe10",

@@ -3,7 +3,7 @@
 
 Built for "legacy larger domain (224x128, raw mm/h) vs cleaned cropped domain
 (192x96, log1p)": each leg is a directory produced by
-``compare_diffusion_vs_flowcast_vs_bridge.py`` (so it has ``scoreboard.csv``,
+``compare_diffusion_vs_flowcast.py`` (so it has ``scoreboard.csv``,
 ``crps_per_channel.csv``, ``per_threshold.csv`` and ``ps1d_qpepre.csv``). This
 reads the **qpepre** numbers out of each and writes:
 
@@ -161,7 +161,7 @@ def main():
     ap.add_argument("--legacy-dir", type=Path, required=True,
                     help="Leg dir for the legacy 224x128 raw-mm/h domain (EDM only).")
     ap.add_argument("--cleaned-dir", type=Path, required=True,
-                    help="Leg dir for the cleaned 192x96 log1p domain (EDM+flow+bridge).")
+                    help="Leg dir for the cleaned 192x96 log1p domain (EDM+flow).")
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--legacy-grid", default="224×128")
     ap.add_argument("--cleaned-grid", default="192×96")
@@ -178,8 +178,7 @@ def main():
                                leg_sb, leg_crps, leg_csi))
     # Cleaned leg: whichever methods are present.
     for method, label in [("diffusion", "cleaned_edm"),
-                          ("flowcast", "cleaned_flowcast"),
-                          ("bridge", "cleaned_bridge")]:
+                          ("flowcast", "cleaned_flowcast")]:
         if method in cln_sb:
             rows.append(qpepre_row(method, label, args.cleaned_grid, "log1p(mm/h)",
                                    cln_sb, cln_crps, cln_csi))
