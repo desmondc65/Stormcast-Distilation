@@ -19,6 +19,14 @@
 # compute and the JVP samples roughly double activation memory; drop
 # ++training.batch_size_per_gpu if a worker OOMs.
 
+# Mirror all stdout/stderr of this script (conda activation included) into a
+# timestamped log next to the script, so worker output survives the session.
+log_dir="$(cd "$(dirname "$0")" && pwd)/zettabyte_logs"
+mkdir -p "${log_dir}"
+log_file="${log_dir}/train_meanflow_$(date +%Y%m%d_%H%M%S).log"
+echo "Logging to ${log_file}"
+exec > >(tee -a "${log_file}") 2>&1
+
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate stormcast_env
 
