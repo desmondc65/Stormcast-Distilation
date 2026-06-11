@@ -1,16 +1,16 @@
 #!/bin/bash
-export CUDA_VISIBLE_DEVICES=4,5
+export CUDA_VISIBLE_DEVICES=0,1,2
 
 # --- Torchrun settings ---
 number_of_nodes=1
-gpus_per_node=2
+gpus_per_node=3
 
 # --- General training config ---
-stormcast_train="/home/master/13/dczy/code/stormcast-ncdr/stormcast/train.py"
+stormcast_train="/workspace/Stormcast-Distilation/stormcast/train.py"
 config="--config-name regression.yaml"
 experiment_name="regression_ncdr"
-training_output_dir="/project/n/desmond/diffusion_output/regression"
-run_id="0"
+training_output_dir="/workspace/training_output/test"
+run_id=""
 
 # -- logging parameters ---
 print_progress_freq=25
@@ -18,7 +18,7 @@ checkpoint_freq=1000
 validation_freq=50
 
 # --- Training parameters ---
-batch_size=12
+batch_size=24
 lr=4E-4
 lr_rampup_steps=1000
 total_train_steps=16000
@@ -39,12 +39,12 @@ output_nc="true"
 output_nc_freq=5
 
 # --- Dataset parameters ---
-location="/project/n/desmond/Stormcast_test/Zarr_test_optimized_skip_invalid"
+location="/workspace/downloads/desmond/zarr_exp3_L_24_H_24_train_2_5_years_full"
 HighRes_img_size="[224,128]"
-exp_train_zarrs="[train]" # Zarr files to use for training
-train_dates="[2019/08/01,2019/08/17]"
-exp_valid_zarrs="[valid]" # Zarr files to use for validation
-valid_dates="[2019/08/18,2019/08/31]"
+exp_train_zarrs="[stormcast_test_train]" # Zarr files to use for training
+train_dates="[2019/08/01,2021/08/17]"
+exp_valid_zarrs="[stormcast_test_valid]" # Zarr files to use for validation
+valid_dates="[2021/09/18,2022/08/31]"
 kept_LowRes_channels="all"
 kept_HighRes_channels="all"
 
