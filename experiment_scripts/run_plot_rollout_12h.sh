@@ -71,6 +71,7 @@ CHANNELS="${CHANNELS:-t2m u10 v10 qpepre}"
 
 DIFFUSION_NFE="${DIFFUSION_NFE:-18}"      # Heun => 36 NFE
 FLOWCAST_NFE="${FLOWCAST_NFE:-10}"
+MEANFLOW_NFE="${MEANFLOW_NFE:-2}"         # average-velocity segments (NFE)
 SEED="${SEED:-0}"
 
 # ---- Pinned ~2 M-sample checkpoints (overridable) --------------------------
@@ -85,6 +86,7 @@ CLEANED_DATA="${CLEANED_DATA:-${REPO_ROOT}/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_
 CLEANED_REG="${CLEANED_REG:-${REPO_ROOT}/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus}"
 CLEANED_EDM="${CLEANED_EDM:-${REPO_ROOT}/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus}"
 CLEANED_FLOW="${CLEANED_FLOW:-${REPO_ROOT}/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus}"
+CLEANED_MEANFLOW="${CLEANED_MEANFLOW:-${REPO_ROOT}/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus}"
 
 banner "Configuration"
 log "REPO_ROOT     = ${REPO_ROOT}"
@@ -95,6 +97,7 @@ log "HOURS_TO_PLOT = ${HOURS_TO_PLOT}  (lead-time columns)"
 log "CHANNELS      = ${CHANNELS}      (one PNG per channel)"
 log "DIFFUSION_NFE = ${DIFFUSION_NFE}   (Heun steps; NFE = 2 * this)"
 log "FLOWCAST_NFE  = ${FLOWCAST_NFE}   (Euler steps)"
+log "MEANFLOW_NFE  = ${MEANFLOW_NFE}   (average-velocity segments)"
 log "SEED          = ${SEED}"
 log ""
 log "Inputs:"
@@ -105,6 +108,7 @@ log "  CLEANED_DATA = ${CLEANED_DATA}"
 log "  CLEANED_REG  = ${CLEANED_REG}"
 log "  CLEANED_EDM  = ${CLEANED_EDM}"
 log "  CLEANED_FLOW = ${CLEANED_FLOW}"
+log "  CLEANED_MEANFLOW = ${CLEANED_MEANFLOW}"
 
 banner "Pre-flight checks"
 _PREFLIGHT_FAIL=0
@@ -115,7 +119,8 @@ for kv in \
     "CLEANED_DATA=${CLEANED_DATA}" \
     "CLEANED_REG=${CLEANED_REG}" \
     "CLEANED_EDM=${CLEANED_EDM}" \
-    "CLEANED_FLOW=${CLEANED_FLOW}"; do
+    "CLEANED_FLOW=${CLEANED_FLOW}" \
+    "CLEANED_MEANFLOW=${CLEANED_MEANFLOW}"; do
     name="${kv%%=*}"
     path="${kv#*=}"
     if [ -e "${path}" ]; then
@@ -141,6 +146,7 @@ python -u "${REPO_ROOT}/experiment_scripts/plot_rollout_12h.py" \
     --new-regression "${CLEANED_REG}" \
     --new-diffusion "${CLEANED_EDM}" \
     --new-flowcast "${CLEANED_FLOW}" \
+    --new-meanflow "${CLEANED_MEANFLOW}" \
     --valid-dates 2022/01/01 2022/12/31 \
     --output-dir "${OUT_DIR}" \
     --t0-idx "${T0_IDX}" \
@@ -152,6 +158,7 @@ python -u "${REPO_ROOT}/experiment_scripts/plot_rollout_12h.py" \
     --diffusion-solver heun \
     --flowcast-num-steps "${FLOWCAST_NFE}" \
     --flowcast-solver euler \
+    --meanflow-num-steps "${MEANFLOW_NFE}" \
     2>&1 | tee "${OUT_DIR}/run.log"
 RC=${PIPESTATUS[0]}
 if [ "${RC}" != "0" ]; then

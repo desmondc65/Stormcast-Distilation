@@ -16,7 +16,9 @@
 #       ├── stormcast/<channel>/step_01.png .. step_18.png            # forecast
 #       ├── stormcast_residual/<channel>/step_01.png .. step_18.png   # residual
 #       ├── flowcast/<channel>/step_01.png .. step_10.png             # forecast
-#       └── flowcast_residual/<channel>/step_01.png .. step_10.png    # residual
+#       ├── flowcast_residual/<channel>/step_01.png .. step_10.png    # residual
+#       ├── meanflow/<channel>/step_01.png .. step_02.png             # forecast (opt-in)
+#       └── meanflow_residual/<channel>/step_01.png .. step_02.png    # residual (opt-in)
 #
 # Each PNG is a bare imshow (origin=lower, viridis, no axes / colorbar / frame).
 # vmin/vmax is locked globally per channel -- forecast view uses the truth's
@@ -70,6 +72,7 @@ N_TIMES="${N_TIMES:-3}"
 SEED="${SEED:-0}"
 DIFFUSION_NFE="${DIFFUSION_NFE:-18}"
 FLOWCAST_NFE="${FLOWCAST_NFE:-10}"
+MEANFLOW_NFE="${MEANFLOW_NFE:-2}"
 
 # Cleaned-grid defaults (so StormCast and FlowCast are apples-to-apples;
 # legacy 224x128 StormCast cannot share a checkpoint with FlowCast since
@@ -78,6 +81,7 @@ DATA="${DATA:-${REPO_ROOT}/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_t
 REG="${REG:-${REPO_ROOT}/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus}"
 EDM="${EDM:-${REPO_ROOT}/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus}"
 FLOW="${FLOW:-${REPO_ROOT}/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus}"
+MEANFLOW="${MEANFLOW:-${REPO_ROOT}/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus}"
 
 banner "Configuration"
 log "REPO_ROOT     = ${REPO_ROOT}"
@@ -86,9 +90,11 @@ log "DATA          = ${DATA}"
 log "REG           = ${REG}"
 log "EDM           = ${EDM}"
 log "FLOW          = ${FLOW}"
+log "MEANFLOW      = ${MEANFLOW}"
 log "N_TIMES       = ${N_TIMES}"
 log "DIFFUSION_NFE = ${DIFFUSION_NFE}  (Heun steps)"
 log "FLOWCAST_NFE  = ${FLOWCAST_NFE}  (Euler steps)"
+log "MEANFLOW_NFE  = ${MEANFLOW_NFE}  (avg-velocity segments)"
 log "SEED          = ${SEED}"
 
 banner "Pre-flight checks"
@@ -107,6 +113,15 @@ if [ "${_PREFLIGHT_FAIL}" = "1" ]; then
     exit 1
 fi
 
+# MeanFlow is opt-in: if the checkpoint is missing, skip it (warn, don't abort).
+MEANFLOW_ARGS=()
+if [ -n "${MEANFLOW}" ] && [ -e "${MEANFLOW}" ]; then
+    log "  OK     MEANFLOW=${MEANFLOW}"
+    MEANFLOW_ARGS=(--meanflow "${MEANFLOW}" --meanflow-num-steps "${MEANFLOW_NFE}")
+else
+    warn "  SKIP   MEANFLOW=${MEANFLOW:-<unset>} (not found) -- MeanFlow trajectory disabled"
+fi
+
 banner "Running inference_steps.py"
 T0=$(date +%s)
 python -u "${REPO_ROOT}/experiment_scripts/inference_steps.py" \
@@ -122,6 +137,7 @@ python -u "${REPO_ROOT}/experiment_scripts/inference_steps.py" \
     --diffusion-solver heun \
     --flowcast-num-steps "${FLOWCAST_NFE}" \
     --flowcast-solver euler \
+    ${MEANFLOW_ARGS[@]+"${MEANFLOW_ARGS[@]}"} \
     2>&1 | tee "${OUT_DIR}/run.log"
 RC=${PIPESTATUS[0]}
 if [ "${RC}" != "0" ]; then
@@ -136,6 +152,9 @@ log "  per-time dir : ${OUT_DIR}/time_NN_<timestamp>/"
 log "  reference    : .../{truth,regression,truth_residual}/<channel>.png"
 log "  stormcast    : .../stormcast{,_residual}/<channel>/step_01.png .. step_${DIFFUSION_NFE}.png"
 log "  flowcast     : .../flowcast{,_residual}/<channel>/step_01.png .. step_${FLOWCAST_NFE}.png"
+if [ "${#MEANFLOW_ARGS[@]}" -gt 0 ]; then
+    log "  meanflow     : .../meanflow{,_residual}/<channel>/step_01.png .. step_${MEANFLOW_NFE}.png"
+fi
 log "  metadata     : ${OUT_DIR}/metadata.txt"
 log "  run log      : ${OUT_DIR}/run.log"
 NPNG=$(find "${OUT_DIR}" -type f -name '*.png' 2>/dev/null | wc -l)

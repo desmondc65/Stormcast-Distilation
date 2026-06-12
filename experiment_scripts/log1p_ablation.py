@@ -59,6 +59,7 @@ from _eval_utils import (  # noqa: E402
     evaluate_single_step,
     load_diffusion,
     load_flowcast,
+    load_meanflow,
     load_regression,
     open_validation_dataset,
     plot_psd_comparison,
@@ -94,6 +95,11 @@ REL_FLOW_LOG1P_DIR = (
 REL_FLOW_NOLOG1P_DIR = (
     "flowcast_zettabyte_v1_cleaned_4_27_2026_NO_log1p/flowcast_cleaned_NO_log1p/run_0"
 )
+# MeanFlow exists ONLY for the cleaned/log1p/qpw=2.0 setup — there is no
+# raw-mm/h (NO_log1p) MeanFlow run, so MeanFlow is added to the log1p leg only.
+REL_MEANFLOW_LOG1P_DIR = (
+    "meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0"
+)
 
 # EDM teacher sampler kwargs at inference time. Match the cfg/sampler/edm_deterministic
 # that the diffusion training expects, but use sigma_max=80 to match the EDM
@@ -111,6 +117,10 @@ EDM_SAMPLER_KWARGS = dict(
 
 # FlowCast sampler kwargs (training used Euler, num_steps=10, sigma_data=0.5).
 FLOWCAST_SAMPLER_KWARGS = dict(num_steps=10, sigma_data=0.5, solver="euler")
+
+# MeanFlow sampler kwargs (2-segment average-velocity sampler, sigma_data=0.5).
+# meanflow_model_forward takes no solver kwarg.
+MEANFLOW_SAMPLER_KWARGS = dict(num_steps=2, sigma_data=0.5)
 
 # Architecture kwargs needed to materialise FlowCastPrecond from the EMA shadow.
 FLOWCAST_ARCH = dict(
@@ -197,6 +207,10 @@ def parse_args():
                    help="Run dir containing ema_state.pt for the log1p FlowCast run.")
     p.add_argument("--flow-no-log1p-dir", default=None,
                    help="Same, for the NO_log1p FlowCast run.")
+    p.add_argument("--meanflow-log1p-ema", default=None,
+                   help="ema_state.pt for the log1p MeanFlow run (log1p leg ONLY; "
+                        "there is no raw-mm/h MeanFlow). Defaults to the canonical "
+                        "run dir's ema_state.pt; skipped with a warning if absent.")
     return p.parse_args()
 
 
@@ -220,6 +234,10 @@ def _resolve_paths(args):
     )
     flow_log1p_ema = os.path.join(flow_log1p_dir, "ema_state.pt")
     flow_nolog1p_ema = os.path.join(flow_nolog1p_dir, "ema_state.pt")
+    # MeanFlow: log1p leg only. NO raw-mm/h counterpart.
+    meanflow_log1p_ema = args.meanflow_log1p_ema or os.path.join(
+        runs, REL_MEANFLOW_LOG1P_DIR, "ema_state.pt"
+    )
     return {
         "reg_log1p": reg_log1p,
         "reg_nolog1p": reg_nolog1p,
@@ -227,6 +245,7 @@ def _resolve_paths(args):
         "diff_nolog1p": diff_nolog1p,
         "flow_log1p_ema": flow_log1p_ema,
         "flow_nolog1p_ema": flow_nolog1p_ema,
+        "meanflow_log1p_ema": meanflow_log1p_ema,
     }
 
 
@@ -252,6 +271,28 @@ def make_specs(args, paths, device):
         data_log1p, True, paths["reg_log1p"],
         StudentSpec("flowcast_log1p", "flowcast", flow_log1p, dict(FLOWCAST_SAMPLER_KWARGS)),
     )
+    # --- MeanFlow: LOG1P LEG ONLY (no raw-mm/h MeanFlow run exists) ----------
+    meanflow_ema = paths.get("meanflow_log1p_ema")
+    if meanflow_ema and os.path.exists(meanflow_ema):
+        meanflow_log1p = load_meanflow(
+            ema_path=meanflow_ema,
+            **FLOWCAST_ARCH,  # identical arch/hyperparams to the FlowCast student
+            device=device,
+        )
+        yield (
+            "meanflow_log1p",
+            data_log1p, True, paths["reg_log1p"],
+            StudentSpec(
+                "meanflow_log1p", "meanflow", meanflow_log1p,
+                dict(MEANFLOW_SAMPLER_KWARGS),
+            ),
+        )
+    else:
+        print(
+            "[log1p_ablation] WARN meanflow EMA not found "
+            f"({meanflow_ema!r}) -- skipping meanflow_log1p row.",
+            file=sys.stderr,
+        )
     if args.include_regression:
         yield (
             "regression_log1p",
@@ -297,7 +338,11 @@ def main():
     paths = _resolve_paths(args)
     for k, v in paths.items():
         print(f"  {k}: {v}")
-    missing = [k for k, v in paths.items() if not os.path.exists(v)]
+    # meanflow_log1p_ema is OPTIONAL (log1p leg only, may not be present) —
+    # make_specs() skips the MeanFlow row with a warning if it's missing, so it
+    # is excluded from this hard pre-flight check.
+    required = {k: v for k, v in paths.items() if k != "meanflow_log1p_ema"}
+    missing = [k for k, v in required.items() if not os.path.exists(v)]
     if missing:
         raise SystemExit(
             "[log1p_ablation] missing checkpoint paths: " + ", ".join(missing)

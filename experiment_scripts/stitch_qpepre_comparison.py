@@ -178,7 +178,8 @@ def main():
                                leg_sb, leg_crps, leg_csi))
     # Cleaned leg: whichever methods are present.
     for method, label in [("diffusion", "cleaned_edm"),
-                          ("flowcast", "cleaned_flowcast")]:
+                          ("flowcast", "cleaned_flowcast"),
+                          ("meanflow", "cleaned_meanflow")]:
         if method in cln_sb:
             rows.append(qpepre_row(method, label, args.cleaned_grid, "log1p(mm/h)",
                                    cln_sb, cln_crps, cln_csi))

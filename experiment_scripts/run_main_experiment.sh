@@ -97,6 +97,10 @@ ENSEMBLE="${ENSEMBLE:-10}"
 DIFFUSION_NFE="${DIFFUSION_NFE:-18}"      # 18 Heun steps = 36 NFE
 # Space-separated list — each NFE becomes its own row flowcast_nfe<N>.
 FLOWCAST_NFES="${FLOWCAST_NFES:-10 15 20}"
+# MeanFlow average-velocity sampler NFEs — each becomes a row meanflow_nfe<N>.
+# 1 = the headline one-step sampler, 2 = the config default. Leave empty to
+# skip the MeanFlow leg entirely.
+MEANFLOW_NFES="${MEANFLOW_NFES:-1 2}"
 SEED="${SEED:-0}"
 
 # Number of sequences to render as PNG panels per leg (truth + predictions +
@@ -120,6 +124,11 @@ CLEANED_DATA="${CLEANED_DATA:-${REPO_ROOT}/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_
 CLEANED_REG="${CLEANED_REG:-${REPO_ROOT}/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus}"
 CLEANED_EDM="${CLEANED_EDM:-${REPO_ROOT}/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus}"
 CLEANED_FLOW="${CLEANED_FLOW:-${REPO_ROOT}/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus}"
+# MeanFlow student (average-velocity head) at the matched step-20000 budget —
+# same cleaned 192x96 + log1p grid and channel order as the FlowCast leg, so it
+# rides along on Leg B's dataset config. Online-student .mdlus (loaded the same
+# way as CLEANED_FLOW) keeps MeanFlow-vs-FlowCast an A/B on the objective alone.
+CLEANED_MEANFLOW="${CLEANED_MEANFLOW:-${REPO_ROOT}/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus}"
 
 banner "Configuration"
 log "REPO_ROOT     = ${REPO_ROOT}"
@@ -129,6 +138,7 @@ log "N_STEPS       = ${N_STEPS}    (autoregressive horizon, hours)"
 log "ENSEMBLE      = ${ENSEMBLE}    (members per sequence)"
 log "DIFFUSION_NFE = ${DIFFUSION_NFE}   (Heun steps; NFE = 2 * this)"
 log "FLOWCAST_NFES = ${FLOWCAST_NFES}   (Euler steps; one row per value)"
+log "MEANFLOW_NFES = ${MEANFLOW_NFES:-<skip>}   (avg-velocity NFE; one row per value)"
 log "N_PANELS_SEQ  = ${N_PANELS_SEQ}    PANEL_STEPS = '${PANEL_STEPS}'"
 log "SEED          = ${SEED}"
 log ""
@@ -140,6 +150,7 @@ log "  CLEANED_DATA = ${CLEANED_DATA}"
 log "  CLEANED_REG  = ${CLEANED_REG}"
 log "  CLEANED_EDM  = ${CLEANED_EDM}"
 log "  CLEANED_FLOW = ${CLEANED_FLOW}"
+log "  CLEANED_MEAN = ${CLEANED_MEANFLOW}"
 
 # --- Pre-flight: report ALL missing paths before exiting --------------------
 banner "Pre-flight checks"
@@ -161,6 +172,17 @@ for kv in \
         _PREFLIGHT_FAIL=1
     fi
 done
+# MeanFlow is optional: only require its checkpoint when the leg is enabled.
+if [ -n "${MEANFLOW_NFES}" ]; then
+    if [ -e "${CLEANED_MEANFLOW}" ]; then
+        log "  OK     CLEANED_MEANFLOW=${CLEANED_MEANFLOW}"
+    else
+        warn "  MISSING CLEANED_MEANFLOW=${CLEANED_MEANFLOW}"
+        _PREFLIGHT_FAIL=1
+    fi
+else
+    log "  SKIP   MeanFlow leg (MEANFLOW_NFES empty)"
+fi
 if [ "${_PREFLIGHT_FAIL}" = "1" ]; then
     warn "pre-flight failed -- aborting before any python invocation"
     exit 1
@@ -228,10 +250,11 @@ leg_summary "legacy" "${OUT_DIR}/legacy"
 # -----------------------------------------------------------------------------
 # Leg B -- new EDM + new FlowCast on the cleaned 192x96 + log1p dataset.
 # -----------------------------------------------------------------------------
-banner "Leg B — cleaned EDM + FlowCast (both @ ~2M samples)"
+banner "Leg B — cleaned EDM + FlowCast + MeanFlow (all @ ~2M samples)"
 log "regression : ${CLEANED_REG}"
 log "diffusion  : ${CLEANED_EDM}"
 log "flowcast   : ${CLEANED_FLOW}"
+log "meanflow   : ${CLEANED_MEANFLOW} (NFE ${MEANFLOW_NFES:-<skip>})"
 log "dataset    : ${CLEANED_DATA}"
 log "log -> ${OUT_DIR}/cleaned_2M.log"
 LEG_T0=$(date +%s)
@@ -245,6 +268,7 @@ python -u "${REPO_ROOT}/experiment_scripts/compare_diffusion_vs_flowcast.py" \
     --regression-checkpoint "${CLEANED_REG}" \
     --diffusion-checkpoint "${CLEANED_EDM}" \
     --flowcast-checkpoint "${CLEANED_FLOW}" \
+    ${MEANFLOW_NFES:+--meanflow-checkpoint "${CLEANED_MEANFLOW}"} \
     --n-sequences "${N_SEQUENCES}" \
     --n-steps "${N_STEPS}" \
     --ensemble "${ENSEMBLE}" \
@@ -253,6 +277,7 @@ python -u "${REPO_ROOT}/experiment_scripts/compare_diffusion_vs_flowcast.py" \
     --diffusion-solver heun \
     --flowcast-num-steps ${FLOWCAST_NFES} \
     --flowcast-solver euler \
+    ${MEANFLOW_NFES:+--meanflow-num-steps ${MEANFLOW_NFES}} \
     --n-panels-seq "${N_PANELS_SEQ}" \
     ${PANEL_STEPS:+--panel-steps ${PANEL_STEPS}} \
     2>&1 | tee "${OUT_DIR}/cleaned_2M.log"
@@ -269,7 +294,7 @@ leg_summary "cleaned_2M" "${OUT_DIR}/cleaned_2M"
 # -----------------------------------------------------------------------------
 banner "Stitching 3-way scoreboard"
 STITCH_T0=$(date +%s)
-OUT_DIR="${OUT_DIR}" FLOWCAST_NFES_ENV="${FLOWCAST_NFES}" python -u - <<'PY'
+OUT_DIR="${OUT_DIR}" FLOWCAST_NFES_ENV="${FLOWCAST_NFES}" MEANFLOW_NFES_ENV="${MEANFLOW_NFES}" python -u - <<'PY'
 import csv
 import os
 import sys
@@ -277,6 +302,7 @@ from pathlib import Path
 
 ROOT = Path(os.environ["OUT_DIR"])
 NFES = [int(x) for x in os.environ["FLOWCAST_NFES_ENV"].split()]
+MF_NFES = [int(x) for x in os.environ.get("MEANFLOW_NFES_ENV", "").split()]
 
 LEGS = [
     ("legacy_edm",   ROOT / "legacy"     / "scoreboard.csv", "diffusion"),
@@ -285,6 +311,14 @@ LEGS = [
 for nfe in NFES:
     LEGS.append(
         (f"cleaned_flow_nfe{nfe}", ROOT / "cleaned_2M" / "scoreboard.csv", f"flowcast_nfe{nfe}")
+    )
+# MeanFlow rows. compare_diffusion_vs_flowcast.py names the row "meanflow" when
+# only one NFE is requested, else "meanflow_nfe<N>" — mirror that here so the
+# stitch finds the right source row.
+for nfe in MF_NFES:
+    src_key = "meanflow" if len(MF_NFES) == 1 else f"meanflow_nfe{nfe}"
+    LEGS.append(
+        (f"cleaned_meanflow_nfe{nfe}", ROOT / "cleaned_2M" / "scoreboard.csv", src_key)
     )
 
 print(f"[stitch] root = {ROOT}")

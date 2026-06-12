@@ -47,8 +47,13 @@ log "host   : $(hostname)  user=$(whoami)  pid=$$"
 
 # --- Config ------------------------------------------------------------------
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-OUT_DIR="${OUT_DIR:-${REPO_ROOT}/experiment_scripts/results/flowcast_nfe_sweep}"
-mkdir -p "${OUT_DIR}"
+
+# Which students to sweep. Default sweeps BOTH FlowCast (Euler ODE) and MeanFlow
+# (few-step average velocity) so the two NFE-quality curves can be overlaid --
+# MeanFlow's headline claim is that it saturates at 1-2 NFE where FlowCast needs
+# ~3-10. Each method writes results/<method>_nfe_sweep/. Set METHODS="flowcast"
+# to restore the legacy single-method behaviour.
+METHODS="${METHODS:-flowcast meanflow}"
 
 # Sweep set -- FlowCast paper Fig. 5 extended to the diffusion regime.
 NFES="${NFES:-1 2 3 4 5 6 8 10 12 16 20 25 32 40 50}"
@@ -67,21 +72,31 @@ SOLVER="${SOLVER:-euler}"
 DATA="${DATA:-${REPO_ROOT}/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026}"
 REG="${REG:-${REPO_ROOT}/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus}"
 FLOW="${FLOW:-${REPO_ROOT}/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.140000.mdlus}"
+MEANFLOW="${MEANFLOW:-${REPO_ROOT}/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus}"
 
 banner "Configuration"
 log "REPO_ROOT   = ${REPO_ROOT}"
-log "OUT_DIR     = ${OUT_DIR}"
+log "METHODS     = ${METHODS}"
 log "NFES        = ${NFES}"
 log "N_SEQUENCES = ${N_SEQUENCES}    N_STEPS = ${N_STEPS}    ENSEMBLE = ${ENSEMBLE}"
 log "SOLVER      = ${SOLVER}    SEED = ${SEED}"
 log "DATA        = ${DATA}"
 log "REG         = ${REG}"
 log "FLOW        = ${FLOW}"
+log "MEANFLOW    = ${MEANFLOW}"
 
 # --- Pre-flight --------------------------------------------------------------
 banner "Pre-flight"
 FAIL=0
-for kv in "DATA=${DATA}" "REG=${REG}" "FLOW=${FLOW}"; do
+PREFLIGHT=("DATA=${DATA}" "REG=${REG}")
+for method in ${METHODS}; do
+    case "${method}" in
+        flowcast) PREFLIGHT+=("FLOW=${FLOW}") ;;
+        meanflow) PREFLIGHT+=("MEANFLOW=${MEANFLOW}") ;;
+        *) warn "unknown method '${method}' in METHODS"; FAIL=1 ;;
+    esac
+done
+for kv in "${PREFLIGHT[@]}"; do
     name="${kv%%=*}"; path="${kv#*=}"
     if [ -e "${path}" ]; then
         log "  OK     ${name}=${path}"
@@ -91,45 +106,53 @@ for kv in "DATA=${DATA}" "REG=${REG}" "FLOW=${FLOW}"; do
 done
 [ "${FAIL}" = "1" ] && { warn "pre-flight failed"; exit 1; }
 
-# --- Run --------------------------------------------------------------------
-banner "Running sweep across NFEs: ${NFES}"
-log "log -> ${OUT_DIR}/run.log"
+# --- Run (one sweep per method) ---------------------------------------------
+for method in ${METHODS}; do
+    OUT_DIR="${REPO_ROOT}/experiment_scripts/results/${method}_nfe_sweep"
+    mkdir -p "${OUT_DIR}"
+    if [ "${method}" = "meanflow" ]; then
+        CKPT_FLAG=(--meanflow-checkpoint "${MEANFLOW}")
+    else
+        CKPT_FLAG=(--flowcast-checkpoint "${FLOW}")
+    fi
 
-LEG_T0=$(date +%s)
-# shellcheck disable=SC2086   # NFES intentionally word-splits
-python -u "${REPO_ROOT}/experiment_scripts/flowcast_nfe_sweep.py" \
-    --output-dir "${OUT_DIR}" \
-    --data-location "${DATA}" \
-    --valid-dates 2022/01/01 2022/12/31 \
-    --hr-size 192 96 \
-    --qpepre-log1p \
-    --regression-checkpoint "${REG}" \
-    --flowcast-checkpoint "${FLOW}" \
-    --nfes ${NFES} \
-    --solver "${SOLVER}" \
-    --n-sequences "${N_SEQUENCES}" \
-    --n-steps "${N_STEPS}" \
-    --ensemble "${ENSEMBLE}" \
-    --seed "${SEED}" \
-    2>&1 | tee "${OUT_DIR}/run.log"
+    banner "Running ${method} sweep across NFEs: ${NFES}"
+    log "log -> ${OUT_DIR}/run.log"
+    LEG_T0=$(date +%s)
+    # shellcheck disable=SC2086   # NFES intentionally word-splits
+    python -u "${REPO_ROOT}/experiment_scripts/flowcast_nfe_sweep.py" \
+        --method "${method}" \
+        --output-dir "${OUT_DIR}" \
+        --data-location "${DATA}" \
+        --valid-dates 2022/01/01 2022/12/31 \
+        --hr-size 192 96 \
+        --qpepre-log1p \
+        --regression-checkpoint "${REG}" \
+        "${CKPT_FLAG[@]}" \
+        --nfes ${NFES} \
+        --solver "${SOLVER}" \
+        --n-sequences "${N_SEQUENCES}" \
+        --n-steps "${N_STEPS}" \
+        --ensemble "${ENSEMBLE}" \
+        --seed "${SEED}" \
+        2>&1 | tee "${OUT_DIR}/run.log"
 
-RC=${PIPESTATUS[0]}
-if [ "${RC}" != "0" ]; then
-    warn "sweep failed with exit code ${RC} after $(elapsed_s ${LEG_T0})"
-    exit "${RC}"
-fi
-log "sweep done in $(elapsed_s ${LEG_T0})"
+    RC=${PIPESTATUS[0]}
+    if [ "${RC}" != "0" ]; then
+        warn "${method} sweep failed with exit code ${RC} after $(elapsed_s ${LEG_T0})"
+        exit "${RC}"
+    fi
+    log "${method} sweep done in $(elapsed_s ${LEG_T0})"
+    if [ -f "${OUT_DIR}/nfe_sweep.md" ]; then
+        log "preview of ${method} nfe_sweep.md:"
+        sed 's/^/[nfe_sweep]     | /' "${OUT_DIR}/nfe_sweep.md"
+    fi
+done
 
 # --- Summary ---------------------------------------------------------------
 banner "All done -- total elapsed $(elapsed_s ${SCRIPT_T0})"
-log "outputs:"
-log "  table : ${OUT_DIR}/nfe_sweep.{csv,md}"
-log "  plots : ${OUT_DIR}/plot_quality_vs_nfe.png"
-log "          ${OUT_DIR}/plot_time_vs_nfe.png"
-log "          ${OUT_DIR}/plot_pareto.png"
-log "  detail: ${OUT_DIR}/nfe_<NFE>/scoreboard.{md,csv}"
-log "  run log: ${OUT_DIR}/run.log"
-if [ -f "${OUT_DIR}/nfe_sweep.md" ]; then
-    log "preview of nfe_sweep.md:"
-    sed 's/^/[nfe_sweep]     | /' "${OUT_DIR}/nfe_sweep.md"
-fi
+log "outputs (per method):"
+for method in ${METHODS}; do
+    OUT_DIR="${REPO_ROOT}/experiment_scripts/results/${method}_nfe_sweep"
+    log "  ${method}: ${OUT_DIR}/nfe_sweep.{csv,md} + plot_{quality_vs_nfe,time_vs_nfe,pareto}.png"
+done

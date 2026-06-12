@@ -50,6 +50,7 @@ from utils.nn import (  # noqa: E402
     build_network_condition_and_target,
     diffusion_model_forward,
     flowcast_model_forward,
+    meanflow_model_forward,
 )
 
 
@@ -76,6 +77,17 @@ DEFAULT_FLOWCAST = (
     / "runs/flowcast_zettabyte_v1_cleaned_4_27_2026"
     / "flowcast_zettabyte_cleaned_4_27_2026/run_0"
     / "checkpoints_flowcast/FlowCastPrecond.0.25000.mdlus"
+)
+# MeanFlow shares the FlowCast SongUNet backbone and conditioning bundle, so it
+# is loaded and rolled out exactly like the FlowCast leg; only the sampler
+# (few-step average velocity) differs. Loaded from the online-student .mdlus
+# (same convention as DEFAULT_FLOWCAST above) so MeanFlow-vs-FlowCast stays an
+# A/B on the objective alone.
+DEFAULT_MEANFLOW = (
+    REPO_ROOT
+    / "runs/meanflow_zettabyte_v1_cleaned_4_27_2026"
+    / "meanflow_zettabyte_cleaned_4_27_2026/run_0"
+    / "checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus"
 )
 
 # Canonical training channel order (kept_HighRes_channels in the train scripts).
@@ -271,6 +283,10 @@ def rollout(
                 )
             elif method == "flowcast":
                 residual = flowcast_model_forward(
+                    model, condition, state_pred.shape, **sampler_kwargs
+                )
+            elif method == "meanflow":
+                residual = meanflow_model_forward(
                     model, condition, state_pred.shape, **sampler_kwargs
                 )
             else:
@@ -473,6 +489,7 @@ def plot_panels(
     truth_seq: np.ndarray,
     diffusion_pred_mean: np.ndarray,
     flowcast_pred_mean: np.ndarray | None,
+    meanflow_pred_mean: np.ndarray | None = None,
     seq_idx_to_plot,
     steps_to_plot,
 ):
@@ -493,6 +510,10 @@ def plot_panels(
 
     When ``flowcast_pred_mean`` is None the flowcast column is omitted (used by
     the legacy old-stormcast comparison where there is no FlowCast checkpoint).
+    ``meanflow_pred_mean`` works the same way: when provided, an extra
+    ``meanflow (mean)`` field column and ``meanflow − truth`` diff column are
+    appended after the FlowCast ones; when None (the default) the layout is
+    unchanged, so existing diffusion/flowcast callers are unaffected.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -514,9 +535,18 @@ def plot_panels(
     field_cmaps = {ch: FIELD_CMAP for ch in ("qpepre", "t2m", "u10", "v10")}
     diff_cmap = DIFF_CMAP  # symmetric around zero for every channel
     has_flow = flowcast_pred_mean is not None
+    has_mf = meanflow_pred_mean is not None
 
-    field_titles = ["truth", "diffusion (mean)"] + (["flowcast (mean)"] if has_flow else [])
-    diff_titles = ["diffusion − truth"] + (["flowcast − truth"] if has_flow else [])
+    field_titles = (
+        ["truth", "diffusion (mean)"]
+        + (["flowcast (mean)"] if has_flow else [])
+        + (["meanflow (mean)"] if has_mf else [])
+    )
+    diff_titles = (
+        ["diffusion − truth"]
+        + (["flowcast − truth"] if has_flow else [])
+        + (["meanflow − truth"] if has_mf else [])
+    )
     ncols = len(field_titles)
 
     for s in seq_idx_to_plot:
@@ -524,10 +554,15 @@ def plot_panels(
             truth = truth_seq[s, step]
             diff = diffusion_pred_mean[s, step]
             flow = flowcast_pred_mean[s, step] if has_flow else None
+            mf = meanflow_pred_mean[s, step] if has_mf else None
             for c, ch in enumerate(channels):
                 unit = CHANNEL_UNITS.get(ch, "")
                 # ---- field row colour scale (shared across truth + predictions) ----
-                field_arrs = [truth[c], diff[c]] + ([flow[c]] if has_flow else [])
+                field_arrs = (
+                    [truth[c], diff[c]]
+                    + ([flow[c]] if has_flow else [])
+                    + ([mf[c]] if has_mf else [])
+                )
                 field_stack = np.stack(field_arrs)
                 if ch == "qpepre":
                     # precip: clip the extreme tail so convective structure stays
@@ -541,8 +576,12 @@ def plot_panels(
                     f_vmax = float(field_stack.max())
                 f_cmap = field_cmaps.get(ch, "viridis")
 
-                # ---- diff row colour scale (shared between diffusion and flowcast diffs) ----
-                diff_arrs = [diff[c] - truth[c]] + ([flow[c] - truth[c]] if has_flow else [])
+                # ---- diff row colour scale (shared across all prediction diffs) ----
+                diff_arrs = (
+                    [diff[c] - truth[c]]
+                    + ([flow[c] - truth[c]] if has_flow else [])
+                    + ([mf[c] - truth[c]] if has_mf else [])
+                )
                 diff_stack = np.stack(diff_arrs)
                 d_abs = float(np.quantile(np.abs(diff_stack), 0.99) + 1e-9)
                 d_vmin, d_vmax = -d_abs, d_abs
@@ -643,6 +682,17 @@ def main():
     ap.add_argument("--diffusion-checkpoint", type=Path, default=DEFAULT_DIFFUSION)
     ap.add_argument("--flowcast-checkpoint", type=Path, default=DEFAULT_FLOWCAST)
     ap.add_argument(
+        "--meanflow-checkpoint",
+        type=Path,
+        default=None,
+        help=(
+            "MeanFlow student .mdlus to add as an extra leg. The MeanFlow leg is "
+            "OPT-IN: it runs only when this is given, so existing diffusion/flowcast "
+            "comparisons are unaffected. Loaded the same way as the FlowCast .mdlus "
+            f"(online student). Canonical cleaned checkpoint: {DEFAULT_MEANFLOW}."
+        ),
+    )
+    ap.add_argument(
         "--skip-flowcast",
         action="store_true",
         help="Skip the FlowCast leg. Use this for the legacy/old-dataset comparison "
@@ -681,6 +731,14 @@ def main():
     ap.add_argument("--flowcast-num-steps", type=int, nargs="+", default=[10])
     ap.add_argument("--flowcast-solver", choices=("euler", "midpoint"), default="euler")
     ap.add_argument("--sigma-data", type=float, default=0.5)
+
+    # MeanFlow sampler hyperparameters (match config/inference/meanflow.yaml).
+    # Few-step average-velocity sampler — num_steps is the NFE directly (1 =
+    # one-step, 2 = the config default). Pass multiple integers to score the
+    # same checkpoint at several NFE in one go; each becomes its own row named
+    # meanflow_nfe<N>. A single value keeps the row name "meanflow". sigma_data
+    # is shared with the FlowCast leg above.
+    ap.add_argument("--meanflow-num-steps", type=int, nargs="+", default=[2])
 
     # Plotting
     ap.add_argument("--n-panels-seq", type=int, default=3,
@@ -812,10 +870,52 @@ def main():
     else:
         print("[skip] flowcast leg disabled via --skip-flowcast")
 
+    # MeanFlow leg (opt-in): mirrors the FlowCast leg exactly but swaps the
+    # multi-step Euler ODE for the few-step average-velocity sampler. One row
+    # per requested NFE, named meanflow / meanflow_nfe<N>.
+    mf_results: list[tuple[str, np.ndarray, np.ndarray]] = []
+    if args.meanflow_checkpoint is not None:
+        nfe_list = list(args.meanflow_num_steps)
+        single = len(nfe_list) == 1
+        print(f"[load] meanflow {args.meanflow_checkpoint}")
+        mf_model = (
+            Module.from_checkpoint(str(args.meanflow_checkpoint)).to(device).eval()
+        )
+        for i, nfe in enumerate(nfe_list):
+            method_name = "meanflow" if single else f"meanflow_nfe{nfe}"
+            meanflow_kwargs = dict(
+                num_steps=nfe,
+                sigma_data=args.sigma_data,
+            )
+            print(f"[run] {method_name} ensemble (K={args.ensemble}, NFE={nfe})")
+            ens, _truth, times = run_method_ensemble(
+                model=mf_model,
+                method="meanflow",
+                regression=regression,
+                invariant=invariant_tensor,
+                dataset=dataset,
+                t0_indices=t0_indices,
+                n_steps=args.n_steps,
+                n_ensemble=args.ensemble,
+                sampler_kwargs=meanflow_kwargs,
+                device=device,
+                seed=args.seed + 101 + i,
+            )
+            if truth_seq is None:
+                truth_seq = _truth
+            mf_results.append((method_name, ens, times))
+        del mf_model
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+    else:
+        print("[skip] meanflow leg disabled (pass --meanflow-checkpoint to enable)")
+
     if truth_seq is None:
         raise SystemExit(
-            "Both --skip-diffusion and --skip-flowcast are set, or neither leg "
-            "produced a rollout — nothing to score."
+            "No leg produced a rollout — nothing to score. Enable at least one of "
+            "the diffusion / flowcast / meanflow legs (the diffusion and flowcast "
+            "legs run by default unless --skip-*; meanflow runs only with "
+            "--meanflow-checkpoint)."
         )
 
     print("[score] aggregating...")
@@ -827,15 +927,19 @@ def main():
     for name, ens, times in flow_results:
         metrics[name] = aggregate(ens, truth_seq, channels)
         times_mean[name] = float(times.mean())
+    for name, ens, times in mf_results:
+        metrics[name] = aggregate(ens, truth_seq, channels)
+        times_mean[name] = float(times.mean())
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     write_scoreboard(metrics, channels, times_mean,
                      args.output_dir / "scoreboard.md")
 
     diff_mean = diff_ens.mean(axis=0) if diff_ens is not None else None
-    # Panels show one FlowCast trace; pick the first NFE to keep the figure
-    # readable. The full per-NFE breakdown lives in scoreboard.csv.
+    # Panels show one FlowCast / MeanFlow trace each; pick the first NFE to keep
+    # the figure readable. The full per-NFE breakdown lives in scoreboard.csv.
     flow_mean = flow_results[0][1].mean(axis=0) if flow_results else None
+    mf_mean = mf_results[0][1].mean(axis=0) if mf_results else None
 
     panel_steps = (
         args.panel_steps
@@ -853,6 +957,7 @@ def main():
             truth_seq=truth_seq,
             diffusion_pred_mean=diff_mean,
             flowcast_pred_mean=flow_mean,
+            meanflow_pred_mean=mf_mean,
             seq_idx_to_plot=range(min(len(t0_indices), args.n_panels_seq)),
             steps_to_plot=panel_steps,
         )

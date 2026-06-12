@@ -79,6 +79,9 @@ _METHOD_POS = {
     "flowcast_nfe10":  0.55,
     "flowcast_nfe15":  0.68,
     "flowcast_nfe20":  0.82,
+    "meanflow":        0.42,   # average-velocity student (1-2 NFE)
+    "meanflow_nfe1":   0.40,
+    "meanflow_nfe2":   0.48,
 }
 
 # Human-readable labels for legends/axes, keyed by the canonical method key.
@@ -89,6 +92,9 @@ _METHOD_LABELS = {
     "flowcast_nfe10":  "FlowCast ($K{=}10$)",
     "flowcast_nfe15":  "FlowCast ($K{=}15$)",
     "flowcast_nfe20":  "FlowCast ($K{=}20$)",
+    "meanflow":        "MeanFlow",
+    "meanflow_nfe1":   "MeanFlow ($K{=}1$)",
+    "meanflow_nfe2":   "MeanFlow ($K{=}2$)",
 }
 
 # Map the many raw CSV spellings onto the canonical keys above.
@@ -105,6 +111,12 @@ _METHOD_ALIASES = {
     "flowcast_nfe10": "flowcast_nfe10",
     "flowcast_nfe15": "flowcast_nfe15",
     "flowcast_nfe20": "flowcast_nfe20",
+    "cleaned_meanflow": "meanflow",
+    "meanflow": "meanflow",
+    "cleaned_meanflow_nfe1": "meanflow_nfe1",
+    "cleaned_meanflow_nfe2": "meanflow_nfe2",
+    "meanflow_nfe1": "meanflow_nfe1",
+    "meanflow_nfe2": "meanflow_nfe2",
 }
 
 

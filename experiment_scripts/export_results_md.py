@@ -157,14 +157,15 @@ def build(out: Path):
         "(field panels), both in the viridis palette of `thesis_style.py`._\n"
     )
     chunks.append(
-        "**Scope.** All evaluation is on the 2022 validation year. The cleaned "
-        "pipeline is the 192x96, log1p-qpepre store; the regression mean "
-        "(`StormCastUNet.0.8000`) is shared by every cleaned head. Matched "
-        "budget = ~2M training samples: cleaned EDM at step 31000 (batch 64), "
-        "FlowCast at step 20000 (batch 96). Precipitation scores are in mm/h "
-        "after denormalisation; per-channel RMSE/CRPS are in physical units. "
-        "The EDM Heun sampler at 18 steps costs **36 NFE** per hourly step "
-        "(2N-2); FlowCast costs K NFE.\n"
+        "**Scope.** All evaluation is on the 2022 validation year with "
+        "**ten-member ensembles** (the project standard; HREF-class EPS "
+        "bracket). The cleaned pipeline is the 192x96, log1p-qpepre store; the "
+        "regression mean (`StormCastUNet.0.8000`) is shared by every cleaned "
+        "head. Matched budget = ~2M training samples: cleaned EDM at step "
+        "31000 (batch 64), FlowCast at step 20000 (batch 96). Precipitation "
+        "scores are in mm/h after denormalisation; per-channel RMSE/CRPS are "
+        "in physical units. The EDM Heun sampler at N=18 steps costs "
+        "**2N-1 = 35 NFE** per hourly step; FlowCast costs K NFE.\n"
     )
 
     def add(title, body, intro=""):

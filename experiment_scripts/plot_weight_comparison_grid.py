@@ -73,6 +73,7 @@ from utils.nn import (  # noqa: E402
     build_network_condition_and_target,
     diffusion_model_forward,
     flowcast_model_forward,
+    meanflow_model_forward,
 )
 
 # --- Static config -----------------------------------------------------------
@@ -130,6 +131,11 @@ CLEANED_FLOW = (
     / "runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0"
     / "checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus"
 )
+CLEANED_MEANFLOW = (
+    REPO_ROOT
+    / "runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0"
+    / "checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus"
+)
 
 # Column display labels (top-row titles).
 COL_TITLES = [
@@ -138,6 +144,8 @@ COL_TITLES = [
     "cleaned EDM\n(192×96, log1p)",
     "cleaned FlowCast\n(192×96, log1p)",
 ]
+# Appended as a 5th column only when the MeanFlow checkpoint is present.
+MEANFLOW_TITLE = "cleaned MeanFlow\n(192×96, log1p)"
 
 
 # --- Dataset wiring (mirrors compare_diffusion_vs_flowcast.make_dataset_cfg) --
@@ -208,6 +216,10 @@ def predict_single(*, method, gen_model, regression, invariant, dataset, idx, sa
             )
         elif method == "flowcast":
             residual = flowcast_model_forward(
+                gen_model, condition, state_t.shape, **sampler_kwargs
+            )
+        elif method == "meanflow":
+            residual = meanflow_model_forward(
                 gen_model, condition, state_t.shape, **sampler_kwargs
             )
         else:
@@ -286,6 +298,9 @@ def main():
     ap.add_argument("--cleaned-regression", type=Path, default=CLEANED_REG)
     ap.add_argument("--cleaned-diffusion", type=Path, default=CLEANED_EDM)
     ap.add_argument("--cleaned-flowcast", type=Path, default=CLEANED_FLOW)
+    ap.add_argument("--cleaned-meanflow", type=Path, default=CLEANED_MEANFLOW,
+                    help="MeanFlow checkpoint for the 5th column. Skipped gracefully "
+                         "if the path does not exist.")
     ap.add_argument("--valid-dates", nargs=2, default=["2022/01/01", "2022/12/31"],
                     help="Validation-year window for BOTH datasets.")
 
@@ -309,6 +324,8 @@ def main():
     ap.add_argument("--diffusion-solver", choices=("heun", "euler"), default="heun")
     ap.add_argument("--flowcast-num-steps", type=int, default=10)
     ap.add_argument("--flowcast-solver", choices=("euler", "midpoint"), default="euler")
+    ap.add_argument("--meanflow-num-steps", type=int, default=2,
+                    help="MeanFlow segments (NFE). 2 by default; 1 for one-NFE.")
     ap.add_argument("--sigma-data", type=float, default=0.5)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
@@ -372,6 +389,16 @@ def main():
     cleaned_edm = Module.from_checkpoint(str(args.cleaned_diffusion)).to(device).eval()
     cleaned_flow = Module.from_checkpoint(str(args.cleaned_flowcast)).to(device).eval()
 
+    # Opt-in 5th column: cleaned MeanFlow. Skip gracefully if the checkpoint is
+    # missing so the 4-column grid still renders without it.
+    cleaned_meanflow = None
+    if args.cleaned_meanflow is not None and Path(args.cleaned_meanflow).exists():
+        print(f"[load] cleaned MeanFlow {args.cleaned_meanflow}")
+        cleaned_meanflow = Module.from_checkpoint(str(args.cleaned_meanflow)).to(device).eval()
+    else:
+        print(f"[skip] cleaned MeanFlow checkpoint not found ({args.cleaned_meanflow}) "
+              "— rendering the 4-column grid without it")
+
     edm_kwargs = dict(
         num_steps=args.diffusion_num_steps, sigma_min=args.sigma_min,
         sigma_max=args.sigma_max, rho=args.rho, solver=args.diffusion_solver,
@@ -380,6 +407,8 @@ def main():
         num_steps=args.flowcast_num_steps, sigma_data=args.sigma_data,
         solver=args.flowcast_solver,
     )
+    # MeanFlow sampler takes NO solver kwarg (see utils.nn.meanflow_model_forward).
+    mf_kwargs = dict(num_steps=args.meanflow_num_steps, sigma_data=args.sigma_data)
 
     # --- per-date figure ----------------------------------------------------
     for dt in chosen:
@@ -420,6 +449,19 @@ def main():
             {"title": COL_TITLES[2], "array": col3, "channels": cleaned_channels},
             {"title": COL_TITLES[3], "array": col4, "channels": cleaned_channels},
         ]
+
+        # 5th column: cleaned MeanFlow (only when its checkpoint loaded). Reuses
+        # the cleaned regression / dataset / invariant exactly like cleaned_flow.
+        if cleaned_meanflow is not None:
+            _seed()
+            col5 = predict_single(
+                method="meanflow", gen_model=cleaned_meanflow, regression=cleaned_reg,
+                invariant=cleaned_inv, dataset=cleaned_ds, idx=idx_clean,
+                sampler_kwargs=mf_kwargs, device=device,
+            )
+            columns.append(
+                {"title": MEANFLOW_TITLE, "array": col5, "channels": cleaned_channels}
+            )
         out_path = args.output_dir / f"weight_grid_{valid_time:%Y%m%d_%H}.png"
         plot_grid(out_path, valid_time, columns)
 

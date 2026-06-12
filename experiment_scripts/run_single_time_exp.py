@@ -59,6 +59,7 @@ from utils.nn import (  # noqa: E402
     build_network_condition_and_target,
     diffusion_model_forward,
     flowcast_model_forward,
+    meanflow_model_forward,
 )
 
 
@@ -161,6 +162,10 @@ def rollout_one(
                 residual = flowcast_model_forward(
                     model, condition, state_pred.shape, **sampler_kwargs
                 )
+            elif method == "meanflow":
+                residual = meanflow_model_forward(
+                    model, condition, state_pred.shape, **sampler_kwargs
+                )
             else:
                 raise ValueError(f"unknown method {method!r}")
         x_t = M_t + residual
@@ -243,10 +248,14 @@ def plot_one_time(
     cleaned_pred,     # (4, H_c, W_c)
     flow_pred,        # (4, H_c, W_c)
     time_label,
+    meanflow_pred=None,   # (4, H_c, W_c) or None (opt-in extra column)
 ):
     """2x2 macro grid of variables; each macro cell is a 1x4 strip
     (orig StormCast + RWRF truth + cleaned StormCast + FlowCast/CFM) with
-    its own colorbar on the right. Layout matches CELL_VARS."""
+    its own colorbar on the right. Layout matches CELL_VARS. When
+    ``meanflow_pred`` is given, a 5th ``MeanFlow`` column is appended to each
+    strip; otherwise the figure is identical to the 4-column default."""
+    has_mf = meanflow_pred is not None
     leg_shape = f"{legacy_pred.shape[-2]}x{legacy_pred.shape[-1]}"
     cln_shape = f"{truth.shape[-2]}x{truth.shape[-1]}"
     col_titles = [
@@ -255,9 +264,12 @@ def plot_one_time(
         f"StormCast ({cln_shape})",
         f"CFM ({cln_shape})",
     ]
+    if has_mf:
+        col_titles.append(f"MeanFlow ({cln_shape})")
+    ncols = len(col_titles)
     ch_to_idx = {ch: i for i, ch in enumerate(PLOT_CHANNELS)}
 
-    fig = plt.figure(figsize=(20, 10), constrained_layout=True)
+    fig = plt.figure(figsize=(5 * ncols, 10), constrained_layout=True)
     subfigs = fig.subfigures(2, 2, wspace=0.04, hspace=0.06)
 
     for mr in range(2):
@@ -265,10 +277,12 @@ def plot_one_time(
             ch = CELL_VARS[mr][mc]
             r = ch_to_idx[ch]
             arrs = [legacy_pred[r], truth[r], cleaned_pred[r], flow_pred[r]]
+            if has_mf:
+                arrs.append(meanflow_pred[r])
             vmin, vmax = _row_color_limits(arrs)
             cmap = CHANNEL_CMAPS.get(ch)
             sf = subfigs[mr, mc]
-            axes = sf.subplots(1, 4, squeeze=False)[0]
+            axes = sf.subplots(1, ncols, squeeze=False)[0]
             im = None
             for c, arr in enumerate(arrs):
                 im = axes[c].imshow(
@@ -306,6 +320,10 @@ def main():
     ap.add_argument("--cleaned-reg", type=Path, required=True)
     ap.add_argument("--cleaned-edm", type=Path, required=True)
     ap.add_argument("--cleaned-flow", type=Path, required=True)
+    # MeanFlow leg is opt-in: only added when a checkpoint path is supplied.
+    ap.add_argument("--cleaned-meanflow", type=Path, default=None,
+                    help="Optional MeanFlow student .mdlus; adds a 5th MeanFlow "
+                         "column when provided. Omit to keep the 4-column figure.")
 
     ap.add_argument("--valid-dates", nargs=2, default=["2022/01/01", "2022/12/31"])
     ap.add_argument("--output-dir", type=Path, required=True)
@@ -326,6 +344,9 @@ def main():
     ap.add_argument("--flowcast-num-steps", type=int, default=10)
     ap.add_argument("--flowcast-solver", choices=("euler", "midpoint"), default="euler")
     ap.add_argument("--sigma-data", type=float, default=0.5)
+
+    # MeanFlow sampler (average-velocity; shares --sigma-data with FlowCast).
+    ap.add_argument("--meanflow-num-steps", type=int, default=2)
 
     args = ap.parse_args()
 
@@ -417,7 +438,38 @@ def main():
         t0_indices=t0_indices, lead_time=args.lead_time,
         sampler_kwargs=flowcast_kwargs, device=device, seed=args.seed + 1,
     )
-    del flow_model, cleaned_reg
+    del flow_model
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+
+    # ------------------------------------------------------------------ leg D
+    # MeanFlow (opt-in): mirrors the FlowCast leg exactly but swaps the
+    # multi-step Euler ODE for the few-step average-velocity sampler. Reuses
+    # the cleaned regression, dataset and invariants. Disabled (None preds)
+    # unless --cleaned-meanflow is supplied -- the figure then stays 4-column.
+    meanflow_preds = None
+    if args.cleaned_meanflow is not None:
+        print(f"[load] cleaned meanflow   {args.cleaned_meanflow}")
+        meanflow_model = (
+            Module.from_checkpoint(str(args.cleaned_meanflow)).to(device).eval()
+        )
+        meanflow_kwargs = dict(
+            num_steps=args.meanflow_num_steps,
+            sigma_data=args.sigma_data,
+        )
+        meanflow_preds, _ = run_leg(
+            label="meanflow", model=meanflow_model, method="meanflow",
+            regression=cleaned_reg, invariant=cleaned_inv, dataset=cleaned_ds,
+            t0_indices=t0_indices, lead_time=args.lead_time,
+            sampler_kwargs=meanflow_kwargs, device=device, seed=args.seed + 2,
+        )
+        del meanflow_model
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+    else:
+        print("[skip] meanflow leg disabled (pass --cleaned-meanflow to enable)")
+
+    del cleaned_reg
     if device.type == "cuda":
         torch.cuda.empty_cache()
 
@@ -430,6 +482,7 @@ def main():
         cln_p = cleaned_preds[i][cln_idx]     # (4, 192, 96)
         flw_p = flow_preds[i][cln_idx]        # (4, 192, 96)
         truth = cleaned_truths[i][cln_idx]    # (4, 192, 96)
+        mf_p = meanflow_preds[i][cln_idx] if meanflow_preds is not None else None
         try:
             ts = cleaned_ds.valid_samples[t0 + args.lead_time]
             time_label = ts.strftime("%Y-%m-%d %H:00 UTC")
@@ -438,6 +491,7 @@ def main():
         out_path = args.output_dir / f"time_{i + 1:02d}_lead_{args.lead_time}h.png"
         plot_one_time(
             out_path, args.lead_time, truth, leg_p, cln_p, flw_p, time_label,
+            meanflow_pred=mf_p,
         )
         print(f"[plot] wrote {out_path}")
 
@@ -450,6 +504,8 @@ def main():
         f.write(f"t0_indices: {t0_indices}\n")
         f.write(f"diffusion: num_steps={args.diffusion_num_steps} solver={args.diffusion_solver}\n")
         f.write(f"flowcast:  num_steps={args.flowcast_num_steps} solver={args.flowcast_solver}\n")
+        if args.cleaned_meanflow is not None:
+            f.write(f"meanflow:  num_steps={args.meanflow_num_steps}\n")
         f.write(f"legacy_data:  {args.legacy_data}\n")
         f.write(f"legacy_reg:   {args.legacy_reg}\n")
         f.write(f"legacy_edm:   {args.legacy_edm}\n")
@@ -457,6 +513,8 @@ def main():
         f.write(f"cleaned_reg:  {args.cleaned_reg}\n")
         f.write(f"cleaned_edm:  {args.cleaned_edm}\n")
         f.write(f"cleaned_flow: {args.cleaned_flow}\n")
+        if args.cleaned_meanflow is not None:
+            f.write(f"cleaned_meanflow: {args.cleaned_meanflow}\n")
     print(f"[done] {args.output_dir}")
 
 

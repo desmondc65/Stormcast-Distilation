@@ -14,7 +14,7 @@ across many initial times and ensemble members.
 | --- | --- |
 | [analysis_plan.md](analysis_plan.md) | The list of metrics and checkpoint pairings the user wants compared. |
 | [compare_diffusion_vs_flowcast.py](compare_diffusion_vs_flowcast.py) | Core runner: ensemble rollout for EDM diffusion + (optionally) FlowCast + scoreboard + per-channel PNG panels. Now supports `--kept-channels` and `--skip-flowcast` so the same script handles both the legacy 224×128 dataset and the cleaned 192×96 dataset. |
-| [**run_main_experiment.sh**](run_main_experiment.sh) | **Headline 3-way comparison** — legacy old-stormcast (raw qpepre, 224×128) vs. cleaned EDM (log1p) vs. FlowCast (log1p, qpw=2.0), both cleaned legs at the matched ~2 M-sample checkpoint. Runs `compare_diffusion_vs_flowcast.py` twice and stitches the scoreboards. |
+| [**run_main_experiment.sh**](run_main_experiment.sh) | **Headline 4-way comparison** — legacy old-stormcast (raw qpepre, 224×128) vs. cleaned EDM (log1p) vs. FlowCast (log1p, qpw=2.0) vs. MeanFlow (log1p, qpw=2.0, 1–2 NFE), all cleaned legs at the matched ~2 M-sample checkpoint. Runs `compare_diffusion_vs_flowcast.py` twice and stitches the scoreboards. Set `MEANFLOW_NFES=""` to drop the MeanFlow leg. |
 | [run_compare_diffusion_vs_flowcast.sh](run_compare_diffusion_vs_flowcast.sh) | Older wrapper around [`log1p_ablation.py`](log1p_ablation.py); the log1p × architecture grid (D1/D2/F1/F2), separate from the main experiment. |
 | [**flowcast_nfe_sweep.py**](flowcast_nfe_sweep.py) / [run_flowcast_nfe_sweep.sh](run_flowcast_nfe_sweep.sh) | **NFE Pareto sweep** — hold the FlowCast checkpoint fixed, vary the Euler step count `S ∈ {1, 2, ..., 50}` and record quality (RMSE / CRPS / CSI-M / FSS / HSS / FAR) and wall-clock per sequence. Replicates FlowCast paper Fig. 5 on the Taiwan RWRF domain. Writes `nfe_sweep.{csv,md}` plus `plot_{quality,time,pareto}_vs_nfe.png` for the presentation. |
 | [log1p_ablation.py](log1p_ablation.py) / [qpw_ablation.py](qpw_ablation.py) | Dedicated ablation harnesses. See [ablation.md](ablation.md) for the run matrix. |
@@ -33,6 +33,7 @@ The thesis headline. Three rows compared on the same 2022 validation year:
 | **A. `legacy_edm`** | Old StormCast (NVIDIA-style residual EDM) | [`exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full`](../exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full) | [`StormCastUNet.0.7500.mdlus`](../exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus) | [`EDMPrecond.0.70000.mdlus`](../exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus) | raw mm/h | `[t2m, u10, v10, qpepre]` | 224×128 |
 | **B. `cleaned_edm`** | New EDM teacher @ ~2 M samples | [`...cleaned_4_27_2026`](../exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026) | [`StormCastUNet.0.8000`](../runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus) | [`EDMPrecond.0.31000`](../runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus) | log1p(mm/h) | `[u10, v10, t2m, qpepre]` | 192×96 |
 | **C. `cleaned_flow`** | FlowCast student (qpw=2.0, spectral on qpepre) @ ~2 M samples | same as B | same as B | [`FlowCastPrecond.0.20000`](../runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus) | log1p(mm/h) | `[u10, v10, t2m, qpepre]` | 192×96 |
+| **D. `cleaned_meanflow_nfe{1,2}`** | MeanFlow student (avg-velocity, qpw=2.0, spectral on qpepre) @ ~2 M samples, 1–2 NFE | same as B | same as B | [`MeanFlowPrecond.0.20000`](../runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus) | log1p(mm/h) | `[u10, v10, t2m, qpepre]` | 192×96 |
 
 **Step-to-samples reminder** (for the ~2 M-sample anchor):
 
@@ -85,7 +86,7 @@ Env-var overrides:
 | `N_SEQUENCES` | 24 | Number of evenly-spaced initial times across 2022. |
 | `N_STEPS` | 6 | Autoregressive horizon (hours). |
 | `ENSEMBLE` | 4 | Members per sequence (kernel CRPS needs ≥ 2). |
-| `DIFFUSION_NFE` | 18 | EDM Heun steps (= 36 NFE). |
+| `DIFFUSION_NFE` | 18 | EDM Heun steps (2N-1 = 35 NFE). |
 | `FLOWCAST_NFE` | 10 | FlowCast Euler steps (= 10 NFE). |
 | `N_PANELS_SEQ` | 6 | How many sequences to render PNGs for, per leg. |
 | `PANEL_STEPS` | "" (first + last) | Space-separated lead-time indices to render. E.g. `"0 2 5"`. |
@@ -241,7 +242,7 @@ checkpoint loader is one line.
 
 EDM teacher (from `train_diffusion.sh`): `sigma_min=0.002, sigma_max=80.0,
 sigma_data=0.5, rho=7.0`. The deterministic sampler defaults to `solver="heun"`,
-which doubles the NFE per step (`num_steps=18` -> 36 NFE). Drop to
+which doubles the NFE per step (`num_steps=18` -> 2N-1 = 35 NFE). Drop to
 `solver="euler"` if you want NFE to equal `num_steps`.
 
 FlowCast student (from `train_flowcast.sh` and `config/inference/flowcast.yaml`):

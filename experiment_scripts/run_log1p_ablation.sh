@@ -89,6 +89,20 @@ L_REG="${L_REG:-${REPO_ROOT}/runs/regression_zettabyte_v1_cleaned_4_27_2026/regr
 L_EDM="${L_EDM:-${REPO_ROOT}/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus}"
 L_FLOW="${L_FLOW:-${REPO_ROOT}/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus}"
 
+# --- Leg L MeanFlow (LOG1P LEG ONLY) ---
+# A trained MeanFlow exists ONLY for the cleaned/log1p/qpw=2.0 setup; there is
+# NO raw-mm/h (NO_log1p) MeanFlow, so MeanFlow is added to leg L only (leg N is
+# untouched). The leg is OPT-IN: only added when the checkpoint exists.
+#
+# NOTE/DEVIATION: this launcher drives compare_diffusion_vs_flowcast.py, whose
+# --meanflow-checkpoint loads the online-student .mdlus via Module.from_checkpoint
+# (same convention as its FlowCast .mdlus leg), NOT an EMA shadow. We therefore
+# pass the MeanFlowPrecond .mdlus here. MEANFLOW_LOG1P_EMA is recorded for
+# parity with log1p_ablation.py (which loads the EMA shadow ema_state.pt).
+MEANFLOW_LOG1P_DIR="${MEANFLOW_LOG1P_DIR:-${REPO_ROOT}/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0}"
+MEANFLOW_LOG1P_EMA="${MEANFLOW_LOG1P_EMA:-${MEANFLOW_LOG1P_DIR}/ema_state.pt}"
+L_MEANFLOW="${L_MEANFLOW:-${MEANFLOW_LOG1P_DIR}/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus}"
+
 # --- Leg N (NO_log1p) paths ---
 N_DATA="${N_DATA:-${REPO_ROOT}/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026_raw}"
 N_REG="${N_REG:-${REPO_ROOT}/runs/regression_zettabyte_v1_cleaned_4_27_2026_NO_log1p/regression_cleaned_NO_log1p/run_0/checkpoints_regression/StormCastUNet.0.10000.mdlus}"
@@ -105,10 +119,11 @@ log "DIFFUSION_NFE = ${DIFFUSION_NFE}"
 log "FLOWCAST_NFE  = ${FLOWCAST_NFE}"
 log ""
 log "Inputs:"
-log "  L_DATA = ${L_DATA}"
-log "  L_REG  = ${L_REG}"
-log "  L_EDM  = ${L_EDM}"
-log "  L_FLOW = ${L_FLOW}"
+log "  L_DATA     = ${L_DATA}"
+log "  L_REG      = ${L_REG}"
+log "  L_EDM      = ${L_EDM}"
+log "  L_FLOW     = ${L_FLOW}"
+log "  L_MEANFLOW = ${L_MEANFLOW}  (log1p leg only)"
 log "  N_DATA = ${N_DATA}"
 log "  N_REG  = ${N_REG}"
 log "  N_EDM  = ${N_EDM}"
@@ -133,6 +148,16 @@ if [ "${_FAIL}" = "1" ]; then
 fi
 log "pre-flight OK"
 
+# MeanFlow (log1p leg only) is OPT-IN: a missing checkpoint is NOT fatal, we
+# just drop the meanflow column from leg L. Leg N never gets a meanflow leg.
+L_MEANFLOW_FLAG=""
+if [ -e "${L_MEANFLOW}" ]; then
+    log "  OK     L_MEANFLOW=${L_MEANFLOW} (adding meanflow leg to log1p only)"
+    L_MEANFLOW_FLAG="--meanflow-checkpoint ${L_MEANFLOW}"
+else
+    warn "  MISSING L_MEANFLOW=${L_MEANFLOW} -- skipping meanflow leg (log1p)"
+fi
+
 # -----------------------------------------------------------------------------
 # Leg L — log1p
 # -----------------------------------------------------------------------------
@@ -148,6 +173,7 @@ python -u "${REPO_ROOT}/experiment_scripts/compare_diffusion_vs_flowcast.py" \
     --regression-checkpoint "${L_REG}" \
     --diffusion-checkpoint "${L_EDM}" \
     --flowcast-checkpoint "${L_FLOW}" \
+    ${L_MEANFLOW_FLAG} \
     ${SKIP_DIFFUSION_FLAG} \
     --n-sequences "${N_SEQUENCES}" \
     --n-steps "${N_STEPS}" \

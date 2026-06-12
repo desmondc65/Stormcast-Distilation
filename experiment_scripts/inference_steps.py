@@ -201,6 +201,44 @@ def flowcast_sampler_with_intermediates(
     return intermediates
 
 
+@torch.no_grad()
+def meanflow_sampler_with_intermediates(
+    net, shape, condition, num_steps=2, sigma_data=0.5, device=None, dtype=None,
+    t_start=0.0, t_end=1.0,
+):
+    """MeanFlow few-step average-velocity sampler (matches
+    meanflow_model_forward) but yields the un-standardized residual
+    ``z * sigma_data`` after each segment.
+
+    Mirrors ``flowcast_sampler_with_intermediates``'s return contract exactly:
+    a list of ``(i, time, residual)`` tuples where ``i`` is the 0-based step
+    index, ``time`` is the segment end time ``t_i = t_start + (i + 1) * dt``,
+    and ``residual`` is the cloned de-normalized residual ``z * sigma_data``
+    (same standardized-state space the flowcast helper emits, so the same
+    ``residual_to_state_phys`` / ``_write_step`` rendering consumes it).
+    """
+    if device is None:
+        device = condition.device
+    if dtype is None:
+        dtype = condition.dtype
+
+    z = torch.randn(*shape, device=device, dtype=dtype)
+    dt = (t_end - t_start) / num_steps
+    intermediates = []
+
+    for i in range(num_steps):
+        r_i = t_start + i * dt
+        t_i = t_start + (i + 1) * dt
+        r_vec = torch.full([shape[0]], r_i, device=device, dtype=dtype)
+        t_vec = torch.full([shape[0]], t_i, device=device, dtype=dtype)
+        u = net(z, r_vec, t_vec, condition=condition)
+        z = z + u * dt
+        intermediates.append(
+            (i, float(t_i), (z * sigma_data).clone())
+        )
+    return intermediates
+
+
 # --- Plotting ---------------------------------------------------------------
 def _global_vlims_from_truths(truth_phys_list, channels):
     """Per-channel (vmin, vmax) taken across the truth fields at every
@@ -263,6 +301,9 @@ def main():
                     help="EDMPrecond diffusion checkpoint (cleaned-grid).")
     ap.add_argument("--flowcast", type=Path, required=True,
                     help="FlowCastPrecond checkpoint (cleaned-grid).")
+    ap.add_argument("--meanflow", type=Path, default=None,
+                    help="MeanFlowPrecond checkpoint (cleaned-grid). "
+                         "Default None = skip MeanFlow trajectory.")
     ap.add_argument("--valid-dates", nargs=2, default=["2022/01/01", "2022/12/31"])
     ap.add_argument("--output-dir", type=Path, required=True)
     ap.add_argument("--n-times", type=int, default=3,
@@ -278,6 +319,8 @@ def main():
     ap.add_argument("--flowcast-num-steps", type=int, default=10)
     ap.add_argument("--flowcast-solver", choices=("euler", "midpoint"), default="euler")
     ap.add_argument("--sigma-data", type=float, default=0.5)
+
+    ap.add_argument("--meanflow-num-steps", type=int, default=2)
 
     args = ap.parse_args()
 
@@ -315,6 +358,10 @@ def main():
     edm = Module.from_checkpoint(str(args.diffusion)).to(device).eval()
     print(f"[load] flowcast   {args.flowcast}")
     flow = Module.from_checkpoint(str(args.flowcast)).to(device).eval()
+    meanflow = None
+    if args.meanflow is not None:
+        print(f"[load] meanflow   {args.meanflow}")
+        meanflow = Module.from_checkpoint(str(args.meanflow)).to(device).eval()
 
     # ------------------------------------------------ pre-pass: global vlims
     # Walk every timestamp once to load truth fields AND run the regression
@@ -409,6 +456,9 @@ def main():
             (tdir / "stormcast_residual" / ch).mkdir(parents=True, exist_ok=True)
             (tdir / "flowcast" / ch).mkdir(parents=True, exist_ok=True)
             (tdir / "flowcast_residual" / ch).mkdir(parents=True, exist_ok=True)
+            if meanflow is not None:
+                (tdir / "meanflow" / ch).mkdir(parents=True, exist_ok=True)
+                (tdir / "meanflow_residual" / ch).mkdir(parents=True, exist_ok=True)
 
         def _write_step(method_dir, residual_dir, phys, k):
             """Write the forecast view (M_t + R_t denormalized) and the
@@ -456,11 +506,30 @@ def main():
                 tdir / "flowcast", tdir / "flowcast_residual", phys, k,
             )
 
+        # --- MeanFlow (average-velocity) ---
+        if meanflow is not None:
+            torch.manual_seed(args.seed + 2)
+            if device.type == "cuda":
+                torch.cuda.manual_seed_all(args.seed + 2)
+            mean_steps = meanflow_sampler_with_intermediates(
+                meanflow, state_in.shape, condition,
+                num_steps=args.meanflow_num_steps,
+                sigma_data=args.sigma_data,
+                device=device, dtype=state_in.dtype,
+            )
+            for k, (_, _t_now, residual) in enumerate(mean_steps):
+                phys = residual_to_state_phys(residual, M_t, dataset, plot_idx)
+                _write_step(
+                    tdir / "meanflow", tdir / "meanflow_residual", phys, k,
+                )
+
         dt = time.perf_counter() - t_s
         total = time.perf_counter() - t_start_all
-        # 3 reference + 2 views * (diff_steps + flow_steps) panels per channel
+        # 3 reference + 2 views * (diff_steps + flow_steps [+ mean_steps])
+        # panels per channel
+        mean_steps_n = args.meanflow_num_steps if meanflow is not None else 0
         n_per_t = len(PLOT_CHANNELS) * (
-            3 + 2 * (args.diffusion_num_steps + args.flowcast_num_steps)
+            3 + 2 * (args.diffusion_num_steps + args.flowcast_num_steps + mean_steps_n)
         )
         print(
             f"[time {i + 1}/{len(t0_indices)}] idx={t0:<5}  {ts_label}  "
@@ -479,9 +548,14 @@ def main():
                 f"sigma_min={args.sigma_min} sigma_max={args.sigma_max} rho={args.rho}\n")
         f.write(f"flowcast:  num_steps={args.flowcast_num_steps} solver={args.flowcast_solver} "
                 f"sigma_data={args.sigma_data}\n")
+        if args.meanflow is not None:
+            f.write(f"meanflow:  num_steps={args.meanflow_num_steps} "
+                    f"sigma_data={args.sigma_data}\n")
         f.write(f"regression: {args.regression}\n")
         f.write(f"diffusion:  {args.diffusion}\n")
         f.write(f"flowcast:   {args.flowcast}\n")
+        if args.meanflow is not None:
+            f.write(f"meanflow:   {args.meanflow}\n")
     print(f"[done] outputs in {args.output_dir}")
 
 

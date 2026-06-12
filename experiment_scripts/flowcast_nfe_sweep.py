@@ -85,6 +85,19 @@ DEFAULT_FLOWCAST = (
     / "flowcast_zettabyte_cleaned_4_27_2026/run_0"
     / "checkpoints_flowcast/FlowCastPrecond.0.140000.mdlus"
 )
+# MeanFlow student for the same sweep (selected with --method meanflow). The
+# whole point of MeanFlow is that the average-velocity sampler saturates at
+# 1-2 NFE where FlowCast still needs ~3-10 Euler steps, so the NFE-vs-quality
+# curve is the headline MeanFlow figure. Matched step-20000 budget by default.
+DEFAULT_MEANFLOW = (
+    REPO_ROOT
+    / "runs/meanflow_zettabyte_v1_cleaned_4_27_2026"
+    / "meanflow_zettabyte_cleaned_4_27_2026/run_0"
+    / "checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus"
+)
+
+# Pretty labels for plot titles / log lines, keyed by --method.
+METHOD_LABELS = {"flowcast": "FlowCast", "meanflow": "MeanFlow"}
 
 # FlowCast paper's Fig. 5 NFE list, extended to cover the diffusion-comparable
 # regime (~30-50 NFE) we want to call out as "you can stop here". The set is
@@ -107,7 +120,8 @@ def banner(msg: str) -> None:
     print(f"\n{line}\n[{_ts()}] {msg}\n{line}", flush=True)
 
 
-def write_sweep_table(rows: list[dict], channels: list[str], out_csv: Path, out_md: Path) -> None:
+def write_sweep_table(rows: list[dict], channels: list[str], out_csv: Path, out_md: Path,
+                      method_label: str = "FlowCast") -> None:
     """Persist the sweep table both as CSV (for plotting) and Markdown (for review)."""
     # Stable column order: identification, then per-channel metrics, then aggregates.
     cols = ["nfe", "time_per_seq_s"]
@@ -125,7 +139,7 @@ def write_sweep_table(rows: list[dict], channels: list[str], out_csv: Path, out_
             w.writerow([f"{r[c]:.6f}" if isinstance(r[c], float) else r[c] for c in cols])
 
     with open(out_md, "w") as f:
-        f.write("# FlowCast NFE Pareto sweep\n\n")
+        f.write(f"# {method_label} NFE Pareto sweep\n\n")
         f.write("Per-NFE single-step validation skill, qpepre in mm/h after `denormalize_state`.\n\n")
         f.write("| " + " | ".join(cols) + " |\n")
         f.write("|" + "|".join("---:" for _ in cols) + "|\n")
@@ -142,7 +156,8 @@ def write_sweep_table(rows: list[dict], channels: list[str], out_csv: Path, out_
             f.write("| " + " | ".join(cells) + " |\n")
 
 
-def _plot_quality_vs_nfe(rows: list[dict], channels: list[str], out_path: Path) -> None:
+def _plot_quality_vs_nfe(rows: list[dict], channels: list[str], out_path: Path,
+                         method_label: str = "FlowCast") -> None:
     nfes = np.array([r["nfe"] for r in rows], dtype=int)
     qp_idx = channels.index("qpepre")
     crps_qp = np.array([r[f"crps_{channels[qp_idx]}"] for r in rows])
@@ -162,14 +177,15 @@ def _plot_quality_vs_nfe(rows: list[dict], channels: list[str], out_path: Path) 
     ax2.plot(nfes, csi_m, "s-", color=color_r, label="CSI-M")
     ax2.tick_params(axis="y", labelcolor=color_r)
 
-    ax1.set_title("FlowCast quality vs. NFE")
+    ax1.set_title(f"{method_label} quality vs. NFE")
     ax1.set_xticks(nfes)
     ax1.set_xticklabels([str(n) for n in nfes], fontsize=8)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
-def _plot_time_vs_nfe(rows: list[dict], out_path: Path) -> None:
+def _plot_time_vs_nfe(rows: list[dict], out_path: Path,
+                      method_label: str = "FlowCast") -> None:
     nfes = np.array([r["nfe"] for r in rows], dtype=int)
     times = np.array([r["time_per_seq_s"] for r in rows])
     fig, ax = plt.subplots(figsize=(7, 4.5), constrained_layout=True)
@@ -178,7 +194,7 @@ def _plot_time_vs_nfe(rows: list[dict], out_path: Path) -> None:
     ax.plot(nfes, times, "o-", color=ts.categorical_palette(1)[0])
     ax.set_xlabel("NFE (number of Euler steps)")
     ax.set_ylabel("Wall-clock per sequence (s)")
-    ax.set_title("FlowCast latency vs. NFE")
+    ax.set_title(f"{method_label} latency vs. NFE")
     ax.set_xticks(nfes)
     ax.set_xticklabels([str(n) for n in nfes], fontsize=8)
     ax.grid(True, which="both", alpha=0.25)
@@ -192,7 +208,8 @@ def _plot_time_vs_nfe(rows: list[dict], out_path: Path) -> None:
     plt.close(fig)
 
 
-def _plot_pareto(rows: list[dict], channels: list[str], out_path: Path) -> None:
+def _plot_pareto(rows: list[dict], channels: list[str], out_path: Path,
+                 method_label: str = "FlowCast") -> None:
     qp_idx = channels.index("qpepre")
     times = np.array([r["time_per_seq_s"] for r in rows])
     crps = np.array([r[f"crps_{channels[qp_idx]}"] for r in rows])
@@ -204,7 +221,7 @@ def _plot_pareto(rows: list[dict], channels: list[str], out_path: Path) -> None:
     ax.set_xscale("log")
     ax.set_xlabel("Wall-clock per sequence (s)  --  lower-left is better")
     ax.set_ylabel("CRPS qpepre (mm/h)")
-    ax.set_title("FlowCast NFE Pareto: quality vs. latency")
+    ax.set_title(f"{method_label} NFE Pareto: quality vs. latency")
     ax.grid(True, which="both", alpha=0.25)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -224,8 +241,18 @@ def main():
     )
     ap.add_argument("--kept-channels", nargs=4, default=KEPT_HIGHRES)
 
+    ap.add_argument(
+        "--method",
+        choices=("flowcast", "meanflow"),
+        default="flowcast",
+        help="Which student to sweep. 'flowcast' = Euler ODE (NFE = num_steps); "
+             "'meanflow' = few-step average-velocity sampler (NFE = num_steps). "
+             "Both reuse the same rollout/aggregate machinery.",
+    )
     ap.add_argument("--regression-checkpoint", type=Path, default=DEFAULT_REGRESSION)
     ap.add_argument("--flowcast-checkpoint", type=Path, default=DEFAULT_FLOWCAST)
+    ap.add_argument("--meanflow-checkpoint", type=Path, default=DEFAULT_MEANFLOW,
+                    help="MeanFlow student .mdlus, used when --method meanflow.")
 
     ap.add_argument(
         "--nfes",
@@ -249,9 +276,8 @@ def main():
                     help="Members per (sequence, NFE). Must be >= 2 for kernel CRPS.")
     ap.add_argument("--seed", type=int, default=0)
 
-    ap.add_argument("--output-dir", type=Path,
-                    default=REPO_ROOT / "experiment_scripts" / "results"
-                    / "flowcast_nfe_sweep")
+    ap.add_argument("--output-dir", type=Path, default=None,
+                    help="Defaults to experiment_scripts/results/<method>_nfe_sweep.")
 
     ap.add_argument("--keep-per-nfe-detail",
                     action=argparse.BooleanOptionalAction, default=True,
@@ -259,19 +285,31 @@ def main():
 
     args = ap.parse_args()
 
+    mlabel = METHOD_LABELS.get(args.method, args.method)
+    gen_checkpoint = (
+        args.meanflow_checkpoint if args.method == "meanflow"
+        else args.flowcast_checkpoint
+    )
+    if args.output_dir is None:
+        args.output_dir = (
+            REPO_ROOT / "experiment_scripts" / "results" / f"{args.method}_nfe_sweep"
+        )
+
     DistributedManager.initialize()
     dist = DistributedManager()
     device = dist.device
     if device.type == "cuda":
         torch.cuda.empty_cache()
 
-    banner("FlowCast NFE Pareto sweep")
+    banner(f"{mlabel} NFE Pareto sweep")
     log(f"device     = {device}")
+    log(f"method     = {args.method}")
     log(f"data       = {args.data_location}")
     log(f"regression = {args.regression_checkpoint}")
-    log(f"flowcast   = {args.flowcast_checkpoint}")
+    log(f"{args.method:<10} = {gen_checkpoint}")
     log(f"NFE list   = {args.nfes}  ({len(args.nfes)} values)")
-    log(f"solver     = {args.solver}  sigma_data = {args.sigma_data}")
+    log(f"solver     = {args.solver}  sigma_data = {args.sigma_data}"
+        + ("  (solver ignored for meanflow)" if args.method == "meanflow" else ""))
     log(f"S={args.n_sequences} sequences x T={args.n_steps} steps x K={args.ensemble} members")
     log(f"output     = {args.output_dir}")
 
@@ -296,25 +334,25 @@ def main():
     )
     log(f"sequences  : {len(t0_indices)} t0 indices ({t0_indices[0]} ... {t0_indices[-1]})")
 
-    # Load the regression mean + flowcast student ONCE; reuse across NFEs.
+    # Load the regression mean + generative student ONCE; reuse across NFEs.
     log(f"loading regression {args.regression_checkpoint}")
     regression = Module.from_checkpoint(str(args.regression_checkpoint)).to(device).eval()
-    log(f"loading flowcast   {args.flowcast_checkpoint}")
-    flow_model = Module.from_checkpoint(str(args.flowcast_checkpoint)).to(device).eval()
+    log(f"loading {args.method}   {gen_checkpoint}")
+    gen_model = Module.from_checkpoint(str(gen_checkpoint)).to(device).eval()
 
     rows: list[dict] = []
     sweep_t0 = time.perf_counter()
     for idx, nfe in enumerate(args.nfes, start=1):
         banner(f"NFE = {nfe}   ({idx}/{len(args.nfes)})")
-        sampler_kwargs = dict(
-            num_steps=int(nfe),
-            sigma_data=args.sigma_data,
-            solver=args.solver,
-        )
+        # MeanFlow's average-velocity sampler takes no solver kwarg; FlowCast's
+        # Euler/midpoint ODE does.
+        sampler_kwargs = dict(num_steps=int(nfe), sigma_data=args.sigma_data)
+        if args.method == "flowcast":
+            sampler_kwargs["solver"] = args.solver
         nfe_t0 = time.perf_counter()
         preds_ens, truth_seq, times = run_method_ensemble(
-            model=flow_model,
-            method="flowcast",
+            model=gen_model,
+            method=args.method,
             regression=regression,
             invariant=invariant_tensor,
             dataset=dataset,
@@ -351,9 +389,9 @@ def main():
             sub = args.output_dir / f"nfe_{nfe:03d}"
             sub.mkdir(parents=True, exist_ok=True)
             write_scoreboard(
-                {"flowcast": metrics},
+                {args.method: metrics},
                 channels,
-                {"flowcast": time_per_seq},
+                {args.method: time_per_seq},
                 sub / "scoreboard.md",
             )
             with open(sub / "per_threshold.csv", "w", newline="") as f:
@@ -378,13 +416,14 @@ def main():
             rows, channels,
             args.output_dir / "nfe_sweep.csv",
             args.output_dir / "nfe_sweep.md",
+            method_label=mlabel,
         )
 
     banner(f"sweep finished in {(time.perf_counter() - sweep_t0)/60:.1f} min")
     log("rendering plots ...")
-    _plot_quality_vs_nfe(rows, channels, args.output_dir / "plot_quality_vs_nfe.png")
-    _plot_time_vs_nfe(rows, args.output_dir / "plot_time_vs_nfe.png")
-    _plot_pareto(rows, channels, args.output_dir / "plot_pareto.png")
+    _plot_quality_vs_nfe(rows, channels, args.output_dir / "plot_quality_vs_nfe.png", mlabel)
+    _plot_time_vs_nfe(rows, args.output_dir / "plot_time_vs_nfe.png", mlabel)
+    _plot_pareto(rows, channels, args.output_dir / "plot_pareto.png", mlabel)
 
     log(f"done -- outputs under {args.output_dir}")
     log("  table : nfe_sweep.{csv,md}")

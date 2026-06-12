@@ -389,6 +389,11 @@ METHOD_LABELS = {
     "cleaned_flow_nfe10": "I-CFM (10 NFE)",
     "cleaned_flow_nfe15": "I-CFM (15 NFE)",
     "cleaned_flow_nfe20": "I-CFM (20 NFE)",
+    # Single-NFE legacy name
+    "cleaned_meanflow": "MeanFlow",
+    # Multi-NFE rows produced by run_main_experiment.sh @ MEANFLOW_NFES="1 2"
+    "cleaned_meanflow_nfe1": "MeanFlow (1 NFE)",
+    "cleaned_meanflow_nfe2": "MeanFlow (2 NFE)",
 }
 # Per-leg CSVs use generic "diffusion" / "flowcast" / "flowcast_nfe<N>" — map by leg.
 PER_LEG_LABELS = {
@@ -402,6 +407,9 @@ PER_LEG_LABELS = {
         "flowcast_nfe10": "I-CFM (10 NFE)",
         "flowcast_nfe15": "I-CFM (15 NFE)",
         "flowcast_nfe20": "I-CFM (20 NFE)",
+        "meanflow": "MeanFlow",
+        "meanflow_nfe1": "MeanFlow (1 NFE)",
+        "meanflow_nfe2": "MeanFlow (2 NFE)",
     },
 }
 
@@ -413,6 +421,10 @@ METHOD_COLORS = {
     "I-CFM (10 NFE)": "#fc9272",
     "I-CFM (15 NFE)": "#de2d26",
     "I-CFM (20 NFE)": "#a50f15",
+    "MeanFlow": "#6a51a3",
+    # Two purples increasing in saturation with NFE.
+    "MeanFlow (1 NFE)": "#9e9ac8",
+    "MeanFlow (2 NFE)": "#54278f",
 }
 
 

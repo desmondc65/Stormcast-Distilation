@@ -18,10 +18,10 @@ header instead of a generic "original/new domain" tag:
        +1h     +3h     +6h     +12h
 
 All three model rows use checkpoints at the matched ~2 M training-sample
-budget. Rows are displayed at their native grids -- the original-domain
-row is 224x128 while the rest are 192x96 cleaned. They share the same
-figure cell size with ``aspect='auto'`` so the original-domain row is
-visibly stretched; that is intentional since the two domains differ.
+budget. Every panel is drawn at its NATIVE data aspect ratio
+(``aspect='equal'``; the figure cell size is derived from the field's H:W),
+so the 192x96 cleaned fields and the 224x128 legacy fields are never
+stretched -- the legacy row simply letterboxes slightly inside its cell.
 
 The script does:
     1. build the original-domain (224x128, raw qpepre, channel order
@@ -71,6 +71,7 @@ from utils.nn import (  # noqa: E402
     build_network_condition_and_target,
     diffusion_model_forward,
     flowcast_model_forward,
+    meanflow_model_forward,
 )
 
 
@@ -111,6 +112,14 @@ DEFAULT_NEW_FLOW = (
     REPO_ROOT / "runs/flowcast_zettabyte_v1_cleaned_4_27_2026"
     / "flowcast_zettabyte_cleaned_4_27_2026/run_0"
     / "checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus"
+)
+# MeanFlow shares the FlowCast SongUNet backbone and conditioning bundle, so it
+# loads and rolls out exactly like the FlowCast leg; only the sampler helper
+# (meanflow_model_forward, no solver kwarg) differs. Same ~2 M-sample budget.
+DEFAULT_NEW_MEANFLOW = (
+    REPO_ROOT / "runs/meanflow_zettabyte_v1_cleaned_4_27_2026"
+    / "meanflow_zettabyte_cleaned_4_27_2026/run_0"
+    / "checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus"
 )
 
 ORIG_CHANNELS = ["t2m", "u10", "v10", "qpepre"]
@@ -189,6 +198,10 @@ def rollout(*, model, method, regression, invariant, dataset, t0_idx, n_steps,
                 residual = flowcast_model_forward(
                     model, condition, state_pred.shape, **sampler_kwargs
                 )
+            elif method == "meanflow":
+                residual = meanflow_model_forward(
+                    model, condition, state_pred.shape, **sampler_kwargs
+                )
             else:
                 raise ValueError(f"unknown method {method!r}")
         x_t = M_t + residual
@@ -221,6 +234,7 @@ def plot_channel_grid(
     orig_pred,            # (T, H_o, W_o) -- can be None if --skip-original
     new_edm_pred,         # (T, H, W) -- can be None if --skip-new-edm
     flow_pred,            # (T, H, W) -- can be None
+    mf_pred,              # (T, H, W) -- can be None if --skip-meanflow
     hours,                # list of ints, e.g. [1,3,6,12]
     out_path: Path,
     t0_label: str,
@@ -237,6 +251,8 @@ def plot_channel_grid(
         rows_data.append((f"StormCast ({cln_shape})", new_edm_pred))
     if flow_pred is not None:
         rows_data.append((f"CFM ({cln_shape})", flow_pred))
+    if mf_pred is not None:
+        rows_data.append((f"MeanFlow ({cln_shape})", mf_pred))
 
     n_rows = len(rows_data)
     n_cols = len(hours)
@@ -249,9 +265,14 @@ def plot_channel_grid(
     flat_stack = np.concatenate([p.reshape(-1) for p in sample_panels])
     vmin, vmax, cmap = _channel_scale(channel, flat_stack)
 
+    # Size each cell to the field's NATIVE H:W so panels are never stretched
+    # (the user-facing convention: keep the pictures' ratio as they are).
+    ph, pw = truth_new.shape[-2], truth_new.shape[-1]
+    panel_h = 3.0
+    panel_w = panel_h * (pw / ph)
     fig, axes = plt.subplots(
         n_rows, n_cols,
-        figsize=(2.8 * n_cols + 1.5, 2.4 * n_rows + 0.6),
+        figsize=(panel_w * n_cols + 1.6, panel_h * n_rows + 0.6),
         squeeze=False,
     )
 
@@ -265,7 +286,7 @@ def plot_channel_grid(
                 vmin=vmin,
                 vmax=vmax,
                 cmap=cmap,
-                aspect="auto",
+                aspect="equal",
                 interpolation="nearest",
             )
             ax.set_xticks([])
@@ -294,6 +315,57 @@ def plot_channel_grid(
     print(f"[plot] wrote {out_path}")
 
 
+def render_case(sub: Path, t0_label: str, truth, new_ch, *, orig_pred, orig_ch,
+                edm_pred, flow_pred, mf_pred, hours, channels_to_plot):
+    """Render all requested channel grids for one case (used by both the
+    inference path and --replot)."""
+    for ch in channels_to_plot:
+        plot_channel_grid(
+            channel=ch,
+            truth_new=truth[:, new_ch.index(ch)],
+            orig_pred=(orig_pred[:, orig_ch.index(ch)]
+                       if orig_pred is not None else None),
+            new_edm_pred=(edm_pred[:, new_ch.index(ch)]
+                          if edm_pred is not None else None),
+            flow_pred=(flow_pred[:, new_ch.index(ch)]
+                       if flow_pred is not None else None),
+            mf_pred=(mf_pred[:, new_ch.index(ch)]
+                     if mf_pred is not None else None),
+            hours=hours,
+            out_path=sub / f"rollout_12h_{ch}.png",
+            t0_label=t0_label,
+        )
+
+
+def write_candidates_md(out_dir: Path, candidates, n_steps: int):
+    """Rain-activity ranking table used to pick a thesis case study."""
+    if not candidates:
+        return
+    md = out_dir / "candidates.md"
+    with md.open("w") as f:
+        f.write("# Rollout candidates — truth qpepre activity over the "
+                f"+1..+{n_steps}h window\n\n")
+        f.write("Sorted by wet-pixel fraction at >=1 mm/h (most active first).\n\n")
+        f.write("| t0 idx | t0 (UTC) | max rain (mm/h) | wet >=0.1 (%) | "
+                "wet >=1.0 (%) | figures |\n")
+        f.write("|---:|---|---:|---:|---:|---|\n")
+        for t0_idx, dt0, mx, w01, w10, name in sorted(
+                candidates, key=lambda c: -c[4]):
+            f.write(f"| {t0_idx} | {dt0:%Y-%m-%d %H:00} | {mx:.1f} | "
+                    f"{w01:.1f} | {w10:.2f} | `{name}/` |\n")
+    print(f"[done] candidate summary -> {md}")
+
+
+def qpepre_stats(truth, new_ch, t0_idx, dt0, sub_name):
+    """(t0, datetime, max, wet>=0.1%, wet>=1.0%, dirname) tuple, or None."""
+    if "qpepre" not in new_ch:
+        return None
+    qp = truth[:, new_ch.index("qpepre")]  # (T, H, W) mm/h
+    return (t0_idx, dt0, float(qp.max()),
+            100.0 * float((qp >= 0.1).mean()),
+            100.0 * float((qp >= 1.0).mean()), sub_name)
+
+
 # ---- Main ------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(
@@ -307,6 +379,7 @@ def main():
     ap.add_argument("--new-regression", type=Path, default=DEFAULT_NEW_REG)
     ap.add_argument("--new-diffusion", type=Path, default=DEFAULT_NEW_EDM)
     ap.add_argument("--new-flowcast", type=Path, default=DEFAULT_NEW_FLOW)
+    ap.add_argument("--new-meanflow", type=Path, default=DEFAULT_NEW_MEANFLOW)
 
     ap.add_argument("--valid-dates", nargs=2, default=["2022/01/01", "2022/12/31"])
     ap.add_argument("--original-hr-size", nargs=2, type=int, default=[224, 128])
@@ -338,8 +411,24 @@ def main():
     ap.add_argument("--rho", type=float, default=7.0)
     ap.add_argument("--flowcast-num-steps", type=int, default=10)
     ap.add_argument("--flowcast-solver", choices=("euler", "midpoint"), default="euler")
+    ap.add_argument("--meanflow-num-steps", type=int, default=2,
+                    help="MeanFlow average-velocity segments (NFE). Default 2; "
+                         "set 1 for one-NFE sampling. No solver kwarg.")
     ap.add_argument("--sigma-data", type=float, default=0.5)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--ensemble", type=int, default=1,
+        help="Members per (model, t0): each member is an independently-seeded "
+             "autoregressive rollout (seed, seed+1, ...) and the plotted field "
+             "is the member mean — matching the ensemble-mean convention of the "
+             "scoreboard and qualitative panels. Default 1 = deterministic.",
+    )
+    ap.add_argument(
+        "--replot", action="store_true",
+        help="Skip ALL inference: re-render figures from the cached "
+             "t0_*/fields.npz files under --output-dir (written by previous "
+             "runs). Use after style-only changes; --t0-idx is ignored.",
+    )
 
     ap.add_argument(
         "--output-dir", type=Path,
@@ -348,8 +437,41 @@ def main():
     ap.add_argument("--skip-original", action="store_true")
     ap.add_argument("--skip-new-edm", action="store_true")
     ap.add_argument("--skip-flowcast", action="store_true")
+    ap.add_argument("--skip-meanflow", action="store_true")
 
     args = ap.parse_args()
+
+    # ---- Replot mode: no GPU, no datasets, no models -----------------------
+    if args.replot:
+        import datetime as _dt
+        npzs = sorted(args.output_dir.glob("t0_*/fields.npz"))
+        if not npzs:
+            raise SystemExit(f"--replot: no t0_*/fields.npz under {args.output_dir}")
+        print(f"[replot] {len(npzs)} cached case(s) under {args.output_dir}")
+        candidates = []
+        for p in npzs:
+            z = np.load(p)
+            truth = z["truth"]
+            new_ch = [str(c) for c in z["new_ch"]]
+            t0_idx = int(z["t0_idx"])
+            t0_label = str(z["t0_label"])
+            dt0 = _dt.datetime.fromisoformat(str(z["t0_iso"]))
+            render_case(
+                p.parent, t0_label, truth, new_ch,
+                orig_pred=z["orig"] if "orig" in z else None,
+                orig_ch=[str(c) for c in z["orig_ch"]] if "orig_ch" in z else None,
+                edm_pred=z["edm"] if "edm" in z else None,
+                flow_pred=z["flow"] if "flow" in z else None,
+                mf_pred=z["meanflow"] if "meanflow" in z else None,
+                hours=args.hours_to_plot,
+                channels_to_plot=args.channels_to_plot,
+            )
+            st = qpepre_stats(truth, new_ch, t0_idx, dt0, p.parent.name)
+            if st is not None:
+                candidates.append(st)
+        write_candidates_md(args.output_dir, candidates, args.n_steps)
+        print(f"[done] outputs in {args.output_dir}")
+        return
 
     DistributedManager.initialize()
     device = DistributedManager().device
@@ -407,11 +529,25 @@ def main():
     print(f"[t0] {len(t0_list)} initial time(s), rollout to +{args.n_steps}h: "
           + ", ".join(f"{t}({t0_datetime(t):%m-%d %H}Z)" for t in t0_list))
 
-    def _seed_all():
-        """Reseed before each rollout so every (model, t0) draw is reproducible."""
-        torch.manual_seed(args.seed)
+    def _seed_all(member: int = 0, seed_offset: int = 0):
+        """Reseed before each rollout so every (model, t0, member) draw is
+        reproducible; member e uses seed + seed_offset + e. ``seed_offset``
+        decorrelates the per-leg RNG (e.g. MeanFlow uses +2)."""
+        torch.manual_seed(args.seed + seed_offset + member)
         if device.type == "cuda":
-            torch.cuda.manual_seed_all(args.seed)
+            torch.cuda.manual_seed_all(args.seed + seed_offset + member)
+
+    def _ens_rollout(seed_offset: int = 0, **kw):
+        """Ensemble-mean rollout: average of --ensemble independently-seeded
+        member rollouts (each autoregressive on its own predictions). Returns
+        (pred_mean, truth) like rollout()."""
+        acc = None
+        truth = None
+        for e in range(args.ensemble):
+            _seed_all(e, seed_offset=seed_offset)
+            pred, truth = rollout(**kw)
+            acc = pred if acc is None else acc + pred
+        return acc / args.ensemble, truth
 
     print(f"[load] new-domain regression {args.new_regression}")
     new_reg = (
@@ -422,6 +558,7 @@ def main():
     new_truths: dict[int, np.ndarray] = {}
     new_edm_preds: dict[int, np.ndarray] = {}
     flow_preds: dict[int, np.ndarray] = {}
+    meanflow_preds: dict[int, np.ndarray] = {}
     orig_preds: dict[int, np.ndarray] = {}
 
     diff_kwargs = dict(
@@ -439,9 +576,8 @@ def main():
                     else args.diffusion_num_steps)
         print(f"[run] new-domain EDM rollouts ({args.n_steps}h, NFE/step={nfe_step})")
         for i, t0_idx in enumerate(t0_list):
-            _seed_all()
             tw = time.perf_counter()
-            pred, truth = rollout(
+            pred, truth = _ens_rollout(
                 model=new_edm, method="diffusion",
                 regression=new_reg, invariant=new_inv,
                 dataset=new_ds, t0_idx=t0_idx, n_steps=args.n_steps,
@@ -466,9 +602,8 @@ def main():
         )
         print(f"[run] FlowCast rollouts (NFE={args.flowcast_num_steps})")
         for i, t0_idx in enumerate(t0_list):
-            _seed_all()
             tw = time.perf_counter()
-            pred, truth = rollout(
+            pred, truth = _ens_rollout(
                 model=flow_model, method="flowcast",
                 regression=new_reg, invariant=new_inv,
                 dataset=new_ds, t0_idx=t0_idx, n_steps=args.n_steps,
@@ -479,6 +614,34 @@ def main():
             print(f"[run]   CFM {i + 1}/{len(t0_list)} t0={t0_idx} "
                   f"({t0_datetime(t0_idx):%m-%d %H}Z) in {time.perf_counter() - tw:.1f}s")
         del flow_model
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+
+    if not args.skip_meanflow:
+        print(f"[load] meanflow {args.new_meanflow}")
+        mf_model = (
+            Module.from_checkpoint(str(args.new_meanflow)).to(device).eval()
+        )
+        # MeanFlow sampler: no solver kwarg (average-velocity segments).
+        meanflow_kwargs = dict(
+            num_steps=args.meanflow_num_steps,
+            sigma_data=args.sigma_data,
+        )
+        print(f"[run] MeanFlow rollouts (NFE={args.meanflow_num_steps})")
+        for i, t0_idx in enumerate(t0_list):
+            tw = time.perf_counter()
+            pred, truth = _ens_rollout(
+                model=mf_model, method="meanflow",
+                regression=new_reg, invariant=new_inv,
+                dataset=new_ds, t0_idx=t0_idx, n_steps=args.n_steps,
+                sampler_kwargs=meanflow_kwargs, device=device,
+                seed_offset=2,
+            )
+            meanflow_preds[t0_idx] = pred
+            new_truths.setdefault(t0_idx, truth)
+            print(f"[run]   MeanFlow {i + 1}/{len(t0_list)} t0={t0_idx} "
+                  f"({t0_datetime(t0_idx):%m-%d %H}Z) in {time.perf_counter() - tw:.1f}s")
+        del mf_model
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
@@ -498,9 +661,8 @@ def main():
         )
         print(f"[run] original-domain EDM rollouts ({args.n_steps}h)")
         for i, t0_idx in enumerate(t0_list):
-            _seed_all()
             tw = time.perf_counter()
-            pred, _ = rollout(
+            pred, _ = _ens_rollout(
                 model=orig_edm, method="diffusion",
                 regression=orig_reg, invariant=orig_inv,
                 dataset=orig_ds, t0_idx=t0_idx, n_steps=args.n_steps,
@@ -516,57 +678,54 @@ def main():
     if not new_truths:
         raise SystemExit(
             "No rollout produced a truth field. At least one of "
-            "--skip-new-edm / --skip-flowcast must be False."
+            "--skip-new-edm / --skip-flowcast / --skip-meanflow must be False."
         )
 
-    # ---- Render one PNG per (t0, channel) into per-t0 subdirs --------------
+    # ---- Cache fields + render one PNG per (t0, channel) -------------------
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    qp_idx = new_ch.index("qpepre") if "qpepre" in new_ch else None
     candidates = []  # (t0_idx, datetime, max_rain, wet0p1, wet1p0, subdir)
     for t0_idx in t0_list:
         dt0 = t0_datetime(t0_idx)
         sub = args.output_dir / f"t0_{t0_idx:04d}_{dt0:%Y%m%d_%H}"
+        sub.mkdir(parents=True, exist_ok=True)
         t0_label = dt0.strftime("t0 = %Y-%m-%d %H:00 UTC")
+        if args.ensemble > 1:
+            t0_label += f", {args.ensemble}-member mean"
         truth = new_truths[t0_idx]
-        for ch in args.channels_to_plot:
-            plot_channel_grid(
-                channel=ch,
-                truth_new=truth[:, new_ch.index(ch)],
-                orig_pred=(orig_preds[t0_idx][:, orig_ch.index(ch)]
-                           if t0_idx in orig_preds else None),
-                new_edm_pred=(new_edm_preds[t0_idx][:, new_ch.index(ch)]
-                              if t0_idx in new_edm_preds else None),
-                flow_pred=(flow_preds[t0_idx][:, new_ch.index(ch)]
-                           if t0_idx in flow_preds else None),
-                hours=args.hours_to_plot,
-                out_path=sub / f"rollout_12h_{ch}.png",
-                t0_label=t0_label,
-            )
-        if qp_idx is not None:
-            qp = truth[:, qp_idx]  # (T, H, W) mm/h
-            candidates.append((
-                t0_idx, dt0, float(qp.max()),
-                100.0 * float((qp >= 0.1).mean()),
-                100.0 * float((qp >= 1.0).mean()),
-                sub.name,
-            ))
 
-    # ---- Rain-activity summary for picking a thesis case study -------------
-    if candidates:
-        md = args.output_dir / "candidates.md"
-        with md.open("w") as f:
-            f.write("# Rollout candidates — truth qpepre activity over the "
-                    f"+1..+{args.n_steps}h window\n\n")
-            f.write("Sorted by wet-pixel fraction at >=1 mm/h (most active first).\n\n")
-            f.write("| t0 idx | t0 (UTC) | max rain (mm/h) | wet >=0.1 (%) | "
-                    "wet >=1.0 (%) | figures |\n")
-            f.write("|---:|---|---:|---:|---:|---|\n")
-            for t0_idx, dt0, mx, w01, w10, name in sorted(
-                    candidates, key=lambda c: -c[4]):
-                f.write(f"| {t0_idx} | {dt0:%Y-%m-%d %H:00} | {mx:.1f} | "
-                        f"{w01:.1f} | {w10:.2f} | `{name}/` |\n")
-        print(f"[done] candidate summary -> {md}")
+        # Persist the (expensive) fields so --replot can re-render any future
+        # style change with zero inference.
+        cache = dict(
+            truth=truth, new_ch=np.array(new_ch),
+            t0_idx=np.int64(t0_idx), t0_label=np.str_(t0_label),
+            t0_iso=np.str_(dt0.isoformat()),
+        )
+        if t0_idx in new_edm_preds:
+            cache["edm"] = new_edm_preds[t0_idx]
+        if t0_idx in flow_preds:
+            cache["flow"] = flow_preds[t0_idx]
+        if t0_idx in meanflow_preds:
+            cache["meanflow"] = meanflow_preds[t0_idx]
+        if t0_idx in orig_preds:
+            cache["orig"] = orig_preds[t0_idx]
+            cache["orig_ch"] = np.array(orig_ch)
+        np.savez_compressed(sub / "fields.npz", **cache)
 
+        render_case(
+            sub, t0_label, truth, new_ch,
+            orig_pred=orig_preds.get(t0_idx),
+            orig_ch=orig_ch,
+            edm_pred=new_edm_preds.get(t0_idx),
+            flow_pred=flow_preds.get(t0_idx),
+            mf_pred=meanflow_preds.get(t0_idx),
+            hours=args.hours_to_plot,
+            channels_to_plot=args.channels_to_plot,
+        )
+        st = qpepre_stats(truth, new_ch, t0_idx, dt0, sub.name)
+        if st is not None:
+            candidates.append(st)
+
+    write_candidates_md(args.output_dir, candidates, args.n_steps)
     print(f"[done] outputs in {args.output_dir}")
 
 

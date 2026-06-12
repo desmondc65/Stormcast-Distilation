@@ -50,6 +50,7 @@ from utils.nn import (  # noqa: E402
     build_network_condition_and_target,
     diffusion_model_forward,
     flowcast_model_forward,
+    meanflow_model_forward,
     get_preconditioned_architecture,
 )
 from utils.spectrum import ps1d_plots  # noqa: E402
@@ -171,6 +172,52 @@ def load_flowcast(
     return net
 
 
+def load_meanflow(
+    *,
+    img_resolution: tuple[int, int],
+    target_channels: int,
+    conditional_channels: int,
+    spatial_pos_embed: bool,
+    attn_resolutions: Sequence[int],
+    sigma_data: float,
+    time_scale: float,
+    ema_path: str,
+    device,
+) -> Module:
+    """Construct a fresh MeanFlowPrecond and stamp in the EMA shadow weights.
+
+    Mirrors ``load_flowcast`` (same arch kwargs / same EMA-shadow application)
+    but materialises the average-velocity preconditioner via
+    ``get_preconditioned_architecture(name="meanflow", ...)``. This matches
+    ``inference_meanflow.py:_load_meanflow_student`` — MeanFlow inference uses
+    the EMA shadow (``ema_state.pt``), NOT the online student checkpoint.
+    """
+    net = get_preconditioned_architecture(
+        name="meanflow",
+        img_resolution=tuple(img_resolution),
+        target_channels=int(target_channels),
+        conditional_channels=int(conditional_channels),
+        spatial_embedding=bool(spatial_pos_embed),
+        attn_resolutions=list(attn_resolutions),
+    )
+    net = net.to(device).eval().requires_grad_(False)
+    net.sigma_data = float(sigma_data)
+    net.time_scale = float(time_scale)
+
+    ema_state = torch.load(ema_path, map_location=device)
+    if "shadow_params" in ema_state and "param_names" in ema_state:
+        names = ema_state["param_names"]
+        shadows = ema_state["shadow_params"]
+        target_state = dict(net.state_dict())
+        for i, name in enumerate(names):
+            if name in target_state:
+                target_state[name] = shadows[i].to(target_state[name].dtype)
+        net.load_state_dict(target_state, strict=False)
+    else:
+        net.load_state_dict(ema_state, strict=False)
+    return net
+
+
 # ------------------------------------------------------------------------------
 # Sampler wrappers
 # ------------------------------------------------------------------------------
@@ -179,7 +226,7 @@ class StudentSpec:
     """Generic spec for whichever student is being evaluated."""
 
     name: str
-    kind: str  # 'edm' or 'flowcast' or 'regression'
+    kind: str  # 'edm' or 'flowcast' or 'meanflow' or 'regression'
     model: Module | None  # None for kind=='regression'
     sampler_kwargs: dict = field(default_factory=dict)
 
@@ -197,6 +244,13 @@ def sample_residual(spec: StudentSpec, condition: torch.Tensor, target_shape):
         )
     if spec.kind == "flowcast":
         return flowcast_model_forward(
+            spec.model,
+            condition,
+            target_shape,
+            **spec.sampler_kwargs,
+        )
+    if spec.kind == "meanflow":
+        return meanflow_model_forward(
             spec.model,
             condition,
             target_shape,

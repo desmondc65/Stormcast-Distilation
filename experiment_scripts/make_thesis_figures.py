@@ -52,9 +52,11 @@ SCOREBOARD_METRICS = [
     "FAR-M", "RMSE_u10", "RMSE_v10", "RMSE_t2m", "RMSE_qpepre",
 ]
 # Method draw order (rollout adds legacy in front).
-CLEANED_ORDER = ["diffusion", "flowcast_nfe10", "flowcast_nfe15", "flowcast_nfe20"]
+CLEANED_ORDER = ["diffusion", "flowcast_nfe10", "flowcast_nfe15", "flowcast_nfe20",
+                 "meanflow_nfe1", "meanflow_nfe2"]
 ROLLOUT_ORDER = ["legacy_edm", "cleaned_edm", "cleaned_flow_nfe10",
-                 "cleaned_flow_nfe15", "cleaned_flow_nfe20"]
+                 "cleaned_flow_nfe15", "cleaned_flow_nfe20",
+                 "cleaned_meanflow_nfe1", "cleaned_meanflow_nfe2"]
 
 
 def arrow(metric: str) -> str:
@@ -283,13 +285,25 @@ def fig_nfe(results_root: Path, out: Path):
     if not src.exists():
         print(f"[make_thesis_figures] skip nfe_pareto (no {src})")
         return None
-    header, data = read_csv(src)
-    col = {h: i for i, h in enumerate(header)}
-    nfes = np.array([float(r[col["nfe"]]) for r in data])
-    crps_qp = np.array([_f(r[col["crps_qpepre"]]) for r in data])
-    times = np.array([_f(r[col["time_per_seq_s"]]) for r in data])
+
+    def _load_sweep(path):
+        header, data = read_csv(path)
+        col = {h: i for i, h in enumerate(header)}
+        return (
+            np.array([float(r[col["nfe"]]) for r in data]),
+            np.array([_f(r[col["crps_qpepre"]]) for r in data]),
+            np.array([_f(r[col["time_per_seq_s"]]) for r in data]),
+        )
+
+    nfes, crps_qp, times = _load_sweep(src)
+
+    # MeanFlow sweep (average-velocity sampler) overlaid when present — the
+    # headline novelty: it reaches FlowCast's CRPS at 1–2 NFE instead of ~10.
+    mf_src = results_root.parent / "meanflow_nfe_sweep" / "nfe_sweep.csv"
+    mf = _load_sweep(mf_src) if mf_src.exists() else None
 
     fc_color = ts.method_color("flowcast")
+    mf_color = ts.method_color("meanflow")
     # The K used by Table 4.1's matched-budget rows; shade it for context. The
     # absolute EDM number is on a different (24-seq) sample set than this sweep,
     # so we do NOT draw an EDM line here — the head-to-head lives in Table 4.1.
@@ -299,8 +313,10 @@ def fig_nfe(results_root: Path, out: Path):
     # (a) quality vs NFE
     axq.axvspan(10, 20, color=band_color, alpha=0.12, label="Table 4.1 range ($K{=}10$–$20$)")
     axq.plot(nfes, crps_qp, "o-", lw=1.8, ms=5, color=fc_color, label="FlowCast")
+    if mf is not None:
+        axq.plot(mf[0], mf[1], "s--", lw=1.8, ms=5, color=mf_color, label="MeanFlow")
     axq.set_xscale("log")
-    axq.set_xlabel("NFE (Euler steps $K$)")
+    axq.set_xlabel("NFE (sampler steps $K$)")
     axq.set_ylabel(r"CRPS qpepre (mm/h) $\downarrow$")
     axq.set_title(r"Quality saturates in a few steps $\downarrow$")
     axq.set_xticks(nfes)
@@ -309,19 +325,23 @@ def fig_nfe(results_root: Path, out: Path):
     axq.legend(frameon=False, fontsize=9)
     # (b) latency vs NFE (log-log) + linear reference
     axt.plot(nfes, times, "o-", lw=1.8, ms=5, color=fc_color, label="FlowCast")
+    if mf is not None:
+        axt.plot(mf[0], mf[2], "s--", lw=1.8, ms=5, color=mf_color, label="MeanFlow")
     # Anchor the linear-in-NFE reference at the highest-NFE point (per-step cost
     # is most reliable there; the lowest NFEs carry CUDA-warmup / fixed overhead).
     ref = times[-1] * nfes / nfes[-1]
     axt.plot(nfes, ref, ":", lw=1.4, color="0.5", label="linear in NFE")
     axt.set_xscale("log"); axt.set_yscale("log")
-    axt.set_xlabel("NFE (Euler steps $K$)")
+    axt.set_xlabel("NFE (sampler steps $K$)")
     axt.set_ylabel("wall-clock per sequence (s)")
     axt.set_title("Latency is linear in NFE")
     axt.set_xticks(nfes)
     axt.set_xticklabels([str(int(n)) for n in nfes], fontsize=7)
     axt.grid(True, which="both", alpha=0.3)
     axt.legend(frameon=False, fontsize=9)
-    fig.suptitle("FlowCast NFE Pareto sweep (matched ~2M checkpoint, 2022 validation)",
+    _title = ("FlowCast vs. MeanFlow NFE Pareto sweep" if mf is not None
+              else "FlowCast NFE Pareto sweep")
+    fig.suptitle(f"{_title} (matched ~2M checkpoint, 2022 validation)",
                  fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     fig.savefig(out, dpi=200, bbox_inches="tight")
