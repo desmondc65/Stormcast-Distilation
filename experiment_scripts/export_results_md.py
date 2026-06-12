@@ -138,11 +138,17 @@ def sec_log1p() -> str:
 
 
 def sec_nfe() -> str:
-    header, data = read_csv(RESULTS / "flowcast_nfe_sweep" / "nfe_sweep.csv")
-    if header is None:
-        return missing("flowcast_nfe_sweep/nfe_sweep.csv", "run_flowcast_nfe_sweep.sh")
-    rows = [[fnum(v, 3) for v in r] for r in data]
-    return md_table(list(header), rows)
+    out = []
+    for method, sub in (("FlowCast", "flowcast_nfe_sweep"),
+                        ("MeanFlow", "meanflow_nfe_sweep")):
+        header, data = read_csv(RESULTS / sub / "nfe_sweep.csv")
+        if header is None:
+            out.append(missing(f"{sub}/nfe_sweep.csv", "run_flowcast_nfe_sweep.sh"))
+            continue
+        rows = [[fnum(v, 3) for v in r] for r in data]
+        out.append(f"**{method}** (`results/{sub}/nfe_sweep.csv`):\n\n"
+                   + md_table(list(header), rows))
+    return "\n\n".join(out)
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +180,7 @@ def build(out: Path):
             chunks.append(intro + "\n")
         chunks.append(body + "\n")
 
-    add("1. Headline scoreboard — FlowCast vs. EDM diffusion (+ legacy)",
+    add("1. Headline scoreboard — EDM diffusion vs. FlowCast vs. MeanFlow (+ legacy)",
         sec_main_scoreboard(),
         "Source: `results/main_experiment/scoreboard_3way.csv`. `legacy_edm` is "
         "the upstream NVIDIA 224x128 raw-mm/h baseline (different grid/encoding — "
@@ -193,9 +199,11 @@ def build(out: Path):
     add("6. Encoding ablation — log1p vs. raw mm/h (FlowCast)", sec_log1p(),
         "Source: `results/log1p_ablation/scoreboard_log1p.csv`. qpepre reported "
         "in mm/h on both legs, so columns are directly comparable.")
-    add("7. NFE Pareto sweep (FlowCast)", sec_nfe(),
-        "Source: `results/flowcast_nfe_sweep/nfe_sweep.csv`. One FlowCast "
-        "checkpoint, Euler step count K swept; quality vs. wall-clock.")
+    add("7. NFE Pareto sweeps (FlowCast + MeanFlow)", sec_nfe(),
+        "Matched ~2M checkpoints, step/segment count K swept (single +1h "
+        "generative step, 12 sequences x 10 members); quality vs. wall-clock. "
+        "MeanFlow K=2 CRPS-qpepre (0.128) undercuts FlowCast at any K "
+        "(best 0.132 at K=50).")
     add("8. qpepre channel-weight (qpw) sweep",
         "Full 8-row sweep (standardised-unit single-step validation RMSE) lives "
         "in `result_table.md` section C and thesis Table `tab:qpw`. Headline: "

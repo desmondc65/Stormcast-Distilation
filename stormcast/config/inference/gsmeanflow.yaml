@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# ---------------------------------------------------------------------------
+# GS-MeanFlow inference config
+# ---------------------------------------------------------------------------
+outdir: 'StormCast_gsmeanflow/inference'
+experiment_name: 'gsmeanflow-inference'
+run_id: 0
+rundir: ${inference.outdir}/${inference.experiment_name}/${inference.run_id}
+
+# Initial autoregressive timestamp (must be present in dataset.valid_dates).
+initial_time: '2022-07-01T00:00:00'
+
+# Number of autoregressive steps (each is dt = 1 h).
+n_steps: 12
+
+# ---------------------------------------------------------------------------
+# Checkpoints
+# ---------------------------------------------------------------------------
+# Frozen regression mean F_theta.
+regression_checkpoint: ''
+
+# GS-MeanFlow student EMA shadow saved by trainer_gsmeanflow.py at
+#   <gsmeanflow_train_rundir>/ema_state.pt
+gsmeanflow_ema_path: ''
+
+# Physical precip threshold defining "wet" (for the standardized gate level).
+gate_threshold_mm: 0.1
+
+# ---------------------------------------------------------------------------
+# GS-MeanFlow sampler hyperparameters
+# ---------------------------------------------------------------------------
+gsmeanflow:
+  num_steps: 2          # average-velocity segments (NFE); 1 = one-step.
+  apply_gate: true      # force confidently-dry qpepre pixels to exact zero.
+  gate_threshold: 0.5   # wet-probability decision boundary.
+
+# ---------------------------------------------------------------------------
+# I/O
+# ---------------------------------------------------------------------------
+plot_var_state: 'qpepre'
+plot_var_background: 't2m'
+output_state_channels: []
+
+save_horizontal_vars: ['t2m', 'u10', 'v10', 'qpepre']
+save_vertical_vars: []
+save_vertical_levels: []

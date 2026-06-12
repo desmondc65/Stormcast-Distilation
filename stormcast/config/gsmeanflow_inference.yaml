@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Main config for GS-MeanFlow inference (regression mean + gated
+# average-velocity residual). Mirrors meanflow_inference.yaml but loads the
+# GS-MeanFlow student EMA shadow and applies the occurrence gate.
+
+defaults:
+  # Dataset -- same RWRF/ERA5 loader as training so denormalize_state
+  # auto-applies expm1 to qpepre (qpepre_log1p flag).
+  - dataset/era5_rwrf_qpepre
+
+  # Model settings shared with training (sigma_data, time_scale, gate, conds).
+  - model/gsmeanflow
+
+  # Inference settings (checkpoints, n_steps, plot vars, sampler + gate args).
+  - inference/gsmeanflow
+
+  # Hydra
+  - hydra/default
+
+  - _self_

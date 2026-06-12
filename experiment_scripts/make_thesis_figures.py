@@ -121,7 +121,7 @@ def fig_scoreboard(results_root: Path, out: Path):
         ax.grid(True, axis="y", alpha=0.25)
     for ax in axes[len(metrics):]:
         ax.axis("off")
-    fig.suptitle("FlowCast vs. EDM diffusion scoreboard "
+    fig.suptitle("Three-way scoreboard: EDM diffusion vs. FlowCast vs. MeanFlow "
                  "(2022 validation; best per metric hatched)", fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(out, dpi=200, bbox_inches="tight")

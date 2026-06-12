@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# Model name
+model_name: 'gsmeanflow'
+
+# Model conditions (identical to MeanFlow: keep "regression" so mu_{t+1} is a
+# conditioning channel for both the flow and the occurrence gate).
+regression_conditions: ["state", "background", "invariant"]
+diffusion_conditions: ["state", "regression", "invariant"]
+
+# Model hyperparameters
+spatial_pos_embed: False
+attn_resolutions: []
+
+# Pretrained regression model (used only as conditioning; not trained here).
+regression_weights: ""
+
+# GS-MeanFlow parameters.
+# - sigma_data / time_scale: same convention as MeanFlow / FlowCast. Keep
+#   matched to the EDM teacher so metrics stay comparable.
+# - gate_base_channels: width of the lightweight occurrence-gate U-Net. Much
+#   smaller than the SongUNet flow, so the gate is nearly free at inference.
+sigma_data: 0.5
+time_scale: 1000.0
+gate_base_channels: 48
