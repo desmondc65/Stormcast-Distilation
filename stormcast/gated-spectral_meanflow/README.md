@@ -55,8 +55,14 @@ gated-spectral_meanflow/
 ├── train_gsmeanflow.py     # Hydra entry (reuses ../config + ../utils + ../datasets)
 ├── inference_gsmeanflow.py # autoregressive rollout with the hurdle gate
 ├── train_gsmeanflow.sh     # torchrun launcher
+├── docs/
+│   ├── methodology.md          # full method reference (equations, pillars, ablations)
+│   ├── make_method_figures.py  # regenerates the figures below (viridis thesis style)
+│   └── figures/gsmf_*.png      # architecture / training / sampling / pillar diagrams
 └── README.md
 ```
+
+Method deep-dive with diagrams: [docs/methodology.md](docs/methodology.md).
 
 Hydra configs live in the shared tree (so they sit beside every other method):
 `config/gsmeanflow.yaml`, `config/model/gsmeanflow.yaml`,
