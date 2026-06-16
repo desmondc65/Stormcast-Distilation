@@ -10,7 +10,7 @@ the project-wide viridis palette defined in :mod:`thesis_style` so they match
     figures/results/rmse_per_channel.png    <- main_experiment/cleaned_2M/rmse_per_channel.csv
     figures/results/crps_per_channel.png    <- main_experiment/cleaned_2M/crps_per_channel.csv
     figures/results/csi_per_threshold.png   <- main_experiment/cleaned_2M/per_threshold.csv
-    figures/results/fss_p16.png             <- main_experiment/cleaned_2M/fss_p16.csv
+    figures/results/fss_p16.png             <- main_experiment/cleaned_2M/fss_nbhd.csv
     figures/results/rollout_rmse.png        <- main_experiment/rmse_per_step_3way.csv
 
 No model inference and no GPU: every number here already exists in the
@@ -33,17 +33,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import thesis_style as ts
+import _nbhd_io as nbio
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RESULTS = REPO_ROOT / "experiment_scripts" / "results" / "main_experiment"
 DEFAULT_FIGOUT = REPO_ROOT / "NTU-Thesis-LaTeX-Template" / "figures" / "results"
 
 # Metric direction: True = higher is better. Drives winner highlighting + arrows.
+# Keyed by BASE metric name (the "@<kernel>" suffix is stripped before lookup).
 HIGHER_BETTER = {
     "Time/Seq.(s)": False, "CRPS": False, "CSI-M": True, "CSI-P16": True,
-    "FSS-P16-M": True, "HSS-M": True, "FAR-M": False,
+    "FSS-P16-M": True, "FSS-P16": True, "HSS-M": True, "FAR-M": False,
     "RMSE_u10": False, "RMSE_v10": False, "RMSE_t2m": False, "RMSE_qpepre": False,
-    "csi": True, "far": False, "hss": True,
+    "csi": True, "far": False, "hss": True, "pod": True, "fss": True,
 }
 
 # Scoreboard metrics to draw (CSI-P16 dropped: ~0 and noisy at this budget).
@@ -60,9 +62,10 @@ ROLLOUT_ORDER = ["legacy_edm", "cleaned_edm", "cleaned_flow_nfe10",
 
 
 def arrow(metric: str) -> str:
-    if metric not in HIGHER_BETTER:
+    b = nbio.base_metric(metric)
+    if b not in HIGHER_BETTER:
         return ""
-    return r"$\uparrow$" if HIGHER_BETTER[metric] else r"$\downarrow$"
+    return r"$\uparrow$" if HIGHER_BETTER[b] else r"$\downarrow$"
 
 
 def read_csv(path: Path):
@@ -95,8 +98,14 @@ def fig_scoreboard(results_root: Path, out: Path):
     labels = [ts.method_label(m) for m in methods]
     colors = [ts.method_color(m) for m in methods]
 
-    metrics = [m for m in SCOREBOARD_METRICS if m in metrics_all]
-    col_of = {m: metrics_all.index(m) for m in metrics}
+    # New kerneled scoreboards carry "@<kernel>"-suffixed columns (CSI-M@10km,
+    # FSS-P16@0.25°, ...) — plot every metric column. Legacy scoreboards use the
+    # bare SCOREBOARD_METRICS names.
+    if any("@" in m for m in metrics_all):
+        metrics = list(metrics_all)
+    else:
+        metrics = [m for m in SCOREBOARD_METRICS if m in metrics_all]
+    col_of = {m: i for i, m in enumerate(metrics_all)}
 
     ncol = 5
     nrow = int(np.ceil(len(metrics) / ncol))
@@ -106,7 +115,7 @@ def fig_scoreboard(results_root: Path, out: Path):
         vals = np.array([_f(r[col_of[m] + 1]) for r in rows])
         bars = ax.bar(range(len(methods)), vals, color=colors,
                       edgecolor="black", linewidth=0.6)
-        higher = HIGHER_BETTER.get(m, False)
+        higher = HIGHER_BETTER.get(nbio.base_metric(m), False)
         win = int(np.nanargmax(vals) if higher else np.nanargmin(vals))
         bars[win].set_edgecolor("#222222")
         bars[win].set_linewidth(2.2)
@@ -124,6 +133,68 @@ def fig_scoreboard(results_root: Path, out: Path):
     fig.suptitle("Three-way scoreboard: EDM diffusion vs. FlowCast vs. MeanFlow "
                  "(2022 validation; best per metric hatched)", fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.savefig(out, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 1b. Standalone inference-cost figure (wall-clock per rollout sequence)
+# ---------------------------------------------------------------------------
+def fig_time_per_seq(results_root: Path, out: Path):
+    """Standalone latency figure: the scoreboard ``Time/Seq.(s)`` column as its
+    own bar chart. Log-scaled because the range spans ~2 orders of magnitude
+    (MeanFlow ~2 s/seq to legacy EDM ~118 s/seq), so the few-NFE speed-up of the
+    students over the diffusion teacher is the headline read."""
+    header, data = read_csv(results_root / "scoreboard_3way.csv")
+    metrics_all = [clean_metric(m) for m in header[1:]]
+    if "Time/Seq.(s)" not in metrics_all:
+        print("[make_thesis_figures] skip time_per_seq (no Time/Seq.(s) column)")
+        return None
+    ci = metrics_all.index("Time/Seq.(s)")
+
+    order = {ts.canonical_method(m): i for i, m in enumerate(ROLLOUT_ORDER)}
+    rows = sorted(data, key=lambda r: order.get(ts.canonical_method(r[0]), 99))
+    methods = [r[0] for r in rows]
+    labels = [ts.method_label(m) for m in methods]
+    colors = [ts.method_color(m) for m in methods]
+    vals = np.array([_f(r[ci + 1]) for r in rows])
+
+    fig, ax = plt.subplots(figsize=(1.15 * len(methods) + 2.5, 4.3))
+    bars = ax.bar(range(len(methods)), vals, color=colors,
+                  edgecolor="black", linewidth=0.6)
+    # Fastest method wins (lower is better) — hatch + heavy edge.
+    win = int(np.nanargmin(vals))
+    bars[win].set_edgecolor("#222222")
+    bars[win].set_linewidth(2.2)
+    bars[win].set_hatch("//")
+
+    ax.set_yscale("log")
+    finite = vals[np.isfinite(vals)]
+    if finite.size:
+        ax.set_ylim(10 ** np.floor(np.log10(finite.min())),
+                    finite.max() * 1.8)
+    ax.set_ylabel(r"wall-clock per sequence (s, log) $\downarrow$")
+    ax.set_title(r"Inference cost — per 12 h rollout sequence $\downarrow$")
+    ax.set_xticks(range(len(methods)))
+    ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=8)
+    for k, v in enumerate(vals):
+        if np.isfinite(v):
+            ax.text(k, v, f"{v:.1f}s", ha="center", va="bottom", fontsize=8)
+    # Speed-up of the fastest student vs the cleaned EDM teacher, if both present.
+    canon = [ts.canonical_method(m) for m in methods]
+    if "diffusion" in canon:
+        edm_v = vals[canon.index("diffusion")]
+        if np.isfinite(edm_v) and np.isfinite(vals[win]) and vals[win] > 0:
+            ax.annotate(rf"${edm_v / vals[win]:.0f}\times$ faster than cleaned EDM",
+                        xy=(win, vals[win]), xytext=(0.97, 0.95),
+                        textcoords="axes fraction", ha="right", va="top",
+                        fontsize=9, color="0.25")
+    ax.grid(True, axis="y", which="both", alpha=0.25)
+    # Footnote: legacy runs on the larger 224x128 grid, so part of its cost is grid size.
+    fig.text(0.5, -0.02, "Legacy EDM is on the 224×128 grid; cleaned methods on 192×96.",
+             ha="center", fontsize=7, color="0.4")
+    fig.tight_layout()
     fig.savefig(out, dpi=200, bbox_inches="tight")
     plt.close(fig)
     return out
@@ -163,29 +234,34 @@ def fig_per_channel(results_root: Path, out: Path, fname: str, kind: str):
 # 4. CSI / FAR / HSS vs threshold
 # ---------------------------------------------------------------------------
 def fig_csi_per_threshold(results_root: Path, out: Path):
-    header, data = read_csv(results_root / "cleaned_2M" / "per_threshold.csv")
-    thresholds = [float(t) for t in header[2:]]
-    by_metric: dict[str, dict[str, list[float]]] = {}
-    for r in data:
-        by_metric.setdefault(r[1], {})[r[0]] = [_f(v) for v in r[2:]]
-
+    thresholds, records = nbio.read_per_threshold(
+        results_root / "cleaned_2M" / "per_threshold.csv"
+    )
+    kernels = nbio.kernels_present(records)
     order = {ts.canonical_method(m): i for i, m in enumerate(CLEANED_ORDER)}
-    metrics = ["csi", "far", "hss"]
-    metrics = [m for m in metrics if m in by_metric]
-    fig, axes = plt.subplots(1, len(metrics), figsize=(4.3 * len(metrics), 3.8))
-    axes = np.atleast_1d(axes)
-    for ax, metric in zip(axes, metrics):
-        series = sorted(by_metric[metric].items(),
-                        key=lambda kv: order.get(ts.canonical_method(kv[0]), 99))
-        for method, vals in series:
-            ax.plot(thresholds, vals, marker="o", lw=1.7, ms=5,
-                    label=ts.method_label(method), color=ts.method_color(method))
-        ax.set_xscale("log")
-        ax.set_xlabel(r"rainfall threshold $\tau$ (mm/h)")
-        ax.set_ylabel(f"{metric.upper()} {arrow(metric)}")
-        ax.set_title(f"{metric.upper()} vs. threshold {arrow(metric)}")
-        ax.grid(True, alpha=0.3)
-    axes[0].legend(frameon=False, fontsize=9)
+    metrics = [m for m in ("csi", "far", "hss") if any(r["metric"] == m for r in records)]
+
+    # Rows = neighbourhood kernels (10 km / 0.25 deg), cols = CSI / FAR / HSS.
+    nrows, ncols = len(kernels), len(metrics)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.3 * ncols, 3.6 * nrows),
+                             squeeze=False)
+    for ri, kern in enumerate(kernels):
+        for ci, metric in enumerate(metrics):
+            ax = axes[ri][ci]
+            series = {r["method"]: [_f(v) for v in r["values"]]
+                      for r in records if r["metric"] == metric and r["kernel"] == kern}
+            for method, vals in sorted(
+                series.items(), key=lambda kv: order.get(ts.canonical_method(kv[0]), 99)
+            ):
+                ax.plot(thresholds, vals, marker="o", lw=1.7, ms=5,
+                        label=ts.method_label(method), color=ts.method_color(method))
+            ax.set_xscale("log")
+            ax.set_xlabel(r"rainfall threshold $\tau$ (mm/h)")
+            ax.set_ylabel(f"{metric.upper()} {arrow(metric)}")
+            ktag = f" — {nbio.kernel_pretty(kern)}" if kern is not None else ""
+            ax.set_title(f"{metric.upper()} vs. threshold {arrow(metric)}{ktag}")
+            ax.grid(True, alpha=0.3)
+    axes[0][0].legend(frameon=False, fontsize=9)
     fig.tight_layout()
     fig.savefig(out, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -196,21 +272,46 @@ def fig_csi_per_threshold(results_root: Path, out: Path):
 # 5. FSS at >=16 mm/h vs neighbourhood size
 # ---------------------------------------------------------------------------
 def fig_fss(results_root: Path, out: Path):
-    header, data = read_csv(results_root / "cleaned_2M" / "fss_p16.csv")
-    scales = [int(s) for s in header[2:]]
+    mode, xs, records = nbio.read_fss(results_root / "cleaned_2M")
     order = {ts.canonical_method(m): i for i, m in enumerate(CLEANED_ORDER)}
-    data = sorted(data, key=lambda r: order.get(ts.canonical_method(r[0]), 99))
-    fig, ax = plt.subplots(figsize=(4.8, 3.6))
-    for r in data:
-        vals = [_f(v) for v in r[2:]]
-        ax.plot(scales, vals, marker="o", lw=1.7, ms=6,
-                label=ts.method_label(r[0]), color=ts.method_color(r[0]))
-    ax.set_xticks(scales)
-    ax.set_xlabel(r"neighbourhood size $n$ (pixels)")
-    ax.set_ylabel(r"FSS at $\geq 16$ mm/h $\uparrow$")
-    ax.set_title(r"Heavy-rain FSS ($\tau = 16$ mm/h) $\uparrow$")
-    ax.grid(True, alpha=0.3)
-    ax.legend(frameon=False, fontsize=9)
+    if mode is None:
+        print("[make_thesis_figures] skip fss (no fss_nbhd.csv / fss_p16.csv)")
+        return out
+    if mode == "kernel":
+        # FSS vs threshold, one panel per neighbourhood kernel.
+        thresholds = xs
+        kernels = nbio.kernels_present(records)
+        fig, axes = plt.subplots(1, len(kernels), figsize=(4.8 * len(kernels), 3.6),
+                                 squeeze=False)
+        for ci, kern in enumerate(kernels):
+            ax = axes[0][ci]
+            series = {r["method"]: [_f(v) for v in r["values"]]
+                      for r in records if r["kernel"] == kern}
+            for method, vals in sorted(
+                series.items(), key=lambda kv: order.get(ts.canonical_method(kv[0]), 99)
+            ):
+                ax.plot(thresholds, vals, marker="o", lw=1.7, ms=5,
+                        label=ts.method_label(method), color=ts.method_color(method))
+            ax.set_xscale("log")
+            ax.set_xlabel(r"rainfall threshold $\tau$ (mm/h)")
+            ax.set_ylabel(r"FSS $\uparrow$")
+            ax.set_title(rf"FSS vs. threshold — {nbio.kernel_pretty(kern)} $\uparrow$")
+            ax.grid(True, alpha=0.3)
+        axes[0][0].legend(frameon=False, fontsize=9)
+    else:  # legacy window schema: FSS@16 vs neighbourhood size
+        scales = xs
+        data = sorted(records, key=lambda r: order.get(ts.canonical_method(r["method"]), 99))
+        fig, ax = plt.subplots(figsize=(4.8, 3.6))
+        for r in data:
+            vals = [_f(v) for v in r["values"]]
+            ax.plot(scales, vals, marker="o", lw=1.7, ms=6,
+                    label=ts.method_label(r["method"]), color=ts.method_color(r["method"]))
+        ax.set_xticks(scales)
+        ax.set_xlabel(r"neighbourhood size $n$ (pixels)")
+        ax.set_ylabel(r"FSS at $\geq 16$ mm/h $\uparrow$")
+        ax.set_title(r"Heavy-rain FSS ($\tau = 16$ mm/h) $\uparrow$")
+        ax.grid(True, alpha=0.3)
+        ax.legend(frameon=False, fontsize=9)
     fig.tight_layout()
     fig.savefig(out, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -366,6 +467,7 @@ def main():
 
     produced = [
         fig_scoreboard(rr, figout / "scoreboard_3way.png"),
+        fig_time_per_seq(rr, figout / "time_per_seq.png"),
         fig_per_channel(rr, figout / "rmse_per_channel.png", "rmse_per_channel.csv", "rmse"),
         fig_per_channel(rr, figout / "crps_per_channel.png", "crps_per_channel.csv", "crps"),
         fig_csi_per_threshold(rr, figout / "csi_per_threshold.png"),
@@ -375,6 +477,7 @@ def main():
     nfe = fig_nfe(rr, figout / "nfe_pareto.png")
     if nfe is not None:
         produced.append(nfe)
+    produced = [p for p in produced if p is not None]  # drop skipped figures
     print(f"[make_thesis_figures] wrote {len(produced)} figures to {figout}")
     for p in produced:
         print("  ", p.name)

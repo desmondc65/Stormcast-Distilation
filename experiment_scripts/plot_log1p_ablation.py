@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+import _nbhd_io as nbio  # noqa: E402
+
 plt.rcParams.update(
     {
         "pgf.texsystem": "pdflatex",
@@ -185,6 +187,15 @@ def plot_crps_bar(root: Path) -> Path:
     return out
 
 
+def _pick_metric(df: pd.DataFrame, metric: str) -> pd.Series:
+    """One row for ``metric``; if the file carries a neighbourhood ``kernel``
+    column, take the headline (0.25 deg / ERA5) kernel."""
+    sub = df[df["metric"] == metric]
+    if "kernel" in df.columns:
+        sub = sub[sub["kernel"] == nbio.HEADLINE_KERNEL]
+    return sub.iloc[0]
+
+
 def plot_per_threshold(root: Path) -> Path:
     log1p = pd.read_csv(root / "log1p" / "per_threshold.csv")
     raw = pd.read_csv(root / "NO_log1p" / "per_threshold.csv")
@@ -202,7 +213,7 @@ def plot_per_threshold(root: Path) -> Path:
             (log1p, COLOR_LOG1P, LABEL_LOG1P),
             (raw, COLOR_RAW, LABEL_RAW),
         ]:
-            row = df[df["metric"] == metric].iloc[0]
+            row = _pick_metric(df, metric)
             y = np.array([row[t] for t in thresholds], dtype=float)
             ax.plot(
                 xnum,
@@ -231,17 +242,47 @@ def plot_per_threshold(root: Path) -> Path:
     return out
 
 
-def plot_fss(root: Path) -> Path:
-    log1p = pd.read_csv(root / "log1p" / "fss_p16.csv").iloc[0]
-    raw = pd.read_csv(root / "NO_log1p" / "fss_p16.csv").iloc[0]
-    scales = ["3", "7", "15"]
-    x = np.arange(len(scales))
-    w = 0.38
+def _load_fss(legdir: Path):
+    """Return ``(mode, series)`` for one leg.
 
+    New schema ``fss_nbhd.csv``: ``mode='kernel'``, series = FSS by threshold at
+    the headline kernel. Legacy ``fss_p16.csv``: ``mode='window'``, series = FSS
+    at p16 by neighbourhood half-width.
+    """
+    new = legdir / "fss_nbhd.csv"
+    old = legdir / "fss_p16.csv"
+    if new.exists():
+        df = pd.read_csv(new)
+        if "kernel" in df.columns:
+            df = df[df["kernel"] == nbio.HEADLINE_KERNEL]
+        return "kernel", df.iloc[0]
+    return "window", pd.read_csv(old).iloc[0]
+
+
+def plot_fss(root: Path) -> Path:
+    mode_l, log1p = _load_fss(root / "log1p")
+    mode_r, raw = _load_fss(root / "NO_log1p")
+
+    if mode_l == "kernel":
+        cols = ["0.1", "1.0", "5.0", "10.0", "16.0", "32.0"]
+        xlabels = [rf"$\geq{c}$" for c in cols]
+        xlabel = r"qpepre threshold [mm/h]"
+        ylabel = r"FSS $\uparrow$"
+        title = (r"Fractions Skill Score (qpepre, "
+                 + nbio.kernel_pretty(nbio.HEADLINE_KERNEL) + r" kernel)")
+    else:
+        cols = ["3", "7", "15"]
+        xlabels = [rf"${s}\!\times\!{s}$" for s in cols]
+        xlabel = r"neighborhood window (pixels)"
+        ylabel = r"FSS at p16 threshold $\uparrow$"
+        title = r"Fractions Skill Score (qpepre, p16)"
+
+    x = np.arange(len(cols))
+    w = 0.38
     fig, ax = plt.subplots(figsize=(6.0, 4.0))
     ax.bar(
         x - w / 2,
-        [log1p[s] for s in scales],
+        [float(log1p[c]) for c in cols],
         width=w,
         color=COLOR_LOG1P,
         label=LABEL_LOG1P,
@@ -250,7 +291,7 @@ def plot_fss(root: Path) -> Path:
     )
     ax.bar(
         x + w / 2,
-        [raw[s] for s in scales],
+        [float(raw[c]) for c in cols],
         width=w,
         color=COLOR_RAW,
         label=LABEL_RAW,
@@ -258,10 +299,10 @@ def plot_fss(root: Path) -> Path:
         linewidth=0.4,
     )
     ax.set_xticks(x)
-    ax.set_xticklabels([rf"${s}\!\times\!{s}$" for s in scales])
-    ax.set_xlabel(r"neighborhood window (pixels)")
-    ax.set_ylabel(r"FSS at p16 threshold $\uparrow$")
-    ax.set_title(r"Fractions Skill Score (qpepre, p16)")
+    ax.set_xticklabels(xlabels)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
     ax.legend()
     fig.tight_layout()
     out = root / "fss_p16.png"

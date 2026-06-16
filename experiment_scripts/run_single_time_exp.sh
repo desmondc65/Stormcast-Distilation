@@ -60,6 +60,9 @@ OUT_DIR="${OUT_DIR:-${REPO_ROOT}/experiment_scripts/results/single_time_exp}"
 mkdir -p "${OUT_DIR}"
 
 N_TIMES="${N_TIMES:-10}"
+# Space-separated explicit init-time indices appended after the evenly-spaced
+# set (e.g. a hand-picked heavy-rain case). Empty = none.
+EXTRA_T0="${EXTRA_T0:-}"
 LEAD_TIME="${LEAD_TIME:-1}"
 SEED="${SEED:-0}"
 DIFFUSION_NFE="${DIFFUSION_NFE:-18}"
@@ -138,6 +141,7 @@ python -u "${REPO_ROOT}/experiment_scripts/run_single_time_exp.py" \
     --valid-dates 2022/01/01 2022/12/31 \
     --output-dir "${OUT_DIR}" \
     --n-times "${N_TIMES}" \
+    ${EXTRA_T0:+--extra-t0 ${EXTRA_T0}} \
     --lead-time "${LEAD_TIME}" \
     --seed "${SEED}" \
     --diffusion-num-steps "${DIFFUSION_NFE}" \

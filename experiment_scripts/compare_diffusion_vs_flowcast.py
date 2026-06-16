@@ -113,9 +113,29 @@ REGRESSION_CONDITIONS = ["state", "background", "invariant"]
 PRECIP_THRESHOLDS = [0.1, 1.0, 5.0, 10.0, 16.0, 32.0]
 P16_THRESHOLD = 16.0
 
-# FSS pooling half-widths (cells). Cleaned grid spacing ~2 km, so 3/7/15 cells
-# corresponds to roughly 12/30/62 km neighbourhood diameters.
+# FSS pooling half-widths (cells) — legacy default, kept for the FlowCast NFE
+# sweep (flowcast_nfe_sweep.py) that imports this symbol. The main experiment
+# now scores at the two physically-anchored neighbourhood kernels below.
 FSS_WINDOWS_PIX = [3, 7, 15]
+
+# Neighbourhood kernels for ALL spatial precip skill scores (CSI/POD/FAR/HSS +
+# FSS). Both the cleaned 192x96 and legacy 224x128 grids sit on the same ~2 km
+# isotropic RWRF mesh (dy~1.997 km / 0.01794 deg lat, dx~2.008 km / 0.01969 deg
+# lon per pixel), so the kernels are the same number of *pixels* on both grids:
+#     5x5  px  (half-width w=2) ~= 10 km x 10 km   (9.99 x 10.04 km)
+#    13x13 px  (half-width w=6) ~= 0.25 deg ERA5 box (~25.6 x 26.1 km, ~0.25 deg)
+# CSI/POD/FAR/HSS use NEIGHBOURHOOD-MAXIMUM pooling: a cell counts as an "event"
+# if ANY pixel within the kernel exceeds the threshold (binary dilation of BOTH
+# the forecast and the observation before the contingency table). This relaxes
+# the single-pixel exact-match double penalty (Ebert 2008 fuzzy verification).
+# FSS uses the fractional-coverage (mean-kernel) definition of Roberts & Lean
+# (2008) at the same kernels. Tuple = (label, half-width w); side = 2w+1 px.
+NBHD_KERNELS = [
+    ("10km", 2),       # 5x5 px
+    ("0p25deg", 6),    # 13x13 px
+]
+# Pretty labels for scoreboard column headers.
+NBHD_PRETTY = {"10km": "10km", "0p25deg": "0.25°"}
 
 
 # --- Dataset wiring ---------------------------------------------------------
@@ -178,11 +198,56 @@ def _contingency(pred_pos: np.ndarray, ref_pos: np.ndarray):
     return tp, fp, fn, tn
 
 
-def categorical_scores(pred: np.ndarray, ref: np.ndarray, thresholds):
-    """Per-threshold CSI / FAR / POD / HSS over a stacked field."""
+def _box_count(field_bin: np.ndarray, w: int) -> np.ndarray:
+    """Windowed COUNT of positive cells over a (2w+1) square, zero-padded.
+
+    ``field_bin`` is treated as {0, 1} on its last two (spatial) dims. Returns
+    the number of positive pixels inside each centred window. O(N) via a
+    summed-area table — mirrors ``_box_pool`` but pads with zeros (not edge
+    replication) so events are never duplicated past the domain boundary.
+    """
+    arr = np.asarray(field_bin, dtype=np.float64)
+    if w <= 0:
+        return arr
+    win = 2 * w + 1
+    pad = w
+    arr = np.pad(
+        arr, [(0, 0)] * (arr.ndim - 2) + [(pad, pad), (pad, pad)],
+        mode="constant", constant_values=0.0,
+    )
+    cs = np.cumsum(np.cumsum(arr, axis=-1), axis=-2)
+    cs = np.pad(cs, [(0, 0)] * (cs.ndim - 2) + [(1, 0), (1, 0)], mode="constant")
+    H, W = field_bin.shape[-2], field_bin.shape[-1]
+    return (
+        cs[..., win : H + win, win : W + win]
+        - cs[..., :H, win : W + win]
+        - cs[..., win : H + win, :W]
+        + cs[..., :H, :W]
+    )
+
+
+def _neighborhood_hit(field_bin: np.ndarray, w: int) -> np.ndarray:
+    """Binary dilation: True where ANY pixel within the (2w+1) window is positive."""
+    if w <= 0:
+        return np.asarray(field_bin, dtype=bool)
+    return _box_count(field_bin, w) > 0.5
+
+
+def categorical_scores(pred: np.ndarray, ref: np.ndarray, thresholds, w: int = 0):
+    """Per-threshold CSI / FAR / POD / HSS over a stacked field.
+
+    When ``w > 0`` the binary exceedance fields are neighbourhood-maximum pooled
+    with a ``(2w+1)`` square kernel (binary dilation) before the contingency
+    table: a cell counts as an event if ANY pixel within the kernel exceeds the
+    threshold. This is the fuzzy/neighbourhood contingency table (Ebert 2008)
+    and relaxes the single-pixel exact-match double penalty. ``w == 0`` (the
+    default) is the original single-pixel table.
+    """
     out = {}
     for tau in thresholds:
-        tp, fp, fn, tn = _contingency(pred >= tau, ref >= tau)
+        p_pos = _neighborhood_hit(pred >= tau, w)
+        r_pos = _neighborhood_hit(ref >= tau, w)
+        tp, fp, fn, tn = _contingency(p_pos, r_pos)
         eps = 1e-12
         n = tp + fp + fn + tn
         csi = tp / (tp + fp + fn + eps)
@@ -405,12 +470,40 @@ def aggregate(preds_ens: np.ndarray, truth: np.ndarray, channels: list[str]) -> 
     # qpepre categorical / FSS on the ensemble mean.
     qp_pred = pred_mean[..., qp_idx, :, :].reshape(-1, H, W)
     qp_truth = truth[..., qp_idx, :, :].reshape(-1, H, W)
-    cat = categorical_scores(qp_pred, qp_truth, PRECIP_THRESHOLDS)
+
+    # Single-pixel contingency table (w=0). Retained for backward compatibility
+    # with flowcast_nfe_sweep.py, which reads csi_*/far_*/hss_* off this dict;
+    # the main-experiment scoreboard now reports the neighbourhood scores below.
+    cat = categorical_scores(qp_pred, qp_truth, PRECIP_THRESHOLDS, w=0)
     csi_per = np.array([cat[t]["csi"] for t in PRECIP_THRESHOLDS])
     far_per = np.array([cat[t]["far"] for t in PRECIP_THRESHOLDS])
     hss_per = np.array([cat[t]["hss"] for t in PRECIP_THRESHOLDS])
-
     fss_p16 = np.array([fss(qp_pred, qp_truth, P16_THRESHOLD, w) for w in FSS_WINDOWS_PIX])
+
+    # Neighbourhood skill at each anchored kernel (10 km / 0.25 deg). CSI/POD/
+    # FAR/HSS use neighbourhood-max pooling; FSS uses fractional coverage. The
+    # per-threshold vectors follow PRECIP_THRESHOLDS order.
+    nbhd: dict[str, dict] = {}
+    p16_i = PRECIP_THRESHOLDS.index(P16_THRESHOLD)
+    for label, kw in NBHD_KERNELS:
+        cat_k = categorical_scores(qp_pred, qp_truth, PRECIP_THRESHOLDS, w=kw)
+        csi_k = np.array([cat_k[t]["csi"] for t in PRECIP_THRESHOLDS])
+        far_k = np.array([cat_k[t]["far"] for t in PRECIP_THRESHOLDS])
+        pod_k = np.array([cat_k[t]["pod"] for t in PRECIP_THRESHOLDS])
+        hss_k = np.array([cat_k[t]["hss"] for t in PRECIP_THRESHOLDS])
+        fss_k = np.array([fss(qp_pred, qp_truth, t, kw) for t in PRECIP_THRESHOLDS])
+        nbhd[label] = {
+            "w": kw,
+            "csi_per": csi_k, "far_per": far_k, "pod_per": pod_k,
+            "hss_per": hss_k, "fss_per": fss_k,
+            "csi_mean": float(np.nanmean(csi_k)),
+            "far_mean": float(np.nanmean(far_k)),
+            "pod_mean": float(np.nanmean(pod_k)),
+            "hss_mean": float(np.nanmean(hss_k)),
+            "fss_mean": float(np.nanmean(fss_k)),
+            "csi_p16": float(csi_k[p16_i]),
+            "fss_p16": float(fss_k[p16_i]),
+        }
 
     # Per-channel kernel CRPS over (S*T, H, W).
     crps_per_channel = np.zeros(C, dtype=np.float64)
@@ -434,6 +527,8 @@ def aggregate(preds_ens: np.ndarray, truth: np.ndarray, channels: list[str]) -> 
         "hss_mean": float(np.nanmean(hss_per)),
         "far_per": far_per,
         "far_mean": float(np.nanmean(far_per)),
+        # Neighbourhood scores keyed by kernel label ("10km", "0p25deg").
+        "nbhd": nbhd,
     }
 
 
@@ -444,29 +539,26 @@ def write_scoreboard(
     time_per_seq_mean: dict,
     out_path_md: Path,
 ):
-    headers = [
-        "method",
-        "Time/Seq.(s)",
-        "CRPS↓",
-        "CSI-M↑",
-        "CSI-P16↑",
-        "FSS-P16-M↑",
-        "HSS-M↑",
-        "FAR-M↓",
-    ]
+    # CSI/HSS/FAR/FSS are reported per neighbourhood kernel (neighbourhood-max
+    # contingency table; FSS = fractional coverage). CSI-M/HSS-M/FAR-M are means
+    # over PRECIP_THRESHOLDS; FSS-P16 is the fractions skill at 16 mm/h. The
+    # single-pixel columns are intentionally dropped (see NBHD_KERNELS).
+    headers = ["method", "Time/Seq.(s)", "CRPS↓"]
+    for label, _w in NBHD_KERNELS:
+        k = NBHD_PRETTY.get(label, label)
+        headers += [f"CSI-M@{k}↑", f"HSS-M@{k}↑", f"FAR-M@{k}↓", f"FSS-P16@{k}↑"]
     headers += [f"RMSE_{ch}↓" for ch in channels]
     rows = []
     for m, met in metrics_by_method.items():
-        row = [
-            m,
-            f"{time_per_seq_mean[m]:.3f}",
-            f"{met['crps_mean']:.4f}",
-            f"{met['csi_mean']:.4f}",
-            f"{met['csi_p16']:.4f}",
-            f"{met['fss_p16_mean']:.4f}",
-            f"{met['hss_mean']:.4f}",
-            f"{met['far_mean']:.4f}",
-        ]
+        row = [m, f"{time_per_seq_mean[m]:.3f}", f"{met['crps_mean']:.4f}"]
+        for label, _w in NBHD_KERNELS:
+            nb = met["nbhd"][label]
+            row += [
+                f"{nb['csi_mean']:.4f}",
+                f"{nb['hss_mean']:.4f}",
+                f"{nb['far_mean']:.4f}",
+                f"{nb['fss_p16']:.4f}",
+            ]
         row += [f"{v:.4f}" for v in met["rmse_per_channel"]]
         rows.append(row)
 
@@ -962,21 +1054,29 @@ def main():
             steps_to_plot=panel_steps,
         )
 
-    # Per-threshold detail dump (for plotting later).
+    # Per-threshold, per-kernel detail dump. One row per (method, kernel,
+    # metric); columns are the qpepre thresholds (mm/h). CSI/POD/FAR/HSS are the
+    # neighbourhood-max contingency scores; fss is the fractional-coverage skill
+    # at that kernel. Kernels: 10km (5x5 px), 0p25deg (13x13 px).
     with open(args.output_dir / "per_threshold.csv", "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["method", "metric", *PRECIP_THRESHOLDS])
+        wtr = csv.writer(f)
+        wtr.writerow(["method", "kernel", "metric", *PRECIP_THRESHOLDS])
         for m, met in metrics.items():
-            w.writerow([m, "csi", *[f"{v:.6f}" for v in met["csi_per"]]])
-            w.writerow([m, "far", *[f"{v:.6f}" for v in met["far_per"]]])
-            w.writerow([m, "hss", *[f"{v:.6f}" for v in met["hss_per"]]])
+            for label, _w in NBHD_KERNELS:
+                nb = met["nbhd"][label]
+                for key in ("csi", "far", "pod", "hss", "fss"):
+                    wtr.writerow(
+                        [m, label, key, *[f"{v:.6f}" for v in nb[f"{key}_per"]]]
+                    )
 
-    with open(args.output_dir / "fss_p16.csv", "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["method", "metric", *FSS_WINDOWS_PIX])
+    # Fractions Skill Score at each kernel, per threshold (convenience extract).
+    with open(args.output_dir / "fss_nbhd.csv", "w", newline="") as f:
+        wtr = csv.writer(f)
+        wtr.writerow(["method", "kernel", *PRECIP_THRESHOLDS])
         for m, met in metrics.items():
-            w.writerow([m, f"fss_p{int(P16_THRESHOLD)}",
-                        *[f"{v:.6f}" for v in met["fss_p16_per"]]])
+            for label, _w in NBHD_KERNELS:
+                nb = met["nbhd"][label]
+                wtr.writerow([m, label, *[f"{v:.6f}" for v in nb["fss_per"]]])
 
     with open(args.output_dir / "rmse_per_channel.csv", "w", newline="") as f:
         w = csv.writer(f)

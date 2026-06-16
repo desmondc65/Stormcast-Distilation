@@ -18,6 +18,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+import _nbhd_io as nbio
+
 ROOT = Path(__file__).resolve().parent / "results" / "main_experiment"
 OUT = ROOT / "figures"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -25,12 +27,15 @@ OUT.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 # Metric direction registry: True = higher is better (↑), False = lower (↓)
 # ---------------------------------------------------------------------------
+# Keyed by BASE metric name; the "@<kernel>" suffix is stripped before lookup
+# (see nbio.base_metric), so "CSI-M@10km" and "CSI-M@0.25°" both resolve here.
 HIGHER_BETTER = {
     "Time/Seq.(s)": False,
     "CRPS": False,
     "CSI-M": True,
     "CSI-P16": True,
     "FSS-P16-M": True,
+    "FSS-P16": True,
     "HSS-M": True,
     "FAR-M": False,
     "RMSE_u10": False,
@@ -40,6 +45,8 @@ HIGHER_BETTER = {
     "csi": True,
     "far": False,
     "hss": True,
+    "pod": True,
+    "fss": True,
     "fss_p16": True,
     "u10": False,  # context: per-channel RMSE/CRPS — both lower-better
     "v10": False,
@@ -49,15 +56,17 @@ HIGHER_BETTER = {
 
 
 def arrow_tex(metric: str) -> str:
-    if metric not in HIGHER_BETTER:
+    b = nbio.base_metric(metric)
+    if b not in HIGHER_BETTER:
         return ""
-    return r"$\uparrow$" if HIGHER_BETTER[metric] else r"$\downarrow$"
+    return r"$\uparrow$" if HIGHER_BETTER[b] else r"$\downarrow$"
 
 
 def arrow_plain(metric: str) -> str:
-    if metric not in HIGHER_BETTER:
+    b = nbio.base_metric(metric)
+    if b not in HIGHER_BETTER:
         return ""
-    return r"$\uparrow$" if HIGHER_BETTER[metric] else r"$\downarrow$"
+    return r"$\uparrow$" if HIGHER_BETTER[b] else r"$\downarrow$"
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +155,9 @@ def load_3way():
 # CSV, just not shown in this figure). Per user, FAR/HSS/FSS/CSI-P16 are noisy
 # at the heavy-rain tail given the current sample size — keep CRPS, CSI-M, and
 # the four RMSE columns for the headline read.
-DROPPED_3WAY_METRICS = {"CSI-P16", "FSS-P16-M", "HSS-M", "FAR-M"}
+# Compared by BASE metric name (kernel suffix stripped), so e.g. "HSS-M@10km"
+# and "HSS-M@0.25°" are both dropped. CSI-M (per kernel) + CRPS + RMSE are kept.
+DROPPED_3WAY_METRICS = {"CSI-P16", "FSS-P16-M", "FSS-P16", "HSS-M", "FAR-M"}
 
 
 def parse_run_config(log_path: Path) -> dict:
@@ -173,7 +184,7 @@ def render_3way_table():
     clean_metrics_all = [m.replace("↓", "").replace("↑", "").strip()
                          for m in metric_cols_raw]
     keep_idx = [i for i, m in enumerate(clean_metrics_all)
-                if m not in DROPPED_3WAY_METRICS]
+                if nbio.base_metric(m) not in DROPPED_3WAY_METRICS]
     clean_metrics = [clean_metrics_all[i] for i in keep_idx]
 
     body_cols = ["l"] + ["c"] * len(clean_metrics)
@@ -190,7 +201,7 @@ def render_3way_table():
     for j, m in enumerate(clean_metrics):
         orig_idx = keep_idx[j]
         col_vals = [r[orig_idx + 1] for r in data]
-        winners.append(best_idx(col_vals, HIGHER_BETTER.get(m, False)))
+        winners.append(best_idx(col_vals, HIGHER_BETTER.get(nbio.base_metric(m), False)))
 
     lines = []
     for i, row in enumerate(data):
@@ -239,52 +250,63 @@ def render_3way_table():
 
 
 def render_per_threshold(leg: str):
-    rows = read_csv(ROOT / leg / "per_threshold.csv")
-    header, *data = rows
-    thresholds = header[2:]
+    """One LaTeX table per neighbourhood kernel. The headline kernel keeps the
+    canonical ``{leg}_per_threshold_table`` name (stable for the thesis); other
+    kernels get a ``_{kernel}`` suffix. Returns the list of PNG paths.
+    """
+    thresholds, records = nbio.read_per_threshold(ROOT / leg / "per_threshold.csv")
     n_cols = len(thresholds)
+    kernels = nbio.kernels_present(records)
+    head = nbio.HEADLINE_KERNEL if nbio.HEADLINE_KERNEL in kernels else kernels[0]
 
     head_cells = [r"\textbf{Method}", r"\textbf{Metric}"]
     for t in thresholds:
         head_cells.append(rf"$\geq {t}$ mm/h")
 
-    # For best-row markup: group by metric, bold winner across method rows for each threshold col
-    # data rows: [method, metric, v1, v2, ...]
-    # group by metric
-    by_metric = {}
-    for r in data:
-        by_metric.setdefault(r[1], []).append(r)
-
-    lines = []
-    for metric, rs in by_metric.items():
-        higher = HIGHER_BETTER.get(metric, True)
-        # winners per threshold column
-        winners = []
-        for k in range(n_cols):
-            col = [r[2 + k] for r in rs]
-            winners.append(best_idx(col, higher))
-        for i, r in enumerate(rs):
-            cells = [display_method(r[0], leg=leg), rf"{metric} {arrow_tex(metric)}".strip()]
+    out_paths = []
+    for kern in kernels:
+        recs = [r for r in records if r["kernel"] == kern]
+        # Group by metric; bold the winner across method rows per threshold col.
+        by_metric: dict[str, list] = {}
+        for r in recs:
+            by_metric.setdefault(r["metric"], []).append(r)
+        lines = []
+        for metric, rs in by_metric.items():
+            higher = HIGHER_BETTER.get(nbio.base_metric(metric), True)
+            winners = []
             for k in range(n_cols):
-                txt = fmt(r[2 + k], 4)
-                if winners[k] == i:
-                    txt = rf"\textbf{{{txt}}}"
-                cells.append(txt)
-            lines.append(" & ".join(cells) + r" \\")
-        lines.append(r"\midrule")
-    if lines and lines[-1] == r"\midrule":
-        lines.pop()  # don't end with a midrule
+                col = [r["values"][k] for r in rs]
+                winners.append(best_idx(col, higher))
+            for i, r in enumerate(rs):
+                cells = [display_method(r["method"], leg=leg),
+                         rf"{metric} {arrow_tex(metric)}".strip()]
+                for k in range(n_cols):
+                    txt = fmt(r["values"][k], 4)
+                    if winners[k] == i:
+                        txt = rf"\textbf{{{txt}}}"
+                    cells.append(txt)
+                lines.append(" & ".join(cells) + r" \\")
+            lines.append(r"\midrule")
+        if lines and lines[-1] == r"\midrule":
+            lines.pop()  # don't end with a midrule
 
-    body = (
-        rf"\begin{{tabular}}{{ll{'c' * n_cols}}}" + "\n"
-        r"\toprule" + "\n"
-        + " & ".join(head_cells) + r" \\" + "\n"
-        + r"\midrule" + "\n"
-        + "\n".join(lines) + "\n"
-        + r"\bottomrule" + "\n"
-        + r"\end{tabular}"
-    )
-    return compile_tex(f"{leg}_per_threshold_table", body)
+        caption = ""
+        if kern is not None:
+            caption = (rf"\multicolumn{{{n_cols + 2}}}{{c}}{{\textbf{{Neighbourhood "
+                       rf"kernel: {nbio.kernel_pretty(kern)}}}}} \\" + "\n" + r"\midrule" + "\n")
+        body = (
+            rf"\begin{{tabular}}{{ll{'c' * n_cols}}}" + "\n"
+            r"\toprule" + "\n"
+            + caption
+            + " & ".join(head_cells) + r" \\" + "\n"
+            + r"\midrule" + "\n"
+            + "\n".join(lines) + "\n"
+            + r"\bottomrule" + "\n"
+            + r"\end{tabular}"
+        )
+        suffix = "" if kern == head else f"_{kern}"
+        out_paths.append(compile_tex(f"{leg}_per_threshold_table{suffix}", body))
+    return out_paths
 
 
 def render_per_channel_csv(leg: str, fname: str, kind: str):
@@ -328,29 +350,65 @@ def render_per_channel_csv(leg: str, fname: str, kind: str):
 
 
 def render_fss(leg: str):
-    rows = read_csv(ROOT / leg / "fss_p16.csv")
-    header, *data = rows
-    scales = header[2:]
+    """FSS tables. New schema (fss_nbhd.csv): one table per kernel, FSS by
+    threshold. Legacy schema (fss_p16.csv): FSS@16 by neighbourhood size.
+    Returns the list of PNG paths.
+    """
+    mode, xs, records = nbio.read_fss(ROOT / leg)
+    if mode is None:
+        return []
+    out_paths = []
+    if mode == "kernel":
+        thresholds = xs
+        n = len(thresholds)
+        kernels = nbio.kernels_present(records)
+        head = nbio.HEADLINE_KERNEL if nbio.HEADLINE_KERNEL in kernels else kernels[0]
+        head_cells = [r"\textbf{Method}"] + [rf"$\geq {t}$ mm/h" for t in thresholds]
+        for kern in kernels:
+            recs = [r for r in records if r["kernel"] == kern]
+            winners = [best_idx([r["values"][k] for r in recs], higher_better=True)
+                       for k in range(n)]
+            lines = []
+            for i, r in enumerate(recs):
+                cells = [display_method(r["method"], leg=leg)]
+                for k in range(n):
+                    txt = fmt(r["values"][k], 4)
+                    if winners[k] == i:
+                        txt = rf"\textbf{{{txt}}}"
+                    cells.append(txt)
+                lines.append(" & ".join(cells) + r" \\")
+            body = (
+                rf"\begin{{tabular}}{{l{'c' * n}}}" + "\n"
+                r"\toprule" + "\n"
+                + rf"\multicolumn{{{n + 1}}}{{c}}{{\textbf{{FSS by threshold — "
+                  rf"{nbio.kernel_pretty(kern)} kernel}} $\uparrow$}} \\" + "\n"
+                + r"\midrule" + "\n"
+                + " & ".join(head_cells) + r" \\" + "\n"
+                + r"\midrule" + "\n"
+                + "\n".join(lines) + "\n"
+                + r"\bottomrule" + "\n"
+                + r"\end{tabular}"
+            )
+            suffix = "" if kern == head else f"_{kern}"
+            out_paths.append(compile_tex(f"{leg}_fss_p16_table{suffix}", body))
+        return out_paths
+
+    # legacy window schema: FSS at >=16 mm/h vs neighbourhood half-width.
+    scales = xs
     n = len(scales)
-    head_cells = [r"\textbf{Method}", r"\textbf{Metric}"]
-    for s in scales:
-        head_cells.append(rf"$n={s}$")
-
-    winners = []
-    for k in range(n):
-        winners.append(best_idx([r[2 + k] for r in data], higher_better=True))
-
+    head_cells = [r"\textbf{Method}", r"\textbf{Metric}"] + [rf"$n={s}$" for s in scales]
+    winners = [best_idx([r["values"][k] for r in records], higher_better=True)
+               for k in range(n)]
     lines = []
-    for i, r in enumerate(data):
-        metric_label = r[1].replace("_", r"\_")
-        cells = [display_method(r[0], leg=leg), rf"{metric_label} $\uparrow$"]
+    for i, r in enumerate(records):
+        metric_label = r["metric"].replace("_", r"\_")
+        cells = [display_method(r["method"], leg=leg), rf"{metric_label} $\uparrow$"]
         for k in range(n):
-            txt = fmt(r[2 + k], 4)
+            txt = fmt(r["values"][k], 4)
             if winners[k] == i:
                 txt = rf"\textbf{{{txt}}}"
             cells.append(txt)
         lines.append(" & ".join(cells) + r" \\")
-
     body = (
         rf"\begin{{tabular}}{{ll{'c' * n}}}" + "\n"
         r"\toprule" + "\n"
@@ -362,7 +420,8 @@ def render_fss(leg: str):
         + r"\bottomrule" + "\n"
         + r"\end{tabular}"
     )
-    return compile_tex(f"{leg}_fss_p16_table", body)
+    out_paths.append(compile_tex(f"{leg}_fss_p16_table", body))
+    return out_paths
 
 
 # ---------------------------------------------------------------------------
@@ -447,7 +506,7 @@ def plot_3way_bars():
     axes = axes.flatten()
     for j, m in enumerate(metric_cols):
         ax = axes[j]
-        higher = HIGHER_BETTER.get(m, False)
+        higher = HIGHER_BETTER.get(nbio.base_metric(m), False)
         bars = ax.bar(
             methods,
             values[:, j],
@@ -476,35 +535,35 @@ def plot_3way_bars():
 
 
 def plot_per_threshold_curves(leg: str):
-    rows = read_csv(ROOT / leg / "per_threshold.csv")
-    header, *data = rows
-    thresholds = [float(t) for t in header[2:]]
-    by_metric = {}
-    for r in data:
-        by_metric.setdefault(r[1], {})[display_method(r[0], leg=leg)] = [
-            float(v) if v not in ("nan", "") else np.nan for v in r[2:]
-        ]
+    thresholds, records = nbio.read_per_threshold(ROOT / leg / "per_threshold.csv")
+    kernels = nbio.kernels_present(records)
+    metrics = [m for m in ("csi", "far", "hss") if any(r["metric"] == m for r in records)]
 
-    metrics = list(by_metric)
-    fig, axes = plt.subplots(1, len(metrics), figsize=(4.2 * len(metrics), 3.8), sharex=True)
-    if len(metrics) == 1:
-        axes = [axes]
-    for ax, metric in zip(axes, metrics):
-        higher = HIGHER_BETTER.get(metric, True)
-        arrow = r"$\uparrow$" if higher else r"$\downarrow$"
-        for method, vals in by_metric[metric].items():
-            ax.plot(
-                thresholds, vals, marker="o", lw=1.6,
-                label=method, color=METHOD_COLORS.get(method, None),
-            )
-        ax.set_xscale("log")
-        ax.set_xlabel("threshold (mm/h)")
-        ax.set_ylabel(f"{metric} {arrow}")
-        ax.set_title(f"{metric.upper()} vs threshold {arrow}")
-        ax.grid(True, alpha=0.3)
-        ax.legend(frameon=False)
+    # Rows = neighbourhood kernels, cols = CSI / FAR / HSS.
+    nrows, ncols = len(kernels), len(metrics)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.2 * ncols, 3.6 * nrows),
+                             squeeze=False, sharex=True)
+    for ri, kern in enumerate(kernels):
+        for ci, metric in enumerate(metrics):
+            ax = axes[ri][ci]
+            higher = HIGHER_BETTER.get(nbio.base_metric(metric), True)
+            arrow = r"$\uparrow$" if higher else r"$\downarrow$"
+            for r in records:
+                if r["metric"] != metric or r["kernel"] != kern:
+                    continue
+                method = display_method(r["method"], leg=leg)
+                vals = [float(v) if v not in ("nan", "") else np.nan for v in r["values"]]
+                ax.plot(thresholds, vals, marker="o", lw=1.6,
+                        label=method, color=METHOD_COLORS.get(method, None))
+            ax.set_xscale("log")
+            ax.set_xlabel("threshold (mm/h)")
+            ax.set_ylabel(f"{metric} {arrow}")
+            ktag = f" — {nbio.kernel_pretty(kern)}" if kern is not None else ""
+            ax.set_title(f"{metric.upper()} vs threshold {arrow}{ktag}")
+            ax.grid(True, alpha=0.3)
+            ax.legend(frameon=False)
     fig.suptitle(f"Per-threshold precip skill ({leg})", fontsize=12)
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
     out = OUT / f"{leg}_per_threshold_plot.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -618,21 +677,45 @@ def plot_rmse_per_step_3way():
 
 
 def plot_fss(leg: str):
-    rows = read_csv(ROOT / leg / "fss_p16.csv")
-    header, *data = rows
-    scales = [int(s) for s in header[2:]]
-    fig, ax = plt.subplots(figsize=(4.6, 3.4))
-    for r in data:
-        method = display_method(r[0], leg=leg)
-        vals = [float(v) for v in r[2:]]
-        ax.plot(scales, vals, marker="o", lw=1.6, label=method,
-                color=METHOD_COLORS.get(method, None))
-    ax.set_xlabel("neighborhood size $n$ (pixels)")
-    ax.set_ylabel(r"FSS at $\geq 16$ mm/h $\uparrow$")
-    ax.set_title(r"FSS sweep ($\geq 16$ mm/h) " + f"({leg}) $\\uparrow$")
-    ax.grid(True, alpha=0.3)
-    ax.legend(frameon=False)
-    fig.tight_layout()
+    mode, xs, records = nbio.read_fss(ROOT / leg)
+    if mode is None:
+        return None
+    if mode == "kernel":
+        # FSS vs threshold, one panel per neighbourhood kernel.
+        thresholds = xs
+        kernels = nbio.kernels_present(records)
+        fig, axes = plt.subplots(1, len(kernels), figsize=(4.6 * len(kernels), 3.4),
+                                 squeeze=False)
+        for ci, kern in enumerate(kernels):
+            ax = axes[0][ci]
+            for r in records:
+                if r["kernel"] != kern:
+                    continue
+                method = display_method(r["method"], leg=leg)
+                vals = [float(v) if v not in ("nan", "") else np.nan for v in r["values"]]
+                ax.plot(thresholds, vals, marker="o", lw=1.6, label=method,
+                        color=METHOD_COLORS.get(method, None))
+            ax.set_xscale("log")
+            ax.set_xlabel("threshold (mm/h)")
+            ax.set_ylabel(r"FSS $\uparrow$")
+            ax.set_title(rf"FSS vs threshold — {nbio.kernel_pretty(kern)} ({leg}) $\uparrow$")
+            ax.grid(True, alpha=0.3)
+            ax.legend(frameon=False)
+        fig.tight_layout()
+    else:  # legacy window schema
+        scales = xs
+        fig, ax = plt.subplots(figsize=(4.6, 3.4))
+        for r in records:
+            method = display_method(r["method"], leg=leg)
+            vals = [float(v) for v in r["values"]]
+            ax.plot(scales, vals, marker="o", lw=1.6, label=method,
+                    color=METHOD_COLORS.get(method, None))
+        ax.set_xlabel("neighborhood size $n$ (pixels)")
+        ax.set_ylabel(r"FSS at $\geq 16$ mm/h $\uparrow$")
+        ax.set_title(r"FSS sweep ($\geq 16$ mm/h) " + f"({leg}) $\\uparrow$")
+        ax.grid(True, alpha=0.3)
+        ax.legend(frameon=False)
+        fig.tight_layout()
     out = OUT / f"{leg}_fss_p16_plot.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -644,22 +727,31 @@ def plot_fss(leg: str):
 # ---------------------------------------------------------------------------
 
 def main():
-    produced = []
-    produced.append(render_3way_table())
-    produced.append(plot_3way_bars())
-    p = plot_rmse_per_step_3way()
-    if p is not None:
-        produced.append(p)
+    produced: list = []
+
+    def add(x):
+        # render_per_threshold / render_fss now return a list (one entry per
+        # neighbourhood kernel); plot_fss may return None when no FSS CSV exists.
+        if x is None:
+            return
+        if isinstance(x, (list, tuple)):
+            produced.extend(p for p in x if p is not None)
+        else:
+            produced.append(x)
+
+    add(render_3way_table())
+    add(plot_3way_bars())
+    add(plot_rmse_per_step_3way())
 
     for leg in ("legacy", "cleaned_2M"):
-        produced.append(render_per_threshold(leg))
-        produced.append(render_per_channel_csv(leg, "rmse_per_channel.csv", "rmse"))
-        produced.append(render_per_channel_csv(leg, "crps_per_channel.csv", "crps"))
-        produced.append(render_fss(leg))
-        produced.append(plot_per_threshold_curves(leg))
-        produced.append(plot_per_channel_grouped(leg, "rmse_per_channel.csv", "rmse"))
-        produced.append(plot_per_channel_grouped(leg, "crps_per_channel.csv", "crps"))
-        produced.append(plot_fss(leg))
+        add(render_per_threshold(leg))
+        add(render_per_channel_csv(leg, "rmse_per_channel.csv", "rmse"))
+        add(render_per_channel_csv(leg, "crps_per_channel.csv", "crps"))
+        add(render_fss(leg))
+        add(plot_per_threshold_curves(leg))
+        add(plot_per_channel_grouped(leg, "rmse_per_channel.csv", "rmse"))
+        add(plot_per_channel_grouped(leg, "crps_per_channel.csv", "crps"))
+        add(plot_fss(leg))
 
     print(f"Wrote {len(produced)} figures to {OUT}")
     for p in produced:

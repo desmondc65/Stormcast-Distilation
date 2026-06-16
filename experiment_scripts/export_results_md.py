@@ -24,6 +24,7 @@ import csv
 from pathlib import Path
 
 import thesis_style as ts
+import _nbhd_io as nbio
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS = REPO_ROOT / "experiment_scripts" / "results"
@@ -93,20 +94,35 @@ def sec_per_channel(leg="cleaned_2M") -> str:
 
 
 def sec_per_threshold(leg="cleaned_2M") -> str:
-    header, data = read_csv(RESULTS / "main_experiment" / leg / "per_threshold.csv")
-    if header is None:
+    path = RESULTS / "main_experiment" / leg / "per_threshold.csv"
+    if not path.exists():
         return missing(f"main_experiment/{leg}/per_threshold.csv", "run_main_experiment.sh")
-    head = ["Method", "Metric"] + [f">={t} mm/h" for t in header[2:]]
-    rows = [[label(r[0]), r[1]] + [fnum(v) for v in r[2:]] for r in data]
+    thresholds, records = nbio.read_per_threshold(path)
+    kerneled = any(r["kernel"] is not None for r in records)
+    if kerneled:
+        head = ["Method", "Kernel", "Metric"] + [f">={t} mm/h" for t in thresholds]
+        rows = [[label(r["method"]), nbio.kernel_pretty(r["kernel"]), r["metric"]]
+                + [fnum(v) for v in r["values"]] for r in records]
+    else:
+        head = ["Method", "Metric"] + [f">={t} mm/h" for t in thresholds]
+        rows = [[label(r["method"]), r["metric"]] + [fnum(v) for v in r["values"]]
+                for r in records]
     return md_table(head, rows)
 
 
 def sec_fss(leg="cleaned_2M") -> str:
-    header, data = read_csv(RESULTS / "main_experiment" / leg / "fss_p16.csv")
-    if header is None:
-        return missing(f"main_experiment/{leg}/fss_p16.csv", "run_main_experiment.sh")
-    head = ["Method", "Metric"] + [f"n={s}" for s in header[2:]]
-    rows = [[label(r[0]), r[1]] + [fnum(v) for v in r[2:]] for r in data]
+    legdir = RESULTS / "main_experiment" / leg
+    mode, xs, records = nbio.read_fss(legdir)
+    if mode is None:
+        return missing(f"main_experiment/{leg}/fss_nbhd.csv", "run_main_experiment.sh")
+    if mode == "kernel":
+        head = ["Method", "Kernel"] + [f">={t} mm/h" for t in xs]
+        rows = [[label(r["method"]), nbio.kernel_pretty(r["kernel"])]
+                + [fnum(v) for v in r["values"]] for r in records]
+    else:  # legacy window schema (neighbourhood half-widths)
+        head = ["Method", "Metric"] + [f"n={s}" for s in xs]
+        rows = [[label(r["method"]), r["metric"]] + [fnum(v) for v in r["values"]]
+                for r in records]
     return md_table(head, rows)
 
 
@@ -190,10 +206,17 @@ def build(out: Path):
         "Source: `results/main_experiment/cleaned_2M/{rmse,crps}_per_channel.csv`.")
     add("3. Precipitation skill by threshold (cleaned, ~2M)", sec_per_threshold(),
         "Source: `results/main_experiment/cleaned_2M/per_threshold.csv`. "
-        "CSI/HSS higher better; FAR lower better.")
+        "CSI/POD/HSS higher better; FAR lower better. Scored at two neighbourhood "
+        "kernels on the ~2 km grid: **10 km** (5x5 px) and **0.25 deg** (13x13 px, "
+        "ERA5 scale). CSI/POD/FAR/HSS use neighbourhood-max pooling (an event "
+        "counts if any pixel within the kernel exceeds the threshold); FSS uses "
+        "fractional coverage. Single-pixel exact-match is no longer reported "
+        "(it collapses to ~0 at heavy-rain thresholds — the double-penalty "
+        "artifact the neighbourhood scoring removes).")
     add("4. Heavy-rain FSS at >=16 mm/h (cleaned, ~2M)", sec_fss(),
-        "Source: `results/main_experiment/cleaned_2M/fss_p16.csv`. Neighbourhood "
-        "half-width n in pixels (~2 km/cell).")
+        "Source: `results/main_experiment/cleaned_2M/fss_nbhd.csv`. Fractions "
+        "Skill Score (Roberts & Lean 2008) per threshold at each neighbourhood "
+        "kernel (10 km = 5x5 px, 0.25 deg = 13x13 px).")
     add("5. Autoregressive rollout RMSE vs. lead time", sec_rollout(),
         "Source: `results/main_experiment/rmse_per_step_3way.csv`.")
     add("6. Encoding ablation — log1p vs. raw mm/h (FlowCast)", sec_log1p(),

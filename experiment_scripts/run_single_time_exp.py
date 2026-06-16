@@ -329,6 +329,13 @@ def main():
     ap.add_argument("--output-dir", type=Path, required=True)
     ap.add_argument("--n-times", type=int, default=10,
                     help="Number of evenly-spaced initial times (one PNG each).")
+    ap.add_argument("--extra-t0", type=int, nargs="*", default=None,
+                    help="Explicit init-time indices APPENDED after the evenly-"
+                         "spaced --n-times set (e.g. a hand-picked heavy-rain "
+                         "case). Each is numbered time_{N+k} in output order, so "
+                         "this extends an existing set without disturbing it. "
+                         "The plotted field is the +lead-time hour, so to feature "
+                         "a rainy target hour H pass --extra-t0 (H - lead).")
     ap.add_argument("--lead-time", type=int, default=1,
                     help="Forecast horizon (hours). Only the +lead-time field is plotted.")
     ap.add_argument("--seed", type=int, default=0)
@@ -384,6 +391,14 @@ def main():
         .astype(int)
         .tolist()
     )
+    if args.extra_t0:
+        hi = n_usable - args.lead_time - 1
+        extra = [int(t) for t in args.extra_t0 if 0 <= int(t) <= hi]
+        dropped = [int(t) for t in args.extra_t0 if not (0 <= int(t) <= hi)]
+        if dropped:
+            print(f"[seqs] WARN out-of-range --extra-t0 dropped: {dropped} (valid 0..{hi})")
+        t0_indices += extra
+        print(f"[seqs] appended {len(extra)} hand-picked t0(s): {extra}")
     print(
         f"[seqs] n_times={len(t0_indices)} lead={args.lead_time}h "
         f"first={t0_indices[0]} last={t0_indices[-1]}"
@@ -500,6 +515,9 @@ def main():
         f.write(f"valid_dates: {args.valid_dates}\n")
         f.write(f"lead_time: {args.lead_time} h\n")
         f.write(f"n_times: {args.n_times}\n")
+        if args.extra_t0:
+            f.write(f"extra_t0: {[int(t) for t in args.extra_t0]}\n")
+        f.write(f"total_panels: {len(t0_indices)}\n")
         f.write(f"seed: {args.seed}\n")
         f.write(f"t0_indices: {t0_indices}\n")
         f.write(f"diffusion: num_steps={args.diffusion_num_steps} solver={args.diffusion_solver}\n")

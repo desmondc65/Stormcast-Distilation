@@ -32,6 +32,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
+import _nbhd_io as nbio  # noqa: E402
+
 # qpepre CSI thresholds to surface in the table (mm/h).
 CSI_TAUS = [0.1, 1.0, 5.0, 10.0]
 
@@ -56,10 +58,18 @@ def _col(row: dict, name: str):
 def load_leg(dirpath: Path):
     sb = {r["method"]: r for r in _read_csv(dirpath / "scoreboard.csv")}
     crps = {r["method"]: r for r in _read_csv(dirpath / "crps_per_channel.csv")}
+    # per_threshold.csv may carry a `kernel` column (neighbourhood scoring). Keep
+    # the csi rows at the headline (0.25 deg / ERA5) kernel so each method maps to
+    # one row; legacy single-pixel files have no kernel column.
     csi = {}
-    for r in _read_csv(dirpath / "per_threshold.csv"):
-        if r.get("metric") == "csi":
-            csi[r["method"]] = r
+    pt_rows = _read_csv(dirpath / "per_threshold.csv")
+    has_kernel = bool(pt_rows) and "kernel" in pt_rows[0]
+    for r in pt_rows:
+        if r.get("metric") != "csi":
+            continue
+        if has_kernel and r.get("kernel") != nbio.HEADLINE_KERNEL:
+            continue
+        csi[r["method"]] = r
     return sb, crps, csi
 
 
@@ -68,7 +78,7 @@ def qpepre_row(method, label, grid, enc, sb, crps, csi):
 
     def thr(tau):
         for k, v in t.items():
-            if k in ("method", "metric"):
+            if k in ("method", "metric", "kernel"):
                 continue
             try:
                 if abs(float(k) - tau) < 1e-9:
@@ -77,6 +87,13 @@ def qpepre_row(method, label, grid, enc, sb, crps, csi):
                 pass
         return "nan"
 
+    # CSI-P16 column was dropped from the kerneled scoreboard — fall back to
+    # CSI@16 from the per-threshold csi row. FSS-P16 now lives in a per-kernel
+    # scoreboard column ("FSS-P16@0.25°"); fall back to the legacy "FSS-P16-M".
+    head_pretty = nbio.KERNEL_PRETTY.get(nbio.HEADLINE_KERNEL, nbio.HEADLINE_KERNEL)
+    csi_p16 = _col(s, "CSI-P16") or thr(16.0)
+    fss_p16 = _col(s, f"FSS-P16@{head_pretty}") or _col(s, "FSS-P16-M")
+
     return {
         "leg": label,
         "grid": grid,
@@ -84,8 +101,8 @@ def qpepre_row(method, label, grid, enc, sb, crps, csi):
         "RMSE_qpepre": _col(s, "RMSE_qpepre"),
         "CRPS_qpepre": c.get("qpepre"),
         **{f"CSI@{tau}": thr(tau) for tau in CSI_TAUS},
-        "CSI-P16": _col(s, "CSI-P16"),
-        "FSS-P16": _col(s, "FSS-P16-M"),
+        "CSI-P16": csi_p16,
+        "FSS-P16": fss_p16,
     }
 
 
