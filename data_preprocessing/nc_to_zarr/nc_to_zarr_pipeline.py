@@ -382,24 +382,29 @@ class NCToZarrPipeline:
             
         # exit(0)
 
-    def _resolve_era5_path(self, variable: str, dt: datetime) -> Optional[pathlib.Path]:
-        """Resolve the ERA5 file path for the given variable and datetime."""
+    def _resolve_era5_path_with_mode(self, variable: str, dt: datetime) -> Tuple[Optional[pathlib.Path], bool]:
+        """Resolve ERA5 path and whether the lookup used monthly fallback."""
         if not self._era5_index:
             self._build_era5_index()
         cache = self._era5_index.get(variable, {})
         if not cache:
             logger.warning("ERA5 variable %s not found in index", variable)
-            return None
-        for key in (
-            dt.strftime("%Y%m%d%H"),
-            dt.strftime("%Y%m%d") + str(dt.hour),
-            dt.strftime("%Y%m"),
+            return None, False
+        for key, is_monthly_fallback in (
+            (dt.strftime("%Y%m%d%H"), False),
+            (dt.strftime("%Y%m%d") + str(dt.hour), False),
+            (dt.strftime("%Y%m"), True),
         ):
             path = cache.get(key)
             if path is not None:
-                return path
+                return path, is_monthly_fallback
         logger.warning("No ERA5 file found for %s at %s", variable, dt)
-        return None
+        return None, False
+
+    def _resolve_era5_path(self, variable: str, dt: datetime) -> Optional[pathlib.Path]:
+        """Resolve the ERA5 file path for the given variable and datetime."""
+        path, _ = self._resolve_era5_path_with_mode(variable, dt)
+        return path
 
     # Cache and return latitude/longitude slice indices and coordinates for spatial subsetting within domain bounds.
     def _era5_slice(
@@ -433,7 +438,7 @@ class NCToZarrPipeline:
 
     def _process_era5_single(self, dt: datetime, variable: str) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Process a single ERA5 variable at the specified datetime."""
-        path = self._resolve_era5_path(variable, dt)
+        path, require_exact_time = self._resolve_era5_path_with_mode(variable, dt)
         if path is None or not path.exists(): # check existence in case index is stale
             logger.warning("ERA5 missing: %s %s", variable, dt)
             return None
@@ -454,7 +459,15 @@ class NCToZarrPipeline:
             lon_arr = np.asarray(lon_var[:])
             lat_slice, lon_slice, lat_sel, lon_sel = self._era5_slice(variable, lat_arr, lon_arr)
             time_var = ds.variables.get("time") or ds.variables.get("valid_time")
-            time_idx = _select_time_index(time_var, dt)
+            time_idx = _select_time_index(time_var, dt, require_exact=require_exact_time)
+            if time_idx is None:
+                logger.warning(
+                    "ERA5 exact timestamp %s not found in monthly fallback file %s for variable %s",
+                    dt,
+                    path,
+                    variable,
+                )
+                return None
             var_obj = ds.variables[nc_var]
             level_idx, level_dim = self._ensure_level_selection(ds, nc_var, variable)
             slices = [slice(None)] * var_obj.ndim
