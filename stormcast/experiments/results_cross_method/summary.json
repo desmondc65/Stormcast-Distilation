@@ -1,0 +1,170 @@
+{
+  "channels": [
+    "t2m",
+    "u10",
+    "v10",
+    "qpepre"
+  ],
+  "n_samples": 20,
+  "sample_indices": [
+    0,
+    432,
+    864,
+    1296,
+    1728,
+    2160,
+    2592,
+    3168,
+    3600,
+    4032,
+    4464,
+    4896,
+    5328,
+    5904,
+    6336,
+    6768,
+    7200,
+    7632,
+    8064,
+    8640
+  ],
+  "valid_dates": [
+    "2022/01/01",
+    "2022/12/31"
+  ],
+  "checkpoints": {
+    "regression": "/home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.14000.mdlus",
+    "teacher": "/home/desmond/Documents/master_thesis/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus",
+    "progressive": "/home/desmond/Documents/master_thesis/Stormcast-Distilation/zettabyte_results/progressive/progressive_ncdr/run_0/phase_2/checkpoints/EDMPrecond.0.32500.mdlus",
+    "consistency": "/home/desmond/Documents/master_thesis/Stormcast-Distilation/zettabyte_results/consistency/consistency/consistency_ncdr/run_0/checkpoints_consistency/ConsistencyPrecond.0.37500.mdlus",
+    "flowcast": "/home/desmond/Documents/master_thesis/Stormcast-Distilation/zettabyte_results/flowcast/flowcast_ncdr/run_0/checkpoints_flowcast/FlowCastPrecond.0.37500.mdlus"
+  },
+  "e1_native_nfe": {
+    "teacher_N18": 18,
+    "progressive_N2": 2,
+    "consistency_N1": 1,
+    "flowcast_N10": 10
+  },
+  "e1_rmse_vs_truth": {
+    "teacher_N18": [
+      1.6492234162420156,
+      1.2892035616894582,
+      1.299343230685534,
+      0.7732147324793543
+    ],
+    "progressive_N2": [
+      1.509810146171029,
+      1.1096815827621165,
+      1.0789258696761803,
+      0.861803713250094
+    ],
+    "consistency_N1": [
+      1.4219601154327393,
+      1.225517988204956,
+      1.241112470626831,
+      0.7107037305831909
+    ],
+    "flowcast_N10": [
+      2.0299391746520996,
+      1.251389980316162,
+      2.2370808124542236,
+      0.7126445770263672
+    ]
+  },
+  "e1_logpsd_l1": {
+    "teacher_N18": [
+      0.23359240591526031,
+      0.17782233655452728,
+      0.2348984330892563,
+      0.6319965720176697
+    ],
+    "progressive_N2": [
+      0.30288583040237427,
+      0.307695209980011,
+      0.2980192303657532,
+      1.247498869895935
+    ],
+    "consistency_N1": [
+      0.23566104471683502,
+      0.2051856517791748,
+      0.1902906745672226,
+      0.5796847939491272
+    ],
+    "flowcast_N10": [
+      0.1738813817501068,
+      0.162835955619812,
+      0.0724058598279953,
+      0.1973179280757904
+    ]
+  },
+  "e1_acc": {
+    "teacher_N18": [
+      0.9333914148739902,
+      0.9584535251591534,
+      0.9758622437680946,
+      0.3942421111271132
+    ],
+    "progressive_N2": [
+      0.943317436450951,
+      0.9682189201362641,
+      0.9828138668838081,
+      0.42869783653029064
+    ],
+    "consistency_N1": [
+      0.9493476152420044,
+      0.962035596370697,
+      0.9775317907333374,
+      0.4346754550933838
+    ],
+    "flowcast_N10": [
+      0.8938989043235779,
+      0.9589569568634033,
+      0.9291686415672302,
+      0.4033993184566498
+    ]
+  },
+  "e1_csi_qpepre": {
+    "teacher_N18": {
+      "0.1": 0.13065482170104856,
+      "1.0": 0.11864210672467256,
+      "2.5": 0.26468723584108195,
+      "5.0": 0.24291403138908405,
+      "10.0": 0.12025685931114996,
+      "20.0": 0.050193050193049996,
+      "50.0": 0.0
+    },
+    "progressive_N2": {
+      "0.1": 0.1321323174428017,
+      "1.0": 0.13745445206029183,
+      "2.5": 0.3057148318042813,
+      "5.0": 0.34359550561797747,
+      "10.0": 0.14119804400977987,
+      "20.0": 0.03083700440528621,
+      "50.0": 0.0
+    },
+    "consistency_N1": {
+      "0.1": 0.15301631763548226,
+      "1.0": 0.18128357775519094,
+      "2.5": 0.2829381145170618,
+      "5.0": 0.2735084704149275,
+      "10.0": 0.12470167064439135,
+      "20.0": 0.04858299595141681,
+      "50.0": 0.0
+    },
+    "flowcast_N10": {
+      "0.1": 0.18027401021899242,
+      "1.0": 0.23074496372076253,
+      "2.5": 0.27386648439280015,
+      "5.0": 0.2059952038369304,
+      "10.0": 0.0837988826815642,
+      "20.0": 0.0,
+      "50.0": 0.0
+    }
+  },
+  "e6_timing_ms_mean": {
+    "teacher_N18": 1584.9331665039062,
+    "progressive_N2": 133.97264862060547,
+    "consistency_N1": 88.588374710083,
+    "flowcast_N10": 487.33817901611326
+  }
+}
