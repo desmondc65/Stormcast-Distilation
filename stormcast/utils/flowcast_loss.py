@@ -17,7 +17,7 @@
 """Conditional Flow Matching loss (Ribeiro & Pucer 2025, FlowCast Algorithm 1).
 
 Adapted to StormCast's residual pipeline: ``images`` is expected to be the
-*raw* target residual R_t = X_t - M_t. Internally the loss standardizes by
+*raw* target residual r_{t+1} = M_{t+1} - mu_{t+1}. Internally the loss standardizes by
 ``sigma_data`` so the flow operates on a roughly-unit-variance manifold, and
 supports the same per-channel weighting + qpepre log-PSD regularizer that the
 Consistency Distillation loss already exposes.
@@ -28,9 +28,30 @@ from typing import Dict, Optional, Sequence
 import torch
 from torch import Tensor
 
-from physicsnemo.experimental.metrics.diffusion.consistency_loss import (
-    _radial_log_psd,
-)
+
+def _radial_log_psd(x: Tensor, eps: float = 1e-12) -> Tensor:
+    """Radially-averaged log power spectrum of a 2D field, shape (B, H, W) -> (B, K)."""
+    B, H, W = x.shape
+    X = torch.fft.rfft2(x, norm="ortho")
+    P = X.real**2 + X.imag**2
+
+    ky = torch.fft.fftfreq(H, device=x.device) * H
+    kx = torch.fft.rfftfreq(W, device=x.device) * W
+    kyy, kxx = torch.meshgrid(ky, kx, indexing="ij")
+    k_int = torch.sqrt(kyy**2 + kxx**2).round().long()
+
+    k_max = int(k_int.max().item()) + 1
+    flat_idx = k_int.flatten()
+    batch_idx = flat_idx.unsqueeze(0).expand(B, -1)
+
+    Pk = torch.zeros(B, k_max, device=x.device, dtype=P.dtype)
+    Pk.scatter_add_(1, batch_idx, P.flatten(1))
+
+    counts = torch.zeros(k_max, device=x.device, dtype=P.dtype)
+    counts.scatter_add_(0, flat_idx, torch.ones_like(flat_idx, dtype=P.dtype))
+
+    Pk = Pk / counts.clamp_min(1.0).unsqueeze(0)
+    return torch.log(Pk.clamp_min(eps))
 
 
 class FlowCastLoss:
@@ -102,7 +123,7 @@ class FlowCastLoss:
             signature ``student(x, t, condition=...)`` and return a tensor of
             the same shape as ``x``.
         images : Tensor
-            Raw target residual R_t of shape (B, C, H, W).
+            Raw target residual r_{t+1} of shape (B, C, H, W).
         condition : Tensor
             Conditioning tensor of shape (B, C_cond, H, W).
 

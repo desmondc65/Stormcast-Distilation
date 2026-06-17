@@ -14,16 +14,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Train FlowCast (Conditional Flow Matching) on the StormCast residual.
+"""Train Gated-Spectral MeanFlow (GS-MeanFlow) on the StormCast residual.
 
-Adapts the FlowCast paper (Ribeiro & Pucer 2025) to the Taiwan RWRF StormCast
-setup: the regression net F_theta produces the deterministic component mu_{t+1}
-and the CFM network learns the residual r_{t+1} = M_{t+1} - mu_{t+1} in pixel
-space (no VAE). Sampling uses Algorithm 2 (Euler ODE, default 10 steps).
+GS-MeanFlow keeps the MeanFlow average-velocity residual head (1-2 NFE) and
+adds two pillars motivated by the Taiwan RWRF data (see README.md):
+
+  1. group-decoupled adaptive weighting -- the smooth channels (t2m, u10, v10)
+     and the precip channel (qpepre) are re-weighted independently, resolving
+     the cross-channel objective conflict the qpw ablation exposes;
+  2. an occurrence (hurdle) gate -- a tiny deterministic head predicts qpepre
+     wet/dry and forces confidently-dry pixels to exact zero at inference,
+     fixing the "always slightly wet" failure a pure continuous flow cannot.
+
+Lives in stormcast/gated-spectral_meanflow/ but reuses the shared config tree
+and utils/datasets packages; launch it from the stormcast/ directory.
 """
 
 import os
+import sys
 import glob
+
+# Make the shared stormcast packages (utils, datasets, config) and this
+# module's siblings importable regardless of where torchrun is launched from.
+_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+_STORMCAST_ROOT = os.path.dirname(_MODULE_DIR)
+for _p in (_STORMCAST_ROOT, _MODULE_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+_CONFIG_DIR = os.path.join(_STORMCAST_ROOT, "config")
 
 import hydra
 import torch
@@ -31,21 +49,20 @@ import wandb
 from omegaconf import DictConfig, OmegaConf
 from physicsnemo.distributed import DistributedManager
 
-from utils.trainer_flowcast import flowcast_training_loop
+from trainer_gsmeanflow import gsmeanflow_training_loop
 
 
-@hydra.main(version_base=None, config_path="config", config_name="flowcast")
+@hydra.main(version_base=None, config_path=_CONFIG_DIR, config_name="gsmeanflow")
 def main(cfg: DictConfig) -> None:
-    """FlowCast entry point."""
+    """GS-MeanFlow entry point."""
 
     DistributedManager.initialize()
     dist = DistributedManager()
 
     if dist.rank == 0:
-        print("FlowCast configuration:")
+        print("GS-MeanFlow configuration:")
         print(OmegaConf.to_yaml(cfg))
 
-    # Random seed
     if cfg.training.seed < 0:
         seed = torch.randint(1 << 31, size=[], device=torch.device("cuda"))
         torch.distributed.broadcast(seed, src=0)
@@ -54,7 +71,7 @@ def main(cfg: DictConfig) -> None:
     wandb_resume = False
     os.makedirs(cfg.training.rundir, exist_ok=True)
     training_states = glob.glob(
-        os.path.join(cfg.training.rundir, "checkpoints_flowcast/checkpoint*.pt")
+        os.path.join(cfg.training.rundir, "checkpoints_gsmeanflow/checkpoint*.pt")
     )
     if training_states:
         wandb_resume = True
@@ -71,7 +88,7 @@ def main(cfg: DictConfig) -> None:
             mode=cfg.training.wandb_mode,
         )
 
-    flowcast_training_loop(cfg)
+    gsmeanflow_training_loop(cfg)
 
 
 # ----------------------------------------------------------------------------

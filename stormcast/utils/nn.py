@@ -18,17 +18,11 @@ from collections.abc import Iterable
 
 import torch
 from physicsnemo.models import Module
-from physicsnemo.models.diffusion import ConsistencyPrecond, EDMPrecond, StormCastUNet
+from physicsnemo.models.diffusion import EDMPrecond, StormCastUNet
 from physicsnemo.utils.diffusion import deterministic_sampler
 
 from .flowcast_precond import FlowCastPrecond
-from .bridgecast_precond import BridgeCastPrecond
-from .qpepre_transform import (
-    channel_asinh_forward,
-    channel_asinh_inverse,
-    softplus_nonneg,
-    apply_rain_mask,
-)
+from .meanflow_precond import MeanFlowPrecond
 
 
 def get_preconditioned_architecture(
@@ -62,39 +56,6 @@ def get_preconditioned_architecture(
             additive_pos_embed=spatial_embedding,
         )
 
-    elif name == "consistency":
-        return ConsistencyPrecond(
-            img_resolution=img_resolution,
-            img_channels=target_channels + conditional_channels,
-            img_out_channels=target_channels,
-            model_type="SongUNet",
-            channel_mult=[1, 2, 2, 2, 2],
-            attn_resolutions=attn_resolutions,
-            additive_pos_embed=spatial_embedding,
-        )
-
-    elif name == "dmd":
-        return EDMPrecond(
-            img_resolution=img_resolution,
-            img_channels=target_channels + conditional_channels,
-            img_out_channels=target_channels,
-            model_type="SongUNet",
-            channel_mult=[1, 2, 2, 2, 2],
-            attn_resolutions=attn_resolutions,
-            additive_pos_embed=spatial_embedding,
-        )
-
-    elif name == "add":
-        return EDMPrecond(
-            img_resolution=img_resolution,
-            img_channels=target_channels + conditional_channels,
-            img_out_channels=target_channels,
-            model_type="SongUNet",
-            channel_mult=[1, 2, 2, 2, 2],
-            attn_resolutions=attn_resolutions,
-            additive_pos_embed=spatial_embedding,
-        )
-
     elif name == "flowcast":
         return FlowCastPrecond(
             img_resolution=img_resolution,
@@ -107,12 +68,12 @@ def get_preconditioned_architecture(
             additive_pos_embed=spatial_embedding,
         )
 
-    elif name == "bridgecast":
-        return BridgeCastPrecond(
+    elif name == "meanflow":
+        return MeanFlowPrecond(
             img_resolution=img_resolution,
             img_channels=target_channels + conditional_channels,
-            target_channels=target_channels,
             img_in_channels=target_channels + conditional_channels,
+            img_out_channels=target_channels,
             model_type="SongUNet",
             channel_mult=[1, 2, 2, 2, 2],
             attn_resolutions=attn_resolutions,
@@ -139,6 +100,7 @@ def build_network_condition_and_target(
     regression_net: Module | None = None,
     condition_list: Iterable[str] = ("state", "background"),
     regression_condition_list: Iterable[str] = ("state", "background"),
+    subtract_regression: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
     """Build the condition and target tensors for the network.
 
@@ -150,11 +112,15 @@ def build_network_condition_and_target(
         condition_list: list of conditions to include, may include 'state', 'background', 'regression' and 'invariant'
         regression_condition_list: list of conditions for the regression network, may include 'state', 'background', and 'invariant'
             This is only used if regression_net is set.
+        subtract_regression: if True (the EDM / FlowCast behaviour) the
+            returned target is the residual ``M_{t+1} - mu_{t+1}``. If False,
+            the returned target is the raw ``M_{t+1}``. The regression output
+            is still returned separately as the third tuple element either way.
     Returns:
         A tuple of tensors: (
             condition: model condition concatenated from conditions specified in condition_list,
-            target: training target,
-            regression: regression model output
+            target: training target (residual if subtract_regression else raw M_{t+1}),
+            regression: regression model output (mu_{t+1}), or None
         ). The regression model output will be None if 'regression' is not in condition_list.
     """
     if ("regression" in condition_list) and (regression_net is None):
@@ -180,7 +146,8 @@ def build_network_condition_and_target(
                 invariant_tensor,
                 condition_list=regression_condition_list,
             )
-            target = target - condition_tensors["regression"]
+            if subtract_regression:
+                target = target - condition_tensors["regression"]
 
         condition = [
             y for c in condition_list if (y := condition_tensors[c]) is not None
@@ -212,168 +179,6 @@ def regression_model_forward(
     return model(x)
 
 
-def consistency_model_forward(
-    model,
-    condition,
-    shape,
-    sigma_max=80.0,
-    sigma_min=0.002,
-    rho=7.0,
-    num_steps=1,
-    intermediate_sigmas=None,
-):
-    """Multi-step generation using a consistency model.
-
-    Implements the Consistency Models multi-step sampler (Song et al. 2023,
-    Algorithm 1): evaluate f once at sigma_max, then for each intermediate
-    sigma re-noise the clean estimate by sqrt(sigma^2 - sigma_min^2) and
-    re-evaluate f. This preserves stochasticity between steps and is the
-    knob the CD spec wants exposed for num_steps ∈ {1, 2, 4}.
-
-    Args:
-        model: ConsistencyPrecond model.
-        condition: conditioning tensor [B, C_cond, H, W].
-        shape: shape of the output tensor [B, C, H, W].
-        sigma_max: maximum noise level (start of trajectory).
-        sigma_min: minimum noise level (boundary of f).
-        rho: Karras schedule exponent (only used if intermediate_sigmas is None).
-        num_steps: number of function evaluations. 1 = one-shot.
-        intermediate_sigmas: optional explicit list of intermediate σ values
-            (length num_steps - 1), descending, each in (sigma_min, sigma_max).
-            If None, chosen from the Karras ρ-schedule.
-
-    Returns:
-        Generated samples [B, C, H, W].
-    """
-    device = condition.device
-    dtype = condition.dtype
-    B = shape[0]
-
-    x = torch.randn(*shape, device=device, dtype=dtype) * sigma_max
-    sigma = torch.full([B], sigma_max, device=device, dtype=dtype)
-    x0 = model(x, sigma, condition=condition)
-
-    if num_steps <= 1:
-        return x0
-
-    if intermediate_sigmas is None:
-        # Pick num_steps+1 points on the Karras grid between sigma_max and
-        # sigma_min, drop the endpoints → num_steps-1 intermediate σ values.
-        idx = torch.arange(num_steps + 1, dtype=torch.float64, device=device)
-        t = (
-            sigma_max ** (1 / rho)
-            + idx / num_steps * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))
-        ) ** rho
-        intermediate_sigmas = t[1:-1].to(dtype).tolist()
-
-    for s in intermediate_sigmas:
-        s = float(s)
-        z = torch.randn_like(x0)
-        noise_scale = (max(s * s - sigma_min * sigma_min, 0.0)) ** 0.5
-        x_noisy = x0 + noise_scale * z
-        sigma = torch.full([B], s, device=device, dtype=dtype)
-        x0 = model(x_noisy, sigma, condition=condition)
-
-    return x0
-
-
-def dmd_model_forward(model, condition, shape, sigma_max=80.0):
-    """1-step generation using a DMD-distilled EDMPrecond model.
-
-    Samples z ~ N(0, sigma_max^2 I) and evaluates the denoiser D(z, sigma_max)
-    in a single forward pass. The model has been trained via Distribution
-    Matching Distillation to produce high-quality samples in one step.
-
-    Args:
-        model: EDMPrecond model (DMD-distilled)
-        condition: conditioning tensor [B, C_cond, H, W]
-        shape: shape of the output tensor [B, C, H, W]
-        sigma_max: maximum noise level
-
-    Returns:
-        Generated samples [B, C, H, W]
-    """
-    z = torch.randn(*shape, device=condition.device, dtype=condition.dtype) * sigma_max
-    sigma = torch.full([z.shape[0]], sigma_max, device=z.device, dtype=z.dtype)
-    return model(z, sigma, condition=condition)
-
-
-def progressive_distilled_forward(
-    model, condition, shape, num_steps=4, sigma_min=0.002, sigma_max=80.0, rho=7.0
-):
-    """Inference with a progressively distilled EDM model.
-
-    Uses the standard deterministic sampler with reduced step count. The model
-    is a regular EDMPrecond whose weights were trained via progressive
-    distillation to produce high-quality samples in fewer steps.
-
-    Args:
-        model: EDMPrecond model (distilled student)
-        condition: conditioning tensor [B, C_cond, H, W]
-        shape: shape of the output tensor [B, C, H, W]
-        num_steps: number of sampling steps (should match the distillation target)
-        sigma_min: minimum noise level
-        sigma_max: maximum noise level
-        rho: Karras schedule exponent
-
-    Returns:
-        Generated samples [B, C, H, W]
-    """
-    sampler_args = dict(
-        num_steps=num_steps,
-        sigma_min=sigma_min,
-        sigma_max=sigma_max,
-        rho=rho,
-        solver="euler",
-    )
-    return diffusion_model_forward(model, condition, shape, sampler_args)
-
-
-def add_model_forward(model, condition, shape, sigma_max=80.0, num_steps=1,
-                      sigma_min=0.002, rho=7.0):
-    """Inference with an ADD-distilled EDMPrecond model.
-
-    For 1-step: sample z ~ N(0, sigma_max^2 I), denoise once.
-    For N>1 steps: use deterministic Euler schedule.
-
-    Args:
-        model: EDMPrecond model (ADD-distilled student).
-        condition: conditioning tensor [B, C_cond, H, W].
-        shape: shape of the output tensor [B, C, H, W].
-        sigma_max: maximum noise level.
-        num_steps: number of denoising steps (1-4).
-        sigma_min: minimum noise level.
-        rho: Karras schedule exponent.
-
-    Returns:
-        Generated samples [B, C, H, W].
-    """
-    device = condition.device
-    dtype = condition.dtype
-    B = shape[0]
-
-    if num_steps == 1:
-        z = torch.randn(*shape, device=device, dtype=dtype) * sigma_max
-        sigma = torch.full([B], sigma_max, device=device, dtype=dtype)
-        return model(z, sigma, condition=condition)
-
-    # Multi-step Euler sampling with Karras schedule
-    step_indices = torch.arange(num_steps, device=device, dtype=dtype)
-    sigma_max_inv = sigma_max ** (1 / rho)
-    sigma_min_inv = sigma_min ** (1 / rho)
-    t_steps = (sigma_max_inv + step_indices / (num_steps - 1) * (sigma_min_inv - sigma_max_inv)) ** rho
-    t_steps = torch.cat([t_steps, torch.zeros(1, device=device)])
-
-    x = torch.randn(*shape, device=device, dtype=dtype) * t_steps[0]
-    for i in range(num_steps):
-        sigma = torch.full([B], t_steps[i].item(), device=device, dtype=dtype)
-        denoised = model(x, sigma, condition=condition)
-        d = (x - denoised) / t_steps[i]
-        x = x + d * (t_steps[i + 1] - t_steps[i])
-
-    return x
-
-
 def flowcast_model_forward(
     model,
     condition,
@@ -389,7 +194,8 @@ def flowcast_model_forward(
     Integrates ``dz/dt = v_theta(z, t, condition)`` from t_start to t_end
     starting at ``z(0) ~ N(0, I)`` (standardized space) and returns the
     de-normalized residual ``z(1) * sigma_data``. Used as the generative step
-    on top of the regression mean M_t; the final prediction is ``M_t + R_t``.
+    on top of the regression mean mu_{t+1}; the final prediction is
+    ``mu_{t+1} + r_{t+1}``.
 
     Args:
         model: FlowCastPrecond model (or an EMA shadow of one).
@@ -426,210 +232,54 @@ def flowcast_model_forward(
     return z * sigma_data
 
 
-def bridgecast_model_forward(
+def meanflow_model_forward(
     model,
-    condition: torch.Tensor,
-    regression_mean: torch.Tensor,
-    clim_noise_sampler,
-    sigma_b: float = 0.15,
-    sigma_a: float = 0.0,
-    sigma_data: float = 0.5,
+    condition,
+    shape,
     num_steps: int = 2,
-    qpepre_idx: int = -1,
-    qpepre_kappa: float = 1.0,
-    apply_mask_gate: bool = True,
-    mask_threshold: float = 0.5,
-    nonneg_qpepre: bool = True,
-    qpepre_log1p: bool = False,
-    qpepre_floor_std: float | None = None,
-    qpepre_clip_std: float | None = None,
-    t_eps: float = 1e-3,
-    midpoint: bool = True,
-    eps_override: torch.Tensor | None = None,
+    sigma_data: float = 0.5,
+    t_start: float = 0.0,
+    t_end: float = 1.0,
 ):
-    """Sample BridgeCast (Algorithm 1 of new_method_plan.md §3).
+    """Sample the MeanFlow residual with one or a few average-velocity steps.
 
-    Integrates the bridge ODE in *standardized residual* space:
-        z_0 = sigma_a * eps_clim       (anchor; sigma_a=0 ⇒ exact zero start)
-        z_1 ≈ R_norm = (X_t - M_t) / sigma_data
-        z_t = (1-t) z_0 + t R_norm + gamma(t) eps_clim
-        gamma(t) = sigma_b * sqrt(t(1-t))
+    Splits [t_start, t_end] into ``num_steps`` segments and applies the
+    learned average velocity over each:
 
-    where the same correlated noise tensor ``eps_clim`` is used for the anchor
-    jitter and the bridge noise (single Brownian-bridge formulation). The
-    network is queried at ``z + gamma(t) eps`` per Algorithm 1; the returned
-    tensor is the predicted full state X_t = M_t + R_pred in raw units.
+        z_{t_{i+1}} = z_{t_i} + (t_{i+1} - t_i) * u_theta(z_{t_i}, t_i, t_{i+1}, c)
 
-    Parameters
-    ----------
-    model : BridgeCastPrecond
-        Trained student (or its EMA shadow).
-    condition : Tensor, (B, C_cond, H, W)
-        Conditioning bundle (state, regression, invariant; same as FlowCast).
-    regression_mean : Tensor, (B, C, H, W)
-        ``M_t = F_xi(X_{t-1}, S_t, I)`` in raw physical units.
-    clim_noise_sampler : ClimNoiseSampler
-        Per-channel climatology-correlated unit-variance noise sampler. Pass
-        a sampler with ``Pk_per_channel=None`` to fall back to white noise
-        (plan §4 ablation #4).
-    sigma_b : float
-        Bridge noise magnitude (peaks at t=1/2).
-    sigma_a : float
-        Anchor jitter at t=0 (default 0 = deterministic anchor at residual=0).
-    sigma_data : float
-        Per-channel std used to de-standardize the predicted residual.
-    num_steps : int
-        Number of integration steps (1–4 typical).
-    qpepre_idx : int
-        Channel index of qpepre. ``-1`` disables the asinh transform / mask /
-        non-negativity gate (plan §4 ablation #5).
-    qpepre_kappa : float
-        asinh knee scale for the qpepre residual channel (in standardized
-        units; use 1.0 since R_norm is roughly unit-variance per channel).
-    apply_mask_gate : bool
-        Whether to multiply the decoded qpepre channel by the predicted mask.
-    mask_threshold : float
-        Sigmoid probability threshold for the hard mask gate.
-    nonneg_qpepre : bool
-        Whether to clamp the decoded qpepre to be non-negative. Only applied
-        when ``qpepre_log1p`` is False — the loader's standardized log1p
-        space puts "no rain" at a negative standardized value (not 0), so a
-        ``min=0`` clamp would force every dry pixel up to the channel mean
-        (visible in early training as a flat-zero background). When using a
-        log1p loader, set ``qpepre_floor_std`` instead.
-    qpepre_log1p : bool
-        Set ``True`` when the dataloader applies ``log1p(mm/h)`` followed by
-        per-channel standardization (e.g. zettabyte cleaned dataset).
-        Disables ``nonneg_qpepre`` and the rain-mask gate so they don't
-        misinterpret "0 in standardized log1p" as "no rain".
-    qpepre_floor_std : float, optional
-        When ``qpepre_log1p`` is True, the smallest physically-meaningful
-        value of the qpepre channel (raw 0 mm/h → log1p(0)=0 → standardized
-        ``(0 - mu) / sigma``). If supplied, the qpepre channel of x_pred is
-        clamped from below at this value. Use the dataset's
-        ``HighRes_means`` / ``HighRes_stds`` to compute it; pass ``None`` to
-        skip the floor (the model's natural output handles non-negativity
-        once trained).
-    qpepre_clip_std : float, optional
-        Upper bound on the qpepre channel of x_pred in standardized space.
-        Acts as a *trust region* preventing isolated runaway model outputs
-        from dominating RMSE — extreme typhoon rain (200 mm/h →
-        log1p ≈ 5.3 → standardized ≈ 14 with sigma_log1p=0.37) sits well
-        below 20, so a value of 20–25 is a safe upper bound that almost
-        never trims real signal but kills the validation-time spikes.
-        ``None`` disables the clip.
-    t_eps : float
-        Time clip on both sides of [0, 1] (gamma'(t) diverges at endpoints).
-    midpoint : bool
-        Use 2nd-order Heun-midpoint (2 NFE/step) or Euler (1 NFE/step).
-    eps_override : Tensor, optional
-        Caller-supplied noise (e.g. for paired antithetic ensembles). When
-        ``None`` a fresh sample is drawn from ``clim_noise_sampler``.
+    starting at ``z(0) ~ N(0, I)`` (standardized space). num_steps=1 is the
+    headline one-NFE sampler; small step counts (2-4) trade a little compute
+    for sharper residuals. Returns the de-normalized residual
+    ``z(1) * sigma_data``, ready to add to the regression mean mu_{t+1}.
 
-    Returns
-    -------
-    Tensor, (B, C, H, W) — predicted X_t in raw physical units.
+    Args:
+        model: MeanFlowPrecond model (or an EMA shadow of one).
+        condition: conditioning tensor [B, C_cond, H, W].
+        shape: shape of the output tensor [B, C_target, H, W].
+        num_steps: number of average-velocity segments (NFE).
+        sigma_data: standard deviation used for standardization at train time.
+        t_start, t_end: integration bounds along the flow axis.
+
+    Returns:
+        Predicted residual R_hat of shape ``shape`` (in raw, un-standardized
+        units), ready to add to the regression mean.
     """
     device = condition.device
     dtype = condition.dtype
-    B, C, H, W = regression_mean.shape
 
-    # Bridge state lives in standardized residual space (z = R / sigma_data).
-    if eps_override is None:
-        eps = clim_noise_sampler.sample_like(regression_mean).to(dtype=dtype)
-    else:
-        eps = eps_override.to(dtype=dtype)
-
-    z = sigma_a * eps  # shape (B, C, H, W); zero if sigma_a == 0
-
-    t_lo = max(t_eps, 0.0)
-    t_hi = 1.0 - t_lo
-    dt = (t_hi - t_lo) / max(num_steps, 1)
-
-    last_m_logits = None
-
-    def gamma(t_val: float) -> float:
-        return sigma_b * (max(t_val * (1.0 - t_val), 0.0)) ** 0.5
+    z = torch.randn(*shape, device=device, dtype=dtype)
+    dt = (t_end - t_start) / num_steps
 
     for i in range(num_steps):
-        t_i = t_lo + i * dt
-        t_mid = t_i + 0.5 * dt
-        if midpoint:
-            x_in = z + gamma(t_i) * eps
-            t_vec = torch.full([B], t_i, device=device, dtype=dtype)
-            v_a, _ = model(x_in, t_vec, condition=condition)
-            z_half = z + v_a * (0.5 * dt)
-            x_mid = z_half + gamma(t_mid) * eps
-            t_vec_mid = torch.full([B], t_mid, device=device, dtype=dtype)
-            v_b, last_m_logits = model(x_mid, t_vec_mid, condition=condition)
-            z = z + v_b * dt
-        else:
-            x_in = z + gamma(t_i) * eps
-            t_vec = torch.full([B], t_i, device=device, dtype=dtype)
-            v, last_m_logits = model(x_in, t_vec, condition=condition)
-            z = z + v * dt
+        r_i = t_start + i * dt
+        t_i = t_start + (i + 1) * dt
+        r_vec = torch.full([shape[0]], r_i, device=device, dtype=dtype)
+        t_vec = torch.full([shape[0]], t_i, device=device, dtype=dtype)
+        u = model(z, r_vec, t_vec, condition=condition)
+        z = z + u * dt
 
-    # ``z`` now holds the predicted standardized residual (potentially with
-    # the qpepre channel in asinh-compressed coordinates).
-    if qpepre_idx >= 0:
-        z = channel_asinh_inverse(z, qpepre_idx=qpepre_idx, kappa=qpepre_kappa)
-
-    residual = z * sigma_data
-    x_pred = residual + regression_mean
-
-    # Clamp the qpepre channel of x_pred so a single rogue pixel can't
-    # blow up downstream RMSE / plotting. The semantics of "no rain" depend
-    # on the dataloader's qpepre encoding:
-    #
-    #  - Raw mm/h loader  → no-rain == 0; ``nonneg_qpepre`` clamps min=0.
-    #  - log1p loader     → no-rain == standardized ``-mu/sigma`` < 0; the
-    #                       ``min=0`` clamp would force every dry pixel up
-    #                       to the channel mean, producing the flat-zero
-    #                       background + spike pattern that makes RMSE
-    #                       blow up during training. We instead clamp
-    #                       ``min=qpepre_floor_std`` if provided, otherwise
-    #                       leave the lower bound to the trained model.
-    #
-    # ``qpepre_clip_std`` is an unconditional upper bound that rejects
-    # runaway model outputs in either encoding.
-    if qpepre_idx >= 0 and (
-        nonneg_qpepre
-        or qpepre_floor_std is not None
-        or qpepre_clip_std is not None
-    ):
-        from .qpepre_transform import _replace_channel as _replace_ch
-        q = x_pred[:, qpepre_idx]
-        if qpepre_log1p:
-            if qpepre_floor_std is not None:
-                q = torch.clamp(q, min=float(qpepre_floor_std))
-        else:
-            if nonneg_qpepre:
-                q = torch.clamp(q, min=0.0)
-        if qpepre_clip_std is not None:
-            q = torch.clamp(q, max=float(qpepre_clip_std))
-        x_pred = _replace_ch(x_pred, qpepre_idx, q)
-
-    # Mask gate: only safe when "0 in the channel's natural space" really
-    # means no rain. For a log1p loader, multiplying the standardized
-    # output by 0 collapses the value to the channel mean (≈ light rain),
-    # not to dry — which is the opposite of what the gate is supposed to
-    # do. So we skip it under qpepre_log1p; the mask head still trains as
-    # an auxiliary signal but is not applied at inference.
-    if (
-        qpepre_idx >= 0
-        and apply_mask_gate
-        and last_m_logits is not None
-        and not qpepre_log1p
-    ):
-        x_pred = apply_rain_mask(
-            x_pred,
-            last_m_logits,
-            qpepre_idx=qpepre_idx,
-            threshold=mask_threshold,
-            hard=True,
-        )
-
-    return x_pred
+    return z * sigma_data
 
 
 def regression_loss_fn(

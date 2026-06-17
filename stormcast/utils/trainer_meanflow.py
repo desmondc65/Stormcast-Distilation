@@ -14,13 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FlowCast (Conditional Flow Matching) training loop.
+"""MeanFlow (average-velocity flow matching) training loop.
 
-Trains an I-CFM vector field v_theta on the residual manifold
+Trains a MeanFlow average-velocity field u_theta on the residual manifold
 r_{t+1} = M_{t+1} - mu_{t+1} of the StormCast two-stage setup. The regression
-model F_theta is kept frozen and used purely as conditioning / residual anchor,
-so inference is ``mu_{t+1} + Euler(v_theta)`` exactly as the existing EDM stack
-does for the diffusion residual.
+model F_theta is kept frozen and used purely as conditioning / residual
+anchor, so inference is ``mu_{t+1} + MeanFlowStep(u_theta)`` exactly as the
+EDM / FlowCast stacks do for their residuals — but with 1-2 network
+evaluations instead of 10-36.
 """
 
 import contextlib
@@ -43,9 +44,9 @@ from physicsnemo.launch.logging import PythonLogger, RankZeroLoggingWrapper
 from .nn import (
     get_preconditioned_architecture,
     build_network_condition_and_target,
-    flowcast_model_forward,
+    meanflow_model_forward,
 )
-from .flowcast_loss import FlowCastLoss
+from .meanflow_loss import MeanFlowLoss
 from .ema import ExponentialMovingAverage
 from .plots import validation_plot
 from .spectrum import ps1d_plots
@@ -64,15 +65,15 @@ from datasets.dataset import worker_init
 from torch.nn.utils import clip_grad_norm_
 
 
-logger = PythonLogger("train_flowcast")
+logger = PythonLogger("train_meanflow")
 
 
 def _distributed_ready() -> bool:
     return torch.distributed.is_available() and torch.distributed.is_initialized()
 
 
-def flowcast_training_loop(cfg):
-    """Main training loop for Conditional Flow Matching on the StormCast residual."""
+def meanflow_training_loop(cfg):
+    """Main training loop for MeanFlow on the StormCast residual."""
 
     # Initialize
     start_time = time.time()
@@ -90,7 +91,7 @@ def flowcast_training_loop(cfg):
     num_accumulation_rounds = batch_size // (local_batch_size * dist.world_size)
 
     log_to_wandb = cfg.training.log_to_wandb
-    net_name = "flowcast"
+    net_name = "meanflow"
     condition_list = cfg.model.diffusion_conditions
 
     # Seed and performance settings
@@ -192,8 +193,8 @@ def flowcast_training_loop(cfg):
         attn_resolutions=list(cfg.model.attn_resolutions),
     )
 
-    # Build student (FlowCastPrecond)
-    student = get_preconditioned_architecture(name="flowcast", **arch_kwargs)
+    # Build student (MeanFlowPrecond)
+    student = get_preconditioned_architecture(name="meanflow", **arch_kwargs)
     student.train().requires_grad_(True).to(device)
     # Carry sigma_data / time_scale from the config down to the wrapper so the
     # sampler and loss stay consistent.
@@ -203,13 +204,14 @@ def flowcast_training_loop(cfg):
     # EMA target network (used for inference + validation sampling).
     ema_decay = float(cfg.training.ema_decay)
     ema = ExponentialMovingAverage(student, decay=ema_decay)
-    ema_net = get_preconditioned_architecture(name="flowcast", **arch_kwargs)
+    ema_net = get_preconditioned_architecture(name="meanflow", **arch_kwargs)
     ema_net = ema_net.to(device).eval().requires_grad_(False)
     ema_net.sigma_data = float(cfg.model.sigma_data)
     ema_net.time_scale = float(cfg.model.time_scale)
     ema.apply_shadow(ema_net)
 
-    # Optional channel weighting / spectral regularizer (same knobs as CD).
+    # Optional channel weighting / spectral regularizer (same knobs as
+    # FlowCast).
     channel_weights = getattr(cfg.training, "channel_weights", None)
     if channel_weights is not None:
         channel_weights = list(channel_weights)
@@ -221,16 +223,18 @@ def flowcast_training_loop(cfg):
         spectral_channels = None
     spectral_weight = float(getattr(cfg.training, "spectral_weight", 0.0))
 
-    loss_fn = FlowCastLoss(
+    loss_fn = MeanFlowLoss(
         sigma_data=cfg.model.sigma_data,
-        sigma_path=cfg.training.sigma_path,
         t_eps=float(getattr(cfg.training, "t_eps", 1e-5)),
+        mf_ratio=float(getattr(cfg.training, "mf_ratio", 0.25)),
+        adaptive_p=float(getattr(cfg.training, "adaptive_p", 1.0)),
+        adaptive_eps=float(getattr(cfg.training, "adaptive_eps", 1e-3)),
         channel_weights=channel_weights,
         spectral_channels=spectral_channels,
         spectral_weight=spectral_weight,
     )
-    # AdamW to match the FlowCast paper (vs. Adam in CD/PD). Weight decay is
-    # a small regularizer on the velocity network.
+    # AdamW, matching the FlowCast student so the two are an A/B on the
+    # objective alone.
     optimizer = torch.optim.AdamW(
         student.parameters(),
         lr=cfg.training.lr,
@@ -257,7 +261,7 @@ def flowcast_training_loop(cfg):
         logger0.info("No resumable training state found.")
         init_weights = cfg.training.initial_weights
         if init_weights is None or init_weights == "":
-            logger0.info("Starting FlowCast training from random initialization...")
+            logger0.info("Starting MeanFlow training from random initialization...")
         else:
             logger0.info(f"Starting from weights saved in {init_weights}...")
             if init_weights.endswith(".mdlus"):
@@ -332,8 +336,7 @@ def flowcast_training_loop(cfg):
         if cfg.training.clip_grad_norm > 0:
             clip_grad_norm_(student.parameters(), cfg.training.clip_grad_norm)
 
-        # Cosine LR with linear warmup (FlowCast paper: 1% warmup, cosine to
-        # min_lr_ratio). If resume_from > warmup, this just rolls into cosine.
+        # Cosine LR with linear warmup, same schedule as the FlowCast student.
         warmup = max(cfg.training.lr_warmup_steps, 1)
         min_lr = cfg.training.lr * cfg.training.min_lr_ratio
         if total_steps < warmup:
@@ -357,7 +360,7 @@ def flowcast_training_loop(cfg):
 
         optimizer.step()
 
-        # Fixed-decay EMA (FlowCast paper: 0.999).
+        # Fixed-decay EMA (same convention as the FlowCast student).
         ema.update(student, decay=ema_decay)
         ema.apply_shadow(ema_net)
 
@@ -382,6 +385,7 @@ def flowcast_training_loop(cfg):
             wandb_logs["loss"] = loss_scalar.cpu().item()
             wandb_logs["loss_pointwise"] = pointwise_scalar.cpu().item()
             wandb_logs["loss_spectral"] = spectral_scalar.cpu().item()
+            wandb_logs["mf_fraction"] = loss_dict["mf_fraction"]
 
         total_steps += 1
         done = total_steps >= total_train_steps
@@ -397,7 +401,7 @@ def flowcast_training_loop(cfg):
             except Exception as e:
                 logger0.warn(f"Failed to write train_loss.csv at step {total_steps}: {e}")
 
-        # Validation (uses EMA weights for the sampler, per FlowCast paper)
+        # Validation (uses EMA weights for the sampler)
         if total_steps % cfg.training.validation_freq == 0:
             validation_counter += 1
             valid_start = time.time()
@@ -421,23 +425,22 @@ def flowcast_training_loop(cfg):
                         regression_condition_list=cfg.model.regression_conditions,
                     )
 
-                    # Euler ODE sampling from EMA weights.
+                    # Few-step average-velocity sampling from EMA weights.
                     valid_num_steps = int(cfg.training.valid_num_steps)
-                    residual = flowcast_model_forward(
+                    residual = meanflow_model_forward(
                         ema_net,
                         condition,
                         state[1].shape,
                         num_steps=valid_num_steps,
                         sigma_data=cfg.model.sigma_data,
-                        solver=cfg.training.solver,
                     )
                     if "regression" in condition_list and reg_out is not None:
                         output_images = residual + reg_out
                     else:
                         output_images = residual
 
-                    # Evaluate the CFM objective against the EMA weights so
-                    # the validation loss tracks the same net used for the
+                    # Evaluate the MeanFlow objective against the EMA weights
+                    # so the validation loss tracks the same net used for the
                     # sampler and for the eventually-deployed checkpoint.
                     valid_loss_dict = loss_fn(
                         student=ema_net,

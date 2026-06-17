@@ -7,23 +7,31 @@
 # You may obtain a copy of the License at
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
-"""Autoregressive inference for FlowCast (Conditional Flow Matching distillate).
+"""Autoregressive inference for Gated-Spectral MeanFlow (GS-MeanFlow).
 
-Mirrors ``inference.py`` but swaps the EDM diffusion sampler for the
-fixed-step ODE sampler in ``flowcast_model_forward``. The pipeline is::
+Mirrors ``inference_meanflow.py`` but samples with ``gsmeanflow_model_forward``
+and composes the occurrence gate into the final field::
 
-    mu_{t+1} = F_theta(M_t, S_t, I)              # frozen regression mean
-    r_{t+1}  = FlowCast(z, t, condition)         # learned residual
+    mu_{t+1} = F_theta(M_t, S_t, I)                       # frozen regression mean
+    r_{t+1}, gate = GSMeanFlow(z, r, t, condition)        # residual (1-2 NFE) + gate
     M_{t+1}  = mu_{t+1} + r_{t+1}
+    M_{t+1}[qpepre][gate dry] = 0 mm/h                    # hurdle: exact dry
 
-The FlowCast student weights are loaded from the EMA shadow saved during
-training (``<rundir>/ema_state.pt``); these, NOT the raw student
-checkpoint, are what trainer_flowcast.py promotes to inference.
-
-qpepre is automatically returned in mm/h: clean_zarr.py stores it as
-``log1p(mm/h)`` and the data loader's ``denormalize_state`` applies
-``expm1`` as part of de-normalisation. No special handling is needed here.
+The GS-MeanFlow student weights are loaded from the EMA shadow saved during
+training (``<rundir>/ema_state.pt``). qpepre is returned in mm/h: the gated dry
+pixels are written as the standardized value of 0 mm/h, which the loader's
+``denormalize_state`` maps back to exactly 0 via expm1.
 """
+
+import os
+import sys
+
+_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+_STORMCAST_ROOT = os.path.dirname(_MODULE_DIR)
+for _p in (_STORMCAST_ROOT, _MODULE_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+_CONFIG_DIR = os.path.join(_STORMCAST_ROOT, "config")
 
 import matplotlib.pyplot as plt
 import torch
@@ -40,22 +48,19 @@ from utils.io import (
     write_inference_results_zarr,
     save_inference_results_netcdf,
 )
-from utils.nn import (
-    build_network_condition_and_target,
-    flowcast_model_forward,
-    get_preconditioned_architecture,
-)
+from utils.nn import build_network_condition_and_target
 from utils.plots import inference_plot
 
+from nn_gsmeanflow import (
+    get_gsmeanflow_architecture,
+    gsmeanflow_model_forward,
+    apply_occurrence_gate,
+    qpepre_standardized_levels,
+)
 
-def _load_flowcast_student(cfg, dataset, invariant_tensor, device):
-    """Construct a FlowCastPrecond and load the EMA shadow into it.
 
-    The EMA shadow lives at ``cfg.inference.flowcast_ema_path`` (or, by
-    convention, ``<flowcast_rundir>/ema_state.pt``). We materialise a fresh
-    FlowCastPrecond with the exact arch the trainer used, then overwrite its
-    parameters with the shadow tensors. Returns the network in ``eval()`` mode.
-    """
+def _load_gsmeanflow_student(cfg, dataset, invariant_tensor, device):
+    """Construct a GSMeanFlowPrecond and load the EMA shadow into it."""
     state_channels = dataset.state_channels()
     background_channels = dataset.background_channels()
 
@@ -74,21 +79,17 @@ def _load_flowcast_student(cfg, dataset, invariant_tensor, device):
         conditional_channels=num_condition_channels,
         spatial_embedding=cfg.model.spatial_pos_embed,
         attn_resolutions=list(cfg.model.attn_resolutions),
+        gate_base_channels=int(getattr(cfg.model, "gate_base_channels", 48)),
     )
 
-    net = get_preconditioned_architecture(name="flowcast", **arch_kwargs)
+    net = get_gsmeanflow_architecture(**arch_kwargs)
     net = net.to(device).eval().requires_grad_(False)
     net.sigma_data = float(cfg.model.sigma_data)
     net.time_scale = float(cfg.model.time_scale)
 
-    # The training loop saves the EMA wrapper's state_dict (a flat dict of
-    # shadow tensors keyed by parameter name). Apply it directly to ``net``.
-    ema_path = cfg.inference.flowcast_ema_path
-    print(f"[flowcast] loading EMA shadow weights from {ema_path}")
+    ema_path = cfg.inference.gsmeanflow_ema_path
+    print(f"[gsmeanflow] loading EMA shadow weights from {ema_path}")
     ema_state = torch.load(ema_path, map_location=device)
-    # ExponentialMovingAverage.state_dict stores shadows under "shadow_params"
-    # (keyed by index) plus the parameter names list. Cope with both that
-    # layout and a plain {param_name: tensor} dump.
     if "shadow_params" in ema_state and "param_names" in ema_state:
         names = ema_state["param_names"]
         shadows = ema_state["shadow_params"]
@@ -98,13 +99,12 @@ def _load_flowcast_student(cfg, dataset, invariant_tensor, device):
                 target_state[name] = shadows[i].to(target_state[name].dtype)
         net.load_state_dict(target_state, strict=False)
     else:
-        # Fallback: assume it's already {param_name: tensor}.
         net.load_state_dict(ema_state, strict=False)
 
     return net
 
 
-@hydra.main(version_base=None, config_path="config", config_name="flowcast_inference")
+@hydra.main(version_base=None, config_path=_CONFIG_DIR, config_name="gsmeanflow_inference")
 def main(cfg: DictConfig):
     DistributedManager.initialize()
     dist = DistributedManager()
@@ -113,12 +113,19 @@ def main(cfg: DictConfig):
     initial_time = datetime.fromisoformat(cfg.inference.initial_time)
     n_steps = cfg.inference.n_steps
 
-    # Dataset
     dataset_cls = dataset_classes[cfg.dataset.name]
     dataset = dataset_cls(cfg.dataset, train=False)
 
     background_channels = dataset.background_channels()
     state_channels = dataset.state_channels()
+
+    # qpepre standardized levels for the hurdle gate.
+    gate_threshold_mm = float(getattr(cfg.inference, "gate_threshold_mm", 0.1))
+    q_idx, _wet_threshold_std, dry_value_std = qpepre_standardized_levels(
+        dataset, threshold_mm=gate_threshold_mm
+    )
+    gate_prob_threshold = float(getattr(cfg.inference.gsmeanflow, "gate_threshold", 0.5))
+    apply_gate = bool(getattr(cfg.inference.gsmeanflow, "apply_gate", True))
 
     invariant_array = dataset.get_invariants()
     invariant_tensor = (
@@ -139,25 +146,22 @@ def main(cfg: DictConfig):
         (initial_time - datetime(initial_time.year, 1, 1, 0, 0)).total_seconds() / 3600
     )
 
-    # Models
     if "regression" in cfg.model.diffusion_conditions:
         net = Module.from_checkpoint(cfg.inference.regression_checkpoint)
         regression_model = net.to(device).eval()
     else:
         regression_model = None
-    flowcast_model = _load_flowcast_student(cfg, dataset, invariant_tensor, device)
+    gsmeanflow_model = _load_gsmeanflow_student(cfg, dataset, invariant_tensor, device)
 
-    # FlowCast sampler hyperparameters (Hydra config -> kwargs).
-    fc_kwargs = dict(
-        num_steps=int(cfg.inference.flowcast.num_steps),
+    mf_kwargs = dict(
+        num_steps=int(cfg.inference.gsmeanflow.num_steps),
         sigma_data=float(cfg.model.sigma_data),
-        solver=str(cfg.inference.flowcast.solver),
     )
-    print(f"[flowcast] sampler kwargs: {fc_kwargs}")
+    print(
+        f"[gsmeanflow] sampler kwargs: {mf_kwargs} | apply_gate={apply_gate} "
+        f"| gate_prob_threshold={gate_prob_threshold}"
+    )
 
-    # Output zarr -- reuse the same writers as inference.py. The "edm" group
-    # holds the FlowCast-corrected prediction, the "noedm" group holds the
-    # bare regression mean (mu_{t+1} alone) for direct comparison.
     (
         group,
         target_group,
@@ -175,15 +179,14 @@ def main(cfg: DictConfig):
 
             if i == 0:
                 state_pred = data["state"][0].to(device=device, dtype=torch.float32).unsqueeze(0)
-                state_pred_fc = state_pred.clone()       # FlowCast-corrected
-                state_pred_reg = state_pred.clone()      # regression-only
+                state_pred_mf = state_pred.clone()
+                state_pred_reg = state_pred.clone()
 
-            assert state_pred_fc.shape == (1, len(state_channels)) + dataset.image_shape()
+            assert state_pred_mf.shape == (1, len(state_channels)) + dataset.image_shape()
             assert state_pred_reg.shape == (1, len(state_channels)) + dataset.image_shape()
 
-            # de-norm + expm1 for qpepre is handled inside denormalize_state
             write_inference_results_zarr(
-                dataset.denormalize_state(state_pred_fc.cpu().numpy())[0],
+                dataset.denormalize_state(state_pred_mf.cpu().numpy())[0],
                 dataset.denormalize_state(state_pred_reg.cpu().numpy())[0],
                 dataset.denormalize_state(data["state"][0].cpu().numpy()),
                 edm_prediction_group,
@@ -194,7 +197,6 @@ def main(cfg: DictConfig):
                 i,
             )
 
-            # Build condition + run frozen regression -> mu_{t+1} in state_pred
             (condition, _, state_pred) = build_network_condition_and_target(
                 background,
                 [state_pred, state_pred],
@@ -205,22 +207,34 @@ def main(cfg: DictConfig):
             )
 
             if state_pred is None:
-                state_pred = torch.zeros_like(state_pred_fc)
+                state_pred = torch.zeros_like(state_pred_mf)
 
             state_pred_reg = state_pred.clone()
 
-            # FlowCast residual r_{t+1} (already in raw, un-standardised units).
-            residual = flowcast_model_forward(
-                flowcast_model,
+            # GS-MeanFlow residual (raw units) + occurrence logits.
+            residual, gate_logits = gsmeanflow_model_forward(
+                gsmeanflow_model,
                 condition,
                 state_pred.shape,
-                **fc_kwargs,
+                **mf_kwargs,
             )
 
             state_pred[0, :] += residual[0].float()
-            state_pred_fc = state_pred.clone()
 
-            # Plot
+            # Hurdle: force confidently-dry qpepre pixels to exact zero (in
+            # standardized space; denorm -> 0 mm/h). Applied before feeding the
+            # state back so the autoregressive rollout stays consistent.
+            if apply_gate:
+                state_pred, _ = apply_occurrence_gate(
+                    state_pred,
+                    gate_logits,
+                    q_idx,
+                    dry_value_std,
+                    threshold=gate_prob_threshold,
+                )
+
+            state_pred_mf = state_pred.clone()
+
             varidx_state = vardict_state[cfg.inference.plot_var_state]
             varidx_background = vardict_background[cfg.inference.plot_var_background]
 

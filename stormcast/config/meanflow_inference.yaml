@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023 - 2025 NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Main config for MeanFlow inference (regression mean + average-velocity
+# residual). Mirrors flowcast_inference.yaml but loads the MeanFlow student
+# via EMA shadow and samples with 1-2 NFE.
+
+defaults:
+  # Dataset -- use the same RWRF/ERA5 loader as training so denormalize_state
+  # auto-applies expm1 to qpepre (qpepre_log1p flag).
+  - dataset/era5_rwrf_qpepre
+
+  # Model settings shared with training (sigma_data, time_scale, conditions).
+  - model/meanflow
+
+  # Inference settings (checkpoints, n_steps, plot vars, MeanFlow sampler args).
+  - inference/meanflow
+
+  # Hydra
+  - hydra/default
+
+  - _self_

@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Train FlowCast (Conditional Flow Matching) on the StormCast residual.
+"""Train MeanFlow (average-velocity flow matching) on the StormCast residual.
 
-Adapts the FlowCast paper (Ribeiro & Pucer 2025) to the Taiwan RWRF StormCast
-setup: the regression net F_theta produces the deterministic component mu_{t+1}
-and the CFM network learns the residual r_{t+1} = M_{t+1} - mu_{t+1} in pixel
-space (no VAE). Sampling uses Algorithm 2 (Euler ODE, default 10 steps).
+Adapts MeanFlow (Geng et al. 2025) to the Taiwan RWRF StormCast setup: the
+regression net F_theta produces the deterministic component mu_{t+1} and the
+MeanFlow network learns the residual r_{t+1} = M_{t+1} - mu_{t+1} in pixel
+space (no VAE). Sampling applies the learned average velocity over one or a
+few segments (default 2 NFE), versus 10 Euler steps for the FlowCast student
+and 18-36 Heun evaluations for the EDM teacher.
 """
 
 import os
@@ -31,18 +33,18 @@ import wandb
 from omegaconf import DictConfig, OmegaConf
 from physicsnemo.distributed import DistributedManager
 
-from utils.trainer_flowcast import flowcast_training_loop
+from utils.trainer_meanflow import meanflow_training_loop
 
 
-@hydra.main(version_base=None, config_path="config", config_name="flowcast")
+@hydra.main(version_base=None, config_path="config", config_name="meanflow")
 def main(cfg: DictConfig) -> None:
-    """FlowCast entry point."""
+    """MeanFlow entry point."""
 
     DistributedManager.initialize()
     dist = DistributedManager()
 
     if dist.rank == 0:
-        print("FlowCast configuration:")
+        print("MeanFlow configuration:")
         print(OmegaConf.to_yaml(cfg))
 
     # Random seed
@@ -54,7 +56,7 @@ def main(cfg: DictConfig) -> None:
     wandb_resume = False
     os.makedirs(cfg.training.rundir, exist_ok=True)
     training_states = glob.glob(
-        os.path.join(cfg.training.rundir, "checkpoints_flowcast/checkpoint*.pt")
+        os.path.join(cfg.training.rundir, "checkpoints_meanflow/checkpoint*.pt")
     )
     if training_states:
         wandb_resume = True
@@ -71,7 +73,7 @@ def main(cfg: DictConfig) -> None:
             mode=cfg.training.wandb_mode,
         )
 
-    flowcast_training_loop(cfg)
+    meanflow_training_loop(cfg)
 
 
 # ----------------------------------------------------------------------------

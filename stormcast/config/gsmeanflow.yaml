@@ -14,4 +14,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .loss import tEDMResidualLoss
+# Gated-Spectral MeanFlow (GS-MeanFlow) on the StormCast Taiwan residual.
+
+defaults:
+
+  # Dataset
+  - dataset/era5_rwrf_qpepre
+
+  # Model
+  - model/gsmeanflow
+
+  # Training
+  - training/gsmeanflow
+
+  # Sampler (not used at train time, kept for parity with the other configs).
+  - sampler/edm_deterministic
+
+  # Hydra
+  - hydra/default
+
+  - _self_
+
+# GS-MeanFlow-specific top-level overrides
+model:
+  use_regression_net: True
+  regression_weights: ""   # path to the pretrained regression checkpoint
+  spatial_pos_embed: True
+
+training:
+  loss: 'gsmeanflow'
+  total_train_steps: 400000
+  checkpoint_freq: 5000
+  validation_freq: 500

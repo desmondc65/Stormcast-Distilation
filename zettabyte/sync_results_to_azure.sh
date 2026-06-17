@@ -27,13 +27,15 @@
 
 set -uo pipefail
 
-# Same SAS as azcopy_transfer.sh -- keep them in lockstep.
-SAS_BASE=
-SAS_QUERY=
+# Same SAS as azcopy_transfer.sh -- read from the environment so secrets
+# never live in git. Export SAS_BASE and SAS_QUERY in your shell (e.g.
+# source a gitignored ~/.azcopy_sas.env) before invoking this script.
+: "${SAS_BASE:?set SAS_BASE in env (container URL, no query string)}"
+: "${SAS_QUERY:?set SAS_QUERY in env (SAS token query string, no leading '?')}"
 
 # Defaults match the regression run wired in zettabyte_scripts/train_regression.sh.
-DEFAULT_SRC=
-DEFAULT_REMOTE=
+DEFAULT_SRC="/data/exp_3_train_2_5_yrs_val_1yr_tp1/bridge_zettabyte_v1_cleaned_4_27_2026"
+DEFAULT_REMOTE="desmond/runs/bridge_zettabyte_v1_cleaned_4_27_2026"
 
 SRC="${1:-$DEFAULT_SRC}"
 REMOTE_REL="${2:-$DEFAULT_REMOTE}"

@@ -14,13 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FlowCast (Conditional Flow Matching) training loop.
+"""Gated-Spectral MeanFlow training loop.
 
-Trains an I-CFM vector field v_theta on the residual manifold
-r_{t+1} = M_{t+1} - mu_{t+1} of the StormCast two-stage setup. The regression
-model F_theta is kept frozen and used purely as conditioning / residual anchor,
-so inference is ``mu_{t+1} + Euler(v_theta)`` exactly as the existing EDM stack
-does for the diffusion residual.
+Trains a ``GSMeanFlowPrecond`` (average-velocity flow + occurrence gate) on the
+StormCast residual manifold. Identical scaffolding to ``trainer_meanflow.py``
+(frozen regression mean, EMA shadow used for sampling/inference, cosine LR) with
+three additions:
+
+* the loss is ``GSMeanFlowLoss`` (group-decoupled adaptive weighting + the
+  focal occurrence-gate term), fed the absolute target field ``state[1]`` so it
+  can build the wet mask;
+* the qpepre wet threshold / dry value are precomputed once in the standardized
+  space the network sees;
+* validation samples the gated field (``mu + residual`` with confidently-dry
+  qpepre pixels forced to exact zero) before scoring RMSE / spectra.
 """
 
 import contextlib
@@ -40,16 +47,11 @@ from physicsnemo.utils.diffusion import InfiniteSampler
 from physicsnemo.launch.utils import save_checkpoint, load_checkpoint
 from physicsnemo.launch.logging import PythonLogger, RankZeroLoggingWrapper
 
-from .nn import (
-    get_preconditioned_architecture,
-    build_network_condition_and_target,
-    flowcast_model_forward,
-)
-from .flowcast_loss import FlowCastLoss
-from .ema import ExponentialMovingAverage
-from .plots import validation_plot
-from .spectrum import ps1d_plots
-from .trainer import (
+from utils.nn import build_network_condition_and_target
+from utils.ema import ExponentialMovingAverage
+from utils.plots import validation_plot
+from utils.spectrum import ps1d_plots
+from utils.trainer import (
     _log_train_loss_csv,
     _log_valid_loss_csv,
     _log_rmse_field_csv,
@@ -63,24 +65,30 @@ from datasets import dataset_classes
 from datasets.dataset import worker_init
 from torch.nn.utils import clip_grad_norm_
 
+from nn_gsmeanflow import (
+    get_gsmeanflow_architecture,
+    gsmeanflow_model_forward,
+    apply_occurrence_gate,
+    qpepre_standardized_levels,
+)
+from gsmeanflow_loss import GSMeanFlowLoss
 
-logger = PythonLogger("train_flowcast")
+
+logger = PythonLogger("train_gsmeanflow")
 
 
 def _distributed_ready() -> bool:
     return torch.distributed.is_available() and torch.distributed.is_initialized()
 
 
-def flowcast_training_loop(cfg):
-    """Main training loop for Conditional Flow Matching on the StormCast residual."""
+def gsmeanflow_training_loop(cfg):
+    """Main training loop for Gated-Spectral MeanFlow on the StormCast residual."""
 
-    # Initialize
     start_time = time.time()
     dist = DistributedManager()
     device = dist.device
     logger0 = RankZeroLoggingWrapper(logger, dist)
 
-    # Shorthand for config items
     batch_size = cfg.training.batch_size
     if cfg.training.batch_size_per_gpu == "auto":
         local_batch_size = batch_size // dist.world_size
@@ -90,10 +98,9 @@ def flowcast_training_loop(cfg):
     num_accumulation_rounds = batch_size // (local_batch_size * dist.world_size)
 
     log_to_wandb = cfg.training.log_to_wandb
-    net_name = "flowcast"
+    net_name = "gsmeanflow"
     condition_list = cfg.model.diffusion_conditions
 
-    # Seed and performance settings
     np.random.seed((cfg.training.seed * dist.world_size + dist.rank) % (1 << 31))
     torch.manual_seed(cfg.training.seed)
     torch.backends.cudnn.benchmark = cfg.training.cudnn_benchmark
@@ -118,6 +125,17 @@ def flowcast_training_loop(cfg):
 
     background_channels = dataset_train.background_channels()
     state_channels = dataset_train.state_channels()
+
+    # qpepre standardized levels for the occurrence gate.
+    gate_threshold_mm = float(getattr(cfg.training, "gate_threshold_mm", 0.1))
+    q_idx, wet_threshold_std, dry_value_std = qpepre_standardized_levels(
+        dataset_train, threshold_mm=gate_threshold_mm
+    )
+    logger0.info(
+        f"qpepre gate: channel={q_idx} ({state_channels[q_idx]}), "
+        f"wet>{gate_threshold_mm}mm/h -> std>{wet_threshold_std:.4f}, "
+        f"dry(0mm/h) -> std={dry_value_std:.4f}"
+    )
 
     sampler = InfiniteSampler(
         dataset=dataset_train,
@@ -152,7 +170,6 @@ def flowcast_training_loop(cfg):
     dataset_iterator = iter(data_loader)
     valid_dataset_iterator = iter(valid_data_loader)
 
-    # Load pretrained regression net if 'regression' conditioning is requested
     if "regression" in condition_list:
         regression_net = Module.from_checkpoint(cfg.model.regression_weights)
         if cfg.training.compile_model:
@@ -169,7 +186,6 @@ def flowcast_training_loop(cfg):
     else:
         invariant_tensor = None
 
-    # Construct network dimensions
     logger0.info("Constructing networks...")
     num_condition_channels = {
         "state": len(state_channels),
@@ -190,26 +206,22 @@ def flowcast_training_loop(cfg):
         conditional_channels=num_condition_channels,
         spatial_embedding=cfg.model.spatial_pos_embed,
         attn_resolutions=list(cfg.model.attn_resolutions),
+        gate_base_channels=int(getattr(cfg.model, "gate_base_channels", 48)),
     )
 
-    # Build student (FlowCastPrecond)
-    student = get_preconditioned_architecture(name="flowcast", **arch_kwargs)
+    student = get_gsmeanflow_architecture(**arch_kwargs)
     student.train().requires_grad_(True).to(device)
-    # Carry sigma_data / time_scale from the config down to the wrapper so the
-    # sampler and loss stay consistent.
     student.sigma_data = float(cfg.model.sigma_data)
     student.time_scale = float(cfg.model.time_scale)
 
-    # EMA target network (used for inference + validation sampling).
     ema_decay = float(cfg.training.ema_decay)
     ema = ExponentialMovingAverage(student, decay=ema_decay)
-    ema_net = get_preconditioned_architecture(name="flowcast", **arch_kwargs)
+    ema_net = get_gsmeanflow_architecture(**arch_kwargs)
     ema_net = ema_net.to(device).eval().requires_grad_(False)
     ema_net.sigma_data = float(cfg.model.sigma_data)
     ema_net.time_scale = float(cfg.model.time_scale)
     ema.apply_shadow(ema_net)
 
-    # Optional channel weighting / spectral regularizer (same knobs as CD).
     channel_weights = getattr(cfg.training, "channel_weights", None)
     if channel_weights is not None:
         channel_weights = list(channel_weights)
@@ -221,16 +233,22 @@ def flowcast_training_loop(cfg):
         spectral_channels = None
     spectral_weight = float(getattr(cfg.training, "spectral_weight", 0.0))
 
-    loss_fn = FlowCastLoss(
+    loss_fn = GSMeanFlowLoss(
         sigma_data=cfg.model.sigma_data,
-        sigma_path=cfg.training.sigma_path,
         t_eps=float(getattr(cfg.training, "t_eps", 1e-5)),
+        mf_ratio=float(getattr(cfg.training, "mf_ratio", 0.25)),
+        adaptive_p=float(getattr(cfg.training, "adaptive_p", 1.0)),
+        adaptive_eps=float(getattr(cfg.training, "adaptive_eps", 1e-3)),
         channel_weights=channel_weights,
         spectral_channels=spectral_channels,
         spectral_weight=spectral_weight,
+        gate_channel_index=q_idx,
+        gate_wet_threshold=wet_threshold_std,
+        gate_weight=float(getattr(cfg.training, "gate_weight", 1.0)),
+        gate_focal_gamma=float(getattr(cfg.training, "gate_focal_gamma", 2.0)),
+        gate_focal_alpha=float(getattr(cfg.training, "gate_focal_alpha", 0.75)),
     )
-    # AdamW to match the FlowCast paper (vs. Adam in CD/PD). Weight decay is
-    # a small regularizer on the velocity network.
+
     optimizer = torch.optim.AdamW(
         student.parameters(),
         lr=cfg.training.lr,
@@ -241,7 +259,6 @@ def flowcast_training_loop(cfg):
         student, device_ids=[device], broadcast_buffers=False
     )
 
-    # Resume
     ckpt_path = os.path.join(cfg.training.rundir, f"checkpoints_{net_name}")
     logger0.info(f'Trying to resume training state from "{ckpt_path}"...')
     total_steps = load_checkpoint(
@@ -257,7 +274,7 @@ def flowcast_training_loop(cfg):
         logger0.info("No resumable training state found.")
         init_weights = cfg.training.initial_weights
         if init_weights is None or init_weights == "":
-            logger0.info("Starting FlowCast training from random initialization...")
+            logger0.info("Starting GS-MeanFlow training from random initialization...")
         else:
             logger0.info(f"Starting from weights saved in {init_weights}...")
             if init_weights.endswith(".mdlus"):
@@ -268,7 +285,6 @@ def flowcast_training_loop(cfg):
     else:
         logger0.info(f"Resumed from step {total_steps}.")
 
-    # Restore EMA state if available
     ema_ckpt_path = os.path.join(cfg.training.rundir, "ema_state.pt")
     if os.path.exists(ema_ckpt_path):
         logger0.info(f"Restoring EMA state from {ema_ckpt_path}...")
@@ -276,7 +292,6 @@ def flowcast_training_loop(cfg):
         ema.load_state_dict(ema_state)
         ema.apply_shadow(ema_net)
 
-    # Train
     logger0.info(
         f"Training up to {total_train_steps} steps starting from step {total_steps}..."
     )
@@ -293,6 +308,8 @@ def flowcast_training_loop(cfg):
     rundir = cfg.training.rundir
     os.makedirs(rundir, exist_ok=True)
 
+    gate_threshold = float(getattr(cfg.training, "gate_prob_threshold", 0.5))
+
     while not done:
         optimizer.zero_grad(set_to_none=True)
 
@@ -301,9 +318,6 @@ def flowcast_training_loop(cfg):
             background = batch["background"].to(device=device, dtype=torch.float32)
             state = [s.to(device=device, dtype=torch.float32) for s in batch["state"]]
 
-            # Only sync gradients on the final micro-batch of the accumulation
-            # window; earlier rounds run under no_sync() to avoid redundant
-            # all-reduces.
             is_last_accum = accum_idx == num_accumulation_rounds - 1
             sync_ctx = (
                 ddp.no_sync()
@@ -324,6 +338,7 @@ def flowcast_training_loop(cfg):
                         student=ddp,
                         images=target,
                         condition=condition,
+                        target_field=state[1],
                     )
 
                 loss_value = loss_dict["loss"]
@@ -332,8 +347,6 @@ def flowcast_training_loop(cfg):
         if cfg.training.clip_grad_norm > 0:
             clip_grad_norm_(student.parameters(), cfg.training.clip_grad_norm)
 
-        # Cosine LR with linear warmup (FlowCast paper: 1% warmup, cosine to
-        # min_lr_ratio). If resume_from > warmup, this just rolls into cosine.
         warmup = max(cfg.training.lr_warmup_steps, 1)
         min_lr = cfg.training.lr * cfg.training.min_lr_ratio
         if total_steps < warmup:
@@ -357,13 +370,13 @@ def flowcast_training_loop(cfg):
 
         optimizer.step()
 
-        # Fixed-decay EMA (FlowCast paper: 0.999).
         ema.update(student, decay=ema_decay)
         ema.apply_shadow(ema_net)
 
         loss_scalar = loss_value.detach()
         pointwise_scalar = loss_dict["pointwise"]
         spectral_scalar = loss_dict["spectral"]
+        gate_scalar = loss_dict["gate"]
 
         if dist.world_size > 1 and _distributed_ready():
             torch.distributed.barrier()
@@ -374,6 +387,9 @@ def flowcast_training_loop(cfg):
             torch.distributed.all_reduce(
                 spectral_scalar, op=torch.distributed.ReduceOp.AVG
             )
+            torch.distributed.all_reduce(
+                gate_scalar, op=torch.distributed.ReduceOp.AVG
+            )
 
         avg_train_loss += loss_scalar.cpu().item()
         train_steps += 1
@@ -382,6 +398,10 @@ def flowcast_training_loop(cfg):
             wandb_logs["loss"] = loss_scalar.cpu().item()
             wandb_logs["loss_pointwise"] = pointwise_scalar.cpu().item()
             wandb_logs["loss_spectral"] = spectral_scalar.cpu().item()
+            wandb_logs["loss_gate"] = gate_scalar.cpu().item()
+            wandb_logs["wet_fraction"] = loss_dict["wet_fraction"]
+            wandb_logs["pred_wet_fraction"] = loss_dict["pred_wet_fraction"]
+            wandb_logs["mf_fraction"] = loss_dict["mf_fraction"]
 
         total_steps += 1
         done = total_steps >= total_train_steps
@@ -397,7 +417,7 @@ def flowcast_training_loop(cfg):
             except Exception as e:
                 logger0.warn(f"Failed to write train_loss.csv at step {total_steps}: {e}")
 
-        # Validation (uses EMA weights for the sampler, per FlowCast paper)
+        # Validation (uses EMA weights for the gated sampler)
         if total_steps % cfg.training.validation_freq == 0:
             validation_counter += 1
             valid_start = time.time()
@@ -421,28 +441,34 @@ def flowcast_training_loop(cfg):
                         regression_condition_list=cfg.model.regression_conditions,
                     )
 
-                    # Euler ODE sampling from EMA weights.
                     valid_num_steps = int(cfg.training.valid_num_steps)
-                    residual = flowcast_model_forward(
+                    residual, gate_logits = gsmeanflow_model_forward(
                         ema_net,
                         condition,
                         state[1].shape,
                         num_steps=valid_num_steps,
                         sigma_data=cfg.model.sigma_data,
-                        solver=cfg.training.solver,
                     )
                     if "regression" in condition_list and reg_out is not None:
                         output_images = residual + reg_out
                     else:
                         output_images = residual
 
-                    # Evaluate the CFM objective against the EMA weights so
-                    # the validation loss tracks the same net used for the
-                    # sampler and for the eventually-deployed checkpoint.
+                    # Hurdle: force confidently-dry qpepre pixels to exact zero
+                    # (in standardized space, so denorm -> 0 mm/h).
+                    output_images, _ = apply_occurrence_gate(
+                        output_images,
+                        gate_logits,
+                        q_idx,
+                        dry_value_std,
+                        threshold=gate_threshold,
+                    )
+
                     valid_loss_dict = loss_fn(
                         student=ema_net,
                         images=target,
                         condition=condition,
+                        target_field=state[1],
                     )
                     valid_loss_scalar = valid_loss_dict["loss"].detach()
 
@@ -455,6 +481,11 @@ def flowcast_training_loop(cfg):
                 val_loss = valid_loss_scalar.cpu().item()
                 if log_to_wandb:
                     wandb_logs["valid_loss"] = val_loss
+                    wandb_logs["valid_gate"] = float(valid_loss_dict["gate"].item())
+                    wandb_logs["valid_wet_fraction"] = valid_loss_dict["wet_fraction"]
+                    wandb_logs["valid_pred_wet_fraction"] = valid_loss_dict[
+                        "pred_wet_fraction"
+                    ]
 
             if dist.rank == 0:
                 rmse_acc = defaultdict(float)
@@ -602,7 +633,6 @@ def flowcast_training_loop(cfg):
                 f"[Validation] Completed at step {total_steps}: loss={val_loss:.4f}, time={valid_time: .2f}s"
             )
 
-        # Console stats
         current_time = time.time()
         if total_steps % cfg.training.print_progress_freq == 0:
             fields = []
@@ -620,6 +650,7 @@ def flowcast_training_loop(cfg):
                 f"gpumem {torch.cuda.max_memory_allocated(device) / 2**30:<6.2f}"
             ]
             fields += [f"train_loss {avg_train_loss / max(train_steps, 1):<6.3f}"]
+            fields += [f"gate {gate_scalar.cpu().item():<6.4f}"]
             fields += [f"val_loss {val_loss:<6.3f}"]
             fields += [f"lr {lr_now:.2e}"]
             logger0.info(" ".join(fields))
@@ -629,7 +660,6 @@ def flowcast_training_loop(cfg):
             avg_train_loss = 0.0
             torch.cuda.reset_peak_memory_stats()
 
-        # Checkpointing
         if (
             (done or total_steps % cfg.training.checkpoint_freq == 0)
             and total_steps != 0

@@ -7,18 +7,19 @@
 # You may obtain a copy of the License at
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
-"""Autoregressive inference for FlowCast (Conditional Flow Matching distillate).
+"""Autoregressive inference for MeanFlow (average-velocity flow matching).
 
-Mirrors ``inference.py`` but swaps the EDM diffusion sampler for the
-fixed-step ODE sampler in ``flowcast_model_forward``. The pipeline is::
+Mirrors ``inference_flowcast.py`` but swaps the multi-step Euler ODE sampler
+for the few-step average-velocity sampler in ``meanflow_model_forward``. The
+pipeline is::
 
     mu_{t+1} = F_theta(M_t, S_t, I)              # frozen regression mean
-    r_{t+1}  = FlowCast(z, t, condition)         # learned residual
+    r_{t+1}  = MeanFlow(z, r, t, condition)      # learned residual, 1-2 NFE
     M_{t+1}  = mu_{t+1} + r_{t+1}
 
-The FlowCast student weights are loaded from the EMA shadow saved during
+The MeanFlow student weights are loaded from the EMA shadow saved during
 training (``<rundir>/ema_state.pt``); these, NOT the raw student
-checkpoint, are what trainer_flowcast.py promotes to inference.
+checkpoint, are what trainer_meanflow.py promotes to inference.
 
 qpepre is automatically returned in mm/h: clean_zarr.py stores it as
 ``log1p(mm/h)`` and the data loader's ``denormalize_state`` applies
@@ -42,18 +43,18 @@ from utils.io import (
 )
 from utils.nn import (
     build_network_condition_and_target,
-    flowcast_model_forward,
+    meanflow_model_forward,
     get_preconditioned_architecture,
 )
 from utils.plots import inference_plot
 
 
-def _load_flowcast_student(cfg, dataset, invariant_tensor, device):
-    """Construct a FlowCastPrecond and load the EMA shadow into it.
+def _load_meanflow_student(cfg, dataset, invariant_tensor, device):
+    """Construct a MeanFlowPrecond and load the EMA shadow into it.
 
-    The EMA shadow lives at ``cfg.inference.flowcast_ema_path`` (or, by
-    convention, ``<flowcast_rundir>/ema_state.pt``). We materialise a fresh
-    FlowCastPrecond with the exact arch the trainer used, then overwrite its
+    The EMA shadow lives at ``cfg.inference.meanflow_ema_path`` (or, by
+    convention, ``<meanflow_rundir>/ema_state.pt``). We materialise a fresh
+    MeanFlowPrecond with the exact arch the trainer used, then overwrite its
     parameters with the shadow tensors. Returns the network in ``eval()`` mode.
     """
     state_channels = dataset.state_channels()
@@ -76,15 +77,15 @@ def _load_flowcast_student(cfg, dataset, invariant_tensor, device):
         attn_resolutions=list(cfg.model.attn_resolutions),
     )
 
-    net = get_preconditioned_architecture(name="flowcast", **arch_kwargs)
+    net = get_preconditioned_architecture(name="meanflow", **arch_kwargs)
     net = net.to(device).eval().requires_grad_(False)
     net.sigma_data = float(cfg.model.sigma_data)
     net.time_scale = float(cfg.model.time_scale)
 
     # The training loop saves the EMA wrapper's state_dict (a flat dict of
     # shadow tensors keyed by parameter name). Apply it directly to ``net``.
-    ema_path = cfg.inference.flowcast_ema_path
-    print(f"[flowcast] loading EMA shadow weights from {ema_path}")
+    ema_path = cfg.inference.meanflow_ema_path
+    print(f"[meanflow] loading EMA shadow weights from {ema_path}")
     ema_state = torch.load(ema_path, map_location=device)
     # ExponentialMovingAverage.state_dict stores shadows under "shadow_params"
     # (keyed by index) plus the parameter names list. Cope with both that
@@ -104,7 +105,7 @@ def _load_flowcast_student(cfg, dataset, invariant_tensor, device):
     return net
 
 
-@hydra.main(version_base=None, config_path="config", config_name="flowcast_inference")
+@hydra.main(version_base=None, config_path="config", config_name="meanflow_inference")
 def main(cfg: DictConfig):
     DistributedManager.initialize()
     dist = DistributedManager()
@@ -145,18 +146,17 @@ def main(cfg: DictConfig):
         regression_model = net.to(device).eval()
     else:
         regression_model = None
-    flowcast_model = _load_flowcast_student(cfg, dataset, invariant_tensor, device)
+    meanflow_model = _load_meanflow_student(cfg, dataset, invariant_tensor, device)
 
-    # FlowCast sampler hyperparameters (Hydra config -> kwargs).
-    fc_kwargs = dict(
-        num_steps=int(cfg.inference.flowcast.num_steps),
+    # MeanFlow sampler hyperparameters (Hydra config -> kwargs).
+    mf_kwargs = dict(
+        num_steps=int(cfg.inference.meanflow.num_steps),
         sigma_data=float(cfg.model.sigma_data),
-        solver=str(cfg.inference.flowcast.solver),
     )
-    print(f"[flowcast] sampler kwargs: {fc_kwargs}")
+    print(f"[meanflow] sampler kwargs: {mf_kwargs}")
 
     # Output zarr -- reuse the same writers as inference.py. The "edm" group
-    # holds the FlowCast-corrected prediction, the "noedm" group holds the
+    # holds the MeanFlow-corrected prediction, the "noedm" group holds the
     # bare regression mean (mu_{t+1} alone) for direct comparison.
     (
         group,
@@ -175,15 +175,15 @@ def main(cfg: DictConfig):
 
             if i == 0:
                 state_pred = data["state"][0].to(device=device, dtype=torch.float32).unsqueeze(0)
-                state_pred_fc = state_pred.clone()       # FlowCast-corrected
+                state_pred_mf = state_pred.clone()       # MeanFlow-corrected
                 state_pred_reg = state_pred.clone()      # regression-only
 
-            assert state_pred_fc.shape == (1, len(state_channels)) + dataset.image_shape()
+            assert state_pred_mf.shape == (1, len(state_channels)) + dataset.image_shape()
             assert state_pred_reg.shape == (1, len(state_channels)) + dataset.image_shape()
 
             # de-norm + expm1 for qpepre is handled inside denormalize_state
             write_inference_results_zarr(
-                dataset.denormalize_state(state_pred_fc.cpu().numpy())[0],
+                dataset.denormalize_state(state_pred_mf.cpu().numpy())[0],
                 dataset.denormalize_state(state_pred_reg.cpu().numpy())[0],
                 dataset.denormalize_state(data["state"][0].cpu().numpy()),
                 edm_prediction_group,
@@ -205,20 +205,20 @@ def main(cfg: DictConfig):
             )
 
             if state_pred is None:
-                state_pred = torch.zeros_like(state_pred_fc)
+                state_pred = torch.zeros_like(state_pred_mf)
 
             state_pred_reg = state_pred.clone()
 
-            # FlowCast residual r_{t+1} (already in raw, un-standardised units).
-            residual = flowcast_model_forward(
-                flowcast_model,
+            # MeanFlow residual r_{t+1} (already in raw, un-standardised units).
+            residual = meanflow_model_forward(
+                meanflow_model,
                 condition,
                 state_pred.shape,
-                **fc_kwargs,
+                **mf_kwargs,
             )
 
             state_pred[0, :] += residual[0].float()
-            state_pred_fc = state_pred.clone()
+            state_pred_mf = state_pred.clone()
 
             # Plot
             varidx_state = vardict_state[cfg.inference.plot_var_state]
