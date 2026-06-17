@@ -28,11 +28,13 @@
 set -uo pipefail
 
 # Same SAS as azcopy_transfer.sh and sync_results_to_azure.sh.
-SAS_BASE=
-SAS_QUERY=
+SAS_BASE="https://zbstore2026.blob.core.windows.net/g-019c8ca2-605d-7bb5-b98b-1c53fbdf2b7f"
+SAS_QUERY="se=2026-09-14T06%3A47%3A36Z&sp=rwdl&sv=2026-02-06&sr=c&sig=oK8hMT%2BAJiBIzbozGc%2BgVk3N2e861Nm%2B9MvMyoi6UMg%3D"
 
-DEFAULT_REMOTE=
-DEFAULT_DST=
+
+DEFAULT_REMOTE="desmond/runs/"
+DEFAULT_DST="/home/desmond/Documents/master_thesis/Stormcast-Distilation/runs/"
+
 
 REMOTE_REL="${1:-$DEFAULT_REMOTE}"
 DST="${2:-$DEFAULT_DST}"

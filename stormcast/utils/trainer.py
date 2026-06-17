@@ -130,61 +130,87 @@ def _log_ps1d_field_csv(rundir: str, step: int, field: str,
 
 
 def _plot_loss_curves(rundir: str, experiment_name: str):
-    """Plot training and validation loss curves from CSV files.
-    
-    Args:
-        rundir: The main run directory containing loss CSV files.
-        experiment_name: The name of the experiment for the plot title.
+    """Plot training and validation loss curves in a paper-figure style:
+    log-scale loss, light EMA-smoothed train trace, no chart-junk.
     """
     try:
         train_csv = os.path.join(rundir, "train_loss.csv")
         valid_csv = os.path.join(rundir, "valid_loss.csv")
-        
-        # Check if files exist
+
         if not os.path.exists(train_csv):
             logger.warn(f"Training loss CSV not found: {train_csv}")
             return
-            
-        # Read training loss
-        train_steps = []
-        train_losses = []
-        with open(train_csv, 'r') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                train_steps.append(int(row['step']))
-                train_losses.append(float(row['loss']))
-        
-        # Read validation loss if exists
-        valid_steps = []
-        valid_losses = []
+
+        train_steps, train_losses = [], []
+        with open(train_csv, "r") as f:
+            for row in csv.DictReader(f):
+                train_steps.append(int(row["step"]))
+                train_losses.append(float(row["loss"]))
+
+        valid_steps, valid_losses = [], []
         if os.path.exists(valid_csv):
-            with open(valid_csv, 'r') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    valid_steps.append(int(row['step']))
-                    valid_losses.append(float(row['loss']))
-        
-        # Create the plot
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        if train_steps and train_losses:
-            ax.plot(train_steps, train_losses, label='Training Loss', alpha=0.7, linewidth=1)
-        
-        if valid_steps and valid_losses:
-            ax.plot(valid_steps, valid_losses, label='Validation Loss', 
-                   marker='o', markersize=4, linewidth=2)
-        
-        ax.set_xlabel('Training Steps', fontsize=12)
-        ax.set_ylabel('Loss', fontsize=12)
-        ax.set_title(f'{experiment_name} - Training Progress', fontsize=14, fontweight='bold')
-        ax.legend(fontsize=10, loc='best')
-        ax.grid(True, alpha=0.3)
-        
-        # Save the plot (will replace existing file)
-        plot_path = os.path.join(rundir, "loss_curves.png")
-        fig.savefig(plot_path, dpi=150, bbox_inches='tight')
-        plt.close(fig)
-        
+            with open(valid_csv, "r") as f:
+                for row in csv.DictReader(f):
+                    valid_steps.append(int(row["step"]))
+                    valid_losses.append(float(row["loss"]))
+
+        train_steps = np.asarray(train_steps)
+        train_losses = np.asarray(train_losses, dtype=float)
+        valid_steps = np.asarray(valid_steps)
+        valid_losses = np.asarray(valid_losses, dtype=float)
+
+        with plt.rc_context({
+            "font.family": "DejaVu Sans",
+            "font.size": 10,
+            "axes.titlesize": 11,
+            "axes.labelsize": 10,
+            "axes.linewidth": 0.8,
+            "xtick.direction": "in",
+            "ytick.direction": "in",
+            "xtick.minor.visible": True,
+            "ytick.minor.visible": True,
+            "legend.frameon": False,
+            "legend.fontsize": 9,
+        }):
+            fig, ax = plt.subplots(figsize=(6.5, 4.0), constrained_layout=True)
+
+            if train_steps.size:
+                ax.plot(
+                    train_steps, train_losses,
+                    color="#9aa0a6", linewidth=0.8, alpha=0.55,
+                    label="train (raw)",
+                )
+                if train_losses.size > 16:
+                    win = max(8, train_losses.size // 80)
+                    kernel = np.ones(win) / win
+                    smooth = np.convolve(train_losses, kernel, mode="valid")
+                    smooth_x = train_steps[win - 1 :]
+                    ax.plot(
+                        smooth_x, smooth,
+                        color="#1f77b4", linewidth=1.6,
+                        label=f"train (mean, w={win})",
+                    )
+
+            if valid_steps.size:
+                ax.plot(
+                    valid_steps, valid_losses,
+                    color="#d62728", marker="o", markersize=3.5,
+                    linewidth=1.2, label="validation",
+                )
+
+            ax.set_xlabel("Training step")
+            ax.set_ylabel("Loss")
+            if np.all(np.isfinite(train_losses)) and np.min(train_losses) > 0:
+                ax.set_yscale("log")
+            ax.grid(True, which="major", alpha=0.25, linewidth=0.5)
+            ax.grid(True, which="minor", alpha=0.12, linewidth=0.4)
+            ax.set_title(experiment_name)
+            ax.legend(loc="upper right")
+
+            plot_path = os.path.join(rundir, "loss_curves.png")
+            fig.savefig(plot_path, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+
     except Exception as e:
         logger.warn(f"Failed to plot loss curves: {e}")
 

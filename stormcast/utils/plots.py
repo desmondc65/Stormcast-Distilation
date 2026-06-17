@@ -2,52 +2,93 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 
-def validation_plot(generated, truth, variable, experiment_name=None, step=None):
-    """Produce validation plot with shared color scale for generated vs truth,
-    annotated with experiment name and step.
-    """
-    fig, (a, b) = plt.subplots(1, 2, figsize=(12, 6))
-    plt.subplots_adjust(wspace=0.4)  # extra spacing between panels
-
-    # Find global min/max across both fields
-    vmin = min(np.min(generated), np.min(truth))
-    vmax = max(np.max(generated), np.max(truth))
-
-    # Titles
-    title_generated = f"generated, {variable}.png"
-    title_truth = "truth"
-
-    if experiment_name is not None or step is not None:
-        exp_info = []
-        if experiment_name is not None:
-            exp_info.append(f"Exp: {experiment_name}")
-        if step is not None:
-            exp_info.append(f"Step: {step}")
-        exp_info_str = " | ".join(exp_info)
-
-        # Add info to both titles
-        title_generated += f"\n{exp_info_str}"
-        title_truth += f"\n{exp_info_str}"
-
-    im = a.imshow(generated, vmin=vmin, vmax=vmax, origin="lower")
-    a.set_title(title_generated)
-    plt.colorbar(im, ax=a, fraction=0.046, pad=0.04)
-
-    im = b.imshow(truth, vmin=vmin, vmax=vmax, origin="lower")
-    b.set_title(title_truth)
-    plt.colorbar(im, ax=b, fraction=0.046, pad=0.04)
-
-    return fig
-
-
 color_limits = {
-    "u10m": (-5, 5),
-    "v10": (-5, 5),
-    "t2m": (260, 310),
+    "u10m": (-15, 15),
+    "u10": (-15, 15),
+    "v10": (-15, 15),
+    "t2m": (270, 310),
     "tcwv": (0, 60),
     "msl": (0.1, 0.3),
     "refc": (-10, 30),
+    "qpepre": (0, 30),
 }
+
+cmap_for_var = {
+    "u10m": "RdBu_r",
+    "u10": "RdBu_r",
+    "v10": "RdBu_r",
+    "t2m": "inferno",
+    "tcwv": "magma",
+    "msl": "magma",
+    "refc": "magma",
+    "qpepre": "viridis",
+}
+
+_units = {
+    "t2m": "K",
+    "u10": "m s$^{-1}$",
+    "u10m": "m s$^{-1}$",
+    "v10": "m s$^{-1}$",
+    "qpepre": "mm h$^{-1}$",
+    "tcwv": "kg m$^{-2}$",
+    "msl": "hPa",
+    "refc": "dBZ",
+}
+
+
+def _resolve_limits(variable, generated, truth):
+    """Return (vmin, vmax, cmap) for a variable, falling back to shared
+    data-driven limits for unknown fields."""
+    if variable in color_limits:
+        vmin, vmax = color_limits[variable]
+    else:
+        vmin = float(min(np.min(generated), np.min(truth)))
+        vmax = float(max(np.max(generated), np.max(truth)))
+    cmap = cmap_for_var.get(variable, "magma")
+    return vmin, vmax, cmap
+
+
+def validation_plot(generated, truth, variable, experiment_name=None, step=None):
+    """Side-by-side prediction vs ground truth with a shared, variable-aware
+    colour scale and a difference panel. Designed to read as a paper figure."""
+
+    vmin, vmax, cmap = _resolve_limits(variable, generated, truth)
+    diff = generated - truth
+    dmax = float(np.max(np.abs(diff))) if diff.size else 1.0
+    dmax = max(dmax, 1e-8)
+
+    fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.6), constrained_layout=True)
+    a, b, c = axes
+
+    units = _units.get(variable, "")
+    cbar_label = f"{variable} [{units}]" if units else variable
+
+    im_a = a.imshow(generated, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax)
+    a.set_title("Prediction", fontsize=11)
+    fig.colorbar(im_a, ax=a, fraction=0.046, pad=0.04, label=cbar_label)
+
+    im_b = b.imshow(truth, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax)
+    b.set_title("Ground truth", fontsize=11)
+    fig.colorbar(im_b, ax=b, fraction=0.046, pad=0.04, label=cbar_label)
+
+    im_c = c.imshow(diff, origin="lower", cmap="RdBu_r", vmin=-dmax, vmax=dmax)
+    c.set_title("Prediction $-$ truth", fontsize=11)
+    fig.colorbar(im_c, ax=c, fraction=0.046, pad=0.04, label=cbar_label)
+
+    for ax in axes:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.6)
+
+    sup_parts = [variable]
+    if experiment_name is not None:
+        sup_parts.append(str(experiment_name))
+    if step is not None:
+        sup_parts.append(f"step {int(step)}")
+    fig.suptitle("  |  ".join(sup_parts), fontsize=11)
+
+    return fig
 
 
 def inference_plot(

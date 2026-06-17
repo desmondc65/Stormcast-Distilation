@@ -173,6 +173,24 @@ _ERA5_SHARED_INDEX_CACHE: Dict[str, Dict[str, str]] | None = None
 _ERA5_SHARED_INDEX_STATE: ERA5SharedIndexWorkerState | None = None
 
 
+def _era5_lookup_keys(dt: datetime) -> Tuple[Tuple[str, bool], ...]:
+    """Return candidate ERA5 index keys and whether they imply monthly fallback."""
+    return (
+        (dt.strftime("%Y%m%d%H"), False),
+        (dt.strftime("%Y%m%d") + str(dt.hour), False),
+        (dt.strftime("%Y%m"), True),
+    )
+
+
+def _resolve_era5_cache_entry(cache: Dict[str, str], dt: datetime) -> Tuple[Optional[str], bool]:
+    """Resolve a cache entry path string and whether it used monthly fallback."""
+    for key, is_monthly_fallback in _era5_lookup_keys(dt):
+        path_str = cache.get(key)
+        if path_str:
+            return path_str, is_monthly_fallback
+    return None, False
+
+
 def _era5_worker_init(state: ERA5WorkerState) -> None:
     global _ERA5_WORKER_STATE
     _ERA5_WORKER_STATE = state
@@ -214,15 +232,7 @@ def _era5_shared_index_worker(dt: datetime, channels: Sequence[str]):
     for var in channels:
         # Resolve path from shared index
         cache = era5_index.get(var, {})
-        path_str = None
-        for key in (
-            dt.strftime("%Y%m%d%H"),
-            dt.strftime("%Y%m%d") + str(dt.hour),
-            dt.strftime("%Y%m"),
-        ):
-            path_str = cache.get(key)
-            if path_str:
-                break
+        path_str, require_exact_time = _resolve_era5_cache_entry(cache, dt)
         
         if path_str is None:
             continue
@@ -258,7 +268,15 @@ def _era5_shared_index_worker(dt: datetime, channels: Sequence[str]):
                 continue
             
             time_var = ds.variables.get("time") or ds.variables.get("valid_time")
-            time_idx = _select_time_index(time_var, dt)
+            time_idx = _select_time_index(time_var, dt, require_exact=require_exact_time)
+            if time_idx is None:
+                logger.debug(
+                    "Skipping ERA5 %s at %s: exact timestamp not found in monthly fallback file %s",
+                    var,
+                    dt,
+                    path,
+                )
+                continue
             var_obj = ds.variables[nc_var]
             level_idx, level_dim = _era5_level_selection(ds, var_obj, var, state.pres_idx)
             
@@ -307,7 +325,7 @@ def _era5_worker(dt: datetime, channels: Sequence[str]):
 
 
 def _era5_worker_single(state: ERA5WorkerState, dt: datetime, variable: str):
-    path = _era5_worker_resolve_path(state, variable, dt)
+    path, require_exact_time = _era5_worker_resolve_path(state, variable, dt)
     if path is None or not path.exists():
         logger.warning("ERA5 missing: %s %s", variable, dt)
         return None
@@ -327,7 +345,15 @@ def _era5_worker_single(state: ERA5WorkerState, dt: datetime, variable: str):
             logger.warning("No ERA5 data within bounds for %s at %s", variable, dt)
             return None
         time_var = ds.variables.get("time") or ds.variables.get("valid_time")
-        time_idx = _select_time_index(time_var, dt)
+        time_idx = _select_time_index(time_var, dt, require_exact=require_exact_time)
+        if time_idx is None:
+            logger.warning(
+                "ERA5 exact timestamp %s not found in monthly fallback file %s for variable %s",
+                dt,
+                path,
+                variable,
+            )
+            return None
         var_obj = ds.variables[nc_var]
         level_idx, level_dim = _era5_level_selection(ds, var_obj, variable, state.pres_idx)
         slices = [slice(None)] * var_obj.ndim
@@ -349,17 +375,16 @@ def _era5_worker_single(state: ERA5WorkerState, dt: datetime, variable: str):
         return data_rs, lon_rs.astype(np.float32), lat_rs.astype(np.float32)
 
 
-def _era5_worker_resolve_path(state: ERA5WorkerState, variable: str, dt: datetime) -> Optional[pathlib.Path]:
+def _era5_worker_resolve_path(
+    state: ERA5WorkerState,
+    variable: str,
+    dt: datetime,
+) -> Tuple[Optional[pathlib.Path], bool]:
     cache = state.era5_index.get(variable, {})
-    for key in (
-        dt.strftime("%Y%m%d%H"),
-        dt.strftime("%Y%m%d") + str(dt.hour),
-        dt.strftime("%Y%m"),
-    ):
-        path_str = cache.get(key)
-        if path_str:
-            return pathlib.Path(path_str)
-    return None
+    path_str, is_monthly_fallback = _resolve_era5_cache_entry(cache, dt)
+    if path_str:
+        return pathlib.Path(path_str), is_monthly_fallback
+    return None, False
 
 
 def _era5_worker_slice(state: ERA5WorkerState, lat: np.ndarray, lon: np.ndarray):
@@ -439,12 +464,12 @@ def _era5_level_selection(
     return None, None
 
 
-def _select_time_index(time_var, target: datetime) -> int:
+def _select_time_index(time_var, target: datetime, require_exact: bool = False) -> Optional[int]:
     if time_var is None:
-        return 0
+        return None if require_exact else 0
     values = np.asarray(time_var[:])
     if values.size == 0:
-        return 0
+        return None if require_exact else 0
     if hasattr(time_var, "units"):
         try:
             converted = num2date(values, units=time_var.units)
@@ -459,5 +484,8 @@ def _select_time_index(time_var, target: datetime) -> int:
     else:
         dt_array = values.astype("datetime64[h]")
     target64 = np.datetime64(ensure_timezone_naive(target)).astype("datetime64[h]")
-    idx = int(np.argmin(np.abs(dt_array.astype("datetime64[h]") - target64)))
+    diffs = np.abs(dt_array.astype("datetime64[h]") - target64)
+    idx = int(np.argmin(diffs))
+    if require_exact and diffs[idx] != np.timedelta64(0, "h"):
+        return None
     return idx

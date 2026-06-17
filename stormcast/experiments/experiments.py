@@ -63,6 +63,11 @@ from utils.nn import (  # noqa: E402
     progressive_distilled_forward,
 )
 from utils.spectrum import ps1d_plots  # noqa: E402
+from utils.plots import (  # noqa: E402
+    color_limits as VAR_COLOR_LIMITS,
+    cmap_for_var as VAR_CMAP,
+    _units as VAR_UNITS,
+)
 
 
 # --- Defaults from CLAUDE.md §1 + user-requested checkpoints --------------
@@ -70,8 +75,13 @@ DEFAULT_DATA_ROOT = REPO_ROOT / "exp_3_train_2_5_yrs_val_1yr_tp1" / "zarr_exp3_L
 DEFAULT_REGRESSION = REPO_ROOT / "exp_3_train_2_5_yrs_val_1yr_tp1" / "exp_3_reg_L_24_H_4_train_2_5_years" / "0" / "checkpoints_regression" / "StormCastUNet.0.14000.mdlus"
 DEFAULT_TEACHER = REPO_ROOT / "exp_3_train_2_5_yrs_val_1yr_tp1" / "exp_3_dif_L_24_H_4_train_2_5_years" / "0" / "checkpoints_diffusion" / "EDMPrecond.0.70000.mdlus"
 DEFAULT_PD = REPO_ROOT / "zettabyte_results" / "progressive" / "progressive_ncdr" / "run_0" / "phase_2" / "checkpoints" / "EDMPrecond.0.32500.mdlus"
+# Earlier PD phases — distilled to N=9 (phase_0) and N=4 (phase_1). Used in
+# the E5 sweep so each NFE comes from the correct phase checkpoint instead of
+# naive step-up on the phase_2 (2-step) student.
+DEFAULT_PD_PHASE0 = REPO_ROOT / "zettabyte_results" / "progressive" / "progressive_ncdr" / "run_0" / "phase_0" / "checkpoints" / "EDMPrecond.0.50000.mdlus"
+DEFAULT_PD_PHASE1 = REPO_ROOT / "zettabyte_results" / "progressive" / "progressive_ncdr" / "run_0" / "phase_1" / "checkpoints" / "EDMPrecond.0.50000.mdlus"
 DEFAULT_CD = REPO_ROOT / "zettabyte_results" / "consistency" / "consistency" / "consistency_ncdr" / "run_0" / "checkpoints_consistency" / "ConsistencyPrecond.0.37500.mdlus"
-DEFAULT_FC = REPO_ROOT / "zettabyte_results" / "flowcast" / "flowcast" / "flowcast_ncdr" / "run_0" / "checkpoints_flowcast" / "FlowCastPrecond.0.37500.mdlus"
+DEFAULT_FC = REPO_ROOT / "zettabyte_results" / "flowcast" / "flowcast_ncdr" / "run_0" / "checkpoints_flowcast" / "FlowCastPrecond.0.37500.mdlus"
 
 DIFFUSION_CONDITIONS = ["state", "regression", "invariant"]
 REGRESSION_CONDITIONS = ["state", "background", "invariant"]
@@ -80,6 +90,48 @@ REGRESSION_CONDITIONS = ["state", "background", "invariant"]
 PRECIP_THRESHOLDS = [0.1, 1.0, 2.5, 5.0, 10.0, 20.0, 50.0]
 # FSS pooling windows in pixels (≈ 3km grid → 9, 21, 45, 93 km).
 FSS_WINDOWS = [3, 7, 15, 31]
+
+# --- Figure style: method palette shared across every plot ----------------
+METHOD_COLORS = {
+    "teacher":     "#4d4d4d",
+    "progressive": "#d62728",
+    "consistency": "#1f77b4",
+    "flowcast":    "#2ca02c",
+}
+METHOD_MARKERS = {
+    "teacher": "o", "progressive": "D",
+    "consistency": "s", "flowcast": "^",
+}
+METHOD_DISPLAY = {
+    "teacher": "Teacher (EDM)",
+    "progressive": "Progressive",
+    "consistency": "Consistency",
+    "flowcast": "FlowCast",
+}
+
+
+def _method_from_label(label: str) -> str:
+    for m in METHOD_COLORS:
+        if label.startswith(m):
+            return m
+    return "other"
+
+
+def _color_for(label: str) -> str:
+    return METHOD_COLORS.get(_method_from_label(label), "#7f7f7f")
+
+
+def _marker_for(label: str) -> str:
+    return METHOD_MARKERS.get(_method_from_label(label), "o")
+
+
+def _display_label(label: str) -> str:
+    m = _method_from_label(label)
+    pretty = METHOD_DISPLAY.get(m, label)
+    if "_N" in label:
+        nfe = label.split("_N", 1)[1]
+        return f"{pretty} (N={nfe})"
+    return pretty
 
 
 # ---------------------------------------------------------------------------
@@ -366,87 +418,135 @@ def plot_visual_panel(samples: dict[str, np.ndarray], truth: np.ndarray,
                       channels: list[str], out_path: Path, title: str):
     """Render a (channels × methods+1) heatmap grid for one validation sample.
 
-    samples: dict[label] -> (C, H, W) prediction in physical units.
-    truth:   (C, H, W) physical-unit ground truth.
+    Scales and colourmaps are taken from ``utils.plots`` so every channel uses
+    the same domain-appropriate limits across methods and samples.
     """
     panels = {"truth": truth, **samples}
     labels = list(panels.keys())
-    cmaps = {"qpepre": "Blues", "t2m": "RdBu_r", "u10": "RdBu_r", "v10": "RdBu_r"}
     n_rows, n_cols = len(channels), len(labels)
     fig, axes = plt.subplots(
         n_rows, n_cols,
-        figsize=(2.2 * n_cols + 1.0, 2.7 * n_rows),
+        figsize=(2.3 * n_cols + 1.2, 2.7 * n_rows),
         squeeze=False, constrained_layout=True,
     )
     for r, ch in enumerate(channels):
         stacked = np.stack([p[r] for p in panels.values()])
-        if ch == "qpepre":
+        if ch in VAR_COLOR_LIMITS:
+            vmin, vmax = VAR_COLOR_LIMITS[ch]
+        elif ch == "qpepre":
             vmin, vmax = 0.0, float(np.quantile(stacked, 0.995) + 1e-3)
         else:
             vabs = float(np.quantile(np.abs(stacked - np.mean(stacked)), 0.99))
             cm = float(np.mean(stacked))
             vmin, vmax = cm - vabs, cm + vabs
-        cmap = cmaps.get(ch, "viridis")
+        cmap = VAR_CMAP.get(ch, "viridis")
+        units = VAR_UNITS.get(ch, "")
+        row_label = f"{ch} [{units}]" if units else ch
         im = None
         for c, lab in enumerate(labels):
             ax = axes[r, c]
             im = ax.imshow(panels[lab][r], origin="lower", vmin=vmin,
                            vmax=vmax, cmap=cmap, aspect="auto")
             ax.set_xticks([]); ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_linewidth(0.6)
             if r == 0:
-                ax.set_title(lab, fontsize=10)
+                ax.set_title(_display_label(lab) if lab != "truth" else "Truth",
+                             fontsize=10)
             if c == 0:
-                ax.set_ylabel(ch, fontsize=10)
-        fig.colorbar(im, ax=list(axes[r, :]), fraction=0.03, pad=0.02,
-                     shrink=0.95)
+                ax.set_ylabel(row_label, fontsize=10)
+        # constrained_layout places/sizes the colorbar — do not pass fraction/
+        # pad here; combining those with bbox_inches="tight" has segfaulted
+        # matplotlib's get_tightbbox pass on this figure geometry.
+        fig.colorbar(im, ax=list(axes[r, :]), shrink=0.9,
+                     label=f"[{units}]" if units else "")
     fig.suptitle(title, fontsize=12)
-    fig.savefig(out_path, dpi=140)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
 def plot_method_bar(metrics: dict[str, np.ndarray], channels: list[str],
                     title: str, out_path: Path):
+    """Grouped bar chart of a per-channel scalar metric across methods.
+    Styling follows the shared method palette and a clean thesis-figure look.
+    """
     if not metrics:
         return
     labels = list(metrics.keys())
-    width = 0.8 / max(len(labels), 1)
-    x = np.arange(len(channels))
-    fig, ax = plt.subplots(figsize=(1.6 * len(channels) + 2, 4.5))
-    cmap = plt.get_cmap("tab10")
+    n_methods = len(labels)
+    width = min(0.82 / max(n_methods, 1), 0.22)
+    x = np.arange(len(channels), dtype=float)
+    fig, ax = plt.subplots(
+        figsize=(max(1.9 * len(channels) + 2.6, 7.2), 4.4),
+    )
+    offsets = (np.arange(n_methods) - (n_methods - 1) / 2.0) * width
     for i, lab in enumerate(labels):
-        ax.bar(x + i * width, metrics[lab], width, label=lab,
-               color=cmap(i % 10))
-    ax.set_xticks(x + width * (len(labels) - 1) / 2)
+        values = np.asarray(metrics[lab], dtype=float)
+        bars = ax.bar(
+            x + offsets[i], values, width,
+            label=_display_label(lab), color=_color_for(lab),
+            edgecolor="white", linewidth=0.6, zorder=3,
+        )
+        for rect, val in zip(bars, values):
+            if not np.isfinite(val):
+                continue
+            ax.annotate(
+                f"{val:.2g}",
+                xy=(rect.get_x() + rect.get_width() / 2, val),
+                xytext=(0, 2), textcoords="offset points",
+                ha="center", va="bottom", fontsize=7, color="#333",
+            )
+    ax.set_xticks(x)
     ax.set_xticklabels(channels)
     ax.set_ylabel(title)
-    ax.set_title(title)
-    ax.grid(True, alpha=0.3, axis="y")
-    ax.legend(ncol=2, fontsize=8)
+    ax.set_title(title, fontsize=11, loc="left", pad=8)
+    ax.margins(x=0.04, y=0.12)
+    ax.grid(True, axis="y", alpha=0.35, linestyle="--", linewidth=0.6, zorder=0)
+    ax.set_axisbelow(True)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(axis="both", length=3, width=0.6)
+    ax.legend(
+        ncol=min(n_methods, 4), fontsize=8, frameon=False,
+        loc="upper center", bbox_to_anchor=(0.5, -0.12),
+        handlelength=1.5, columnspacing=1.2,
+    )
     fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_spectra(spectra: dict[str, dict], channels: list[str], out_path: Path):
     n = len(channels)
-    fig, axes = plt.subplots(1, n, figsize=(4.2 * n, 4.0), squeeze=False)
-    cmap = plt.get_cmap("tab10")
+    fig, axes = plt.subplots(1, n, figsize=(4.2 * n, 4.0), squeeze=False,
+                             sharey=False)
     for ci, ch in enumerate(channels):
         ax = axes[0, ci]
-        for idx, (lab, s) in enumerate(spectra.items()):
-            ax.loglog(s["k"], s["Pk"][ci], color=cmap(idx % 10),
-                      label=lab, linewidth=1.2,
-                      linestyle="--" if lab == "truth" else "-")
-        ax.set_title(ch)
-        ax.set_xlabel("k")
+        for lab, s in spectra.items():
+            is_truth = (lab == "truth")
+            ax.loglog(
+                s["k"], s["Pk"][ci],
+                color="#111111" if is_truth else _color_for(lab),
+                label="Truth" if is_truth else _display_label(lab),
+                linewidth=1.8 if is_truth else 1.3,
+                linestyle=(0, (4, 2)) if is_truth else "-",
+                zorder=4 if is_truth else 2,
+            )
+        units = VAR_UNITS.get(ch, "")
+        ax.set_title(f"{ch} [{units}]" if units else ch, fontsize=11,
+                     loc="left", pad=6)
+        ax.set_xlabel(r"wavenumber $k$ [cycles/pixel]")
         if ci == 0:
-            ax.set_ylabel("P(k)")
-        ax.grid(True, which="both", alpha=0.3)
-        ax.legend(fontsize=8)
-    fig.suptitle("Radially averaged power spectra (per channel, sample-mean)",
+            ax.set_ylabel(r"power $P(k)$")
+        ax.grid(True, which="both", alpha=0.3, linestyle="--", linewidth=0.5)
+        ax.set_axisbelow(True)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.legend(fontsize=8, frameon=False, loc="lower left")
+    fig.suptitle("Radially averaged power spectra (sample mean, per channel)",
                  fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
-    fig.savefig(out_path, dpi=140)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -457,32 +557,35 @@ def plot_pareto(rows: list[dict], channels: list[str], out_path: Path):
     by_method: dict[str, list[dict]] = defaultdict(list)
     for r in rows:
         by_method[r["method"]].append(r)
-    colors = {"teacher": "tab:gray", "progressive": "tab:red",
-              "consistency": "tab:blue", "flowcast": "tab:green"}
-    markers = {"teacher": "o", "progressive": "D",
-               "consistency": "s", "flowcast": "^"}
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
     for key, ax, ylabel in [
-        ("rmse_mean", axes[0], "RMSE vs truth (channel mean) ↓"),
-        ("logpsd_l1_mean", axes[1], "log-PSD L1 vs truth (channel mean) ↓"),
+        ("rmse_mean", axes[0], r"RMSE vs truth (channel mean) $\downarrow$"),
+        ("logpsd_l1_mean", axes[1], r"log-PSD $L_1$ vs truth (channel mean) $\downarrow$"),
     ]:
         for m, recs in by_method.items():
             recs = sorted(recs, key=lambda r: r["nfe"])
             xs = [r["nfe"] for r in recs]
             ys = [float(r[key]) for r in recs]
-            ax.plot(xs, ys, marker=markers.get(m, "o"),
-                    color=colors.get(m, "k"), label=m,
-                    linewidth=1.4, markersize=7,
-                    markerfacecolor="white" if m == "teacher" else colors.get(m, "k"))
+            color = METHOD_COLORS.get(m, "k")
+            ax.plot(
+                xs, ys, marker=METHOD_MARKERS.get(m, "o"),
+                color=color, label=METHOD_DISPLAY.get(m, m),
+                linewidth=1.4, markersize=7,
+                markerfacecolor="white" if m == "teacher" else color,
+                markeredgewidth=1.2,
+            )
         ax.set_xscale("log")
         ax.set_xlabel("NFE (log scale)")
         ax.set_ylabel(ylabel)
-        ax.grid(True, which="both", alpha=0.3)
-        ax.legend()
-    fig.suptitle("NFE-quality Pareto (E5 / metrics_exp_ablations.md §3.5)")
+        ax.grid(True, which="both", alpha=0.3, linestyle="--", linewidth=0.5)
+        ax.set_axisbelow(True)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.legend(frameon=False, fontsize=9)
+    fig.suptitle("NFE–quality Pareto (E5)", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(out_path, dpi=140)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -596,10 +699,14 @@ def main():
     ap.add_argument("--pareto-cfm-nfes", type=int, nargs="+",
                     default=[1, 2, 4, 10, 25])
     ap.add_argument("--pareto-pd-nfes", type=int, nargs="+",
-                    default=[1, 2, 4],
-                    help="PD phase_2 student was distilled to 2 steps; the "
-                         "1- and 4-step entries report 'naive step-down/up' "
-                         "behaviour for the same weights.")
+                    default=[9, 4, 2],
+                    help="Each entry is paired positionally with "
+                         "--pareto-pd-checkpoints so N=9 uses phase_0, "
+                         "N=4 uses phase_1, N=2 uses phase_2.")
+    ap.add_argument("--pareto-pd-checkpoints", type=Path, nargs="+",
+                    default=[DEFAULT_PD_PHASE0, DEFAULT_PD_PHASE1, DEFAULT_PD],
+                    help="Checkpoint per --pareto-pd-nfes entry (same order). "
+                         "Defaults: phase_0 (N=9), phase_1 (N=4), phase_2 (N=2).")
     ap.add_argument("--skip-pareto", action="store_true",
                     help="Skip the E5 NFE sweep (saves a lot of compute).")
     ap.add_argument("--skip-nc", action="store_true",
@@ -848,21 +955,31 @@ def main():
 
     # ---- precip CSI / FAR / HSS curves vs threshold ----
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.2), squeeze=False)
-    cmap = plt.get_cmap("tab10")
+    metric_arrows = {"csi": r"$\uparrow$", "far": r"$\downarrow$",
+                     "hss": r"$\uparrow$"}
     for j, key in enumerate(["csi", "far", "hss"]):
         ax = axes[0, j]
-        for i, lab in enumerate(preds):
+        for lab in preds:
             ys = [cat[lab][tau][key] for tau in PRECIP_THRESHOLDS]
-            ax.plot(PRECIP_THRESHOLDS, ys, marker="o", color=cmap(i % 10),
-                    label=lab, linewidth=1.4)
+            ax.plot(
+                PRECIP_THRESHOLDS, ys,
+                marker=_marker_for(lab), color=_color_for(lab),
+                label=_display_label(lab), linewidth=1.4, markersize=6,
+                markerfacecolor="white" if lab.startswith("teacher") else _color_for(lab),
+                markeredgewidth=1.1,
+            )
         ax.set_xscale("log")
-        ax.set_xlabel("threshold (mm/h)")
-        ax.set_ylabel(key.upper())
-        ax.grid(True, which="both", alpha=0.3)
-        ax.legend(fontsize=8)
-    fig.suptitle("Precipitation categorical skill vs threshold (E1 / §1.2)")
+        ax.set_xlabel(r"threshold [mm h$^{-1}$]")
+        ax.set_ylabel(f"{key.upper()} {metric_arrows[key]}")
+        ax.grid(True, which="both", alpha=0.3, linestyle="--", linewidth=0.5)
+        ax.set_axisbelow(True)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.legend(fontsize=8, frameon=False)
+    fig.suptitle("Precipitation categorical skill vs threshold (qpepre)",
+                 fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(figs / "e1_precip_curves.png", dpi=140)
+    fig.savefig(figs / "e1_precip_curves.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
     # ---- visual quality panels (Fig. 4 analogue) ----
@@ -895,23 +1012,45 @@ def main():
     # ---- E5: NFE Pareto ----
     if not args.skip_pareto:
         print("\n[E5] NFE-quality Pareto sweep")
-        rows: list[dict] = []
+
+        if len(args.pareto_pd_checkpoints) != len(args.pareto_pd_nfes):
+            raise SystemExit(
+                f"--pareto-pd-checkpoints ({len(args.pareto_pd_checkpoints)}) "
+                f"must be the same length as --pareto-pd-nfes "
+                f"({len(args.pareto_pd_nfes)})"
+            )
+
+        # Each entry is (tag, method, [(nfe, checkpoint), ...]). Progressive
+        # uses a different checkpoint per N (one per PD phase); the other
+        # methods reuse a single checkpoint across NFEs.
+        def _pairs(ckpt, nfes):
+            return [(n, ckpt) for n in nfes]
+
         sweep_plan = [
-            ("teacher",     args.teacher_checkpoint,     "teacher",
-             args.pareto_teacher_nfes),
-            ("progressive", args.progressive_checkpoint, "progressive",
-             args.pareto_pd_nfes),
-            ("consistency", args.consistency_checkpoint, "consistency",
-             args.pareto_cd_nfes),
-            ("flowcast",    args.flowcast_checkpoint,    "flowcast",
-             args.pareto_cfm_nfes),
+            ("teacher",     "teacher",
+             _pairs(args.teacher_checkpoint, args.pareto_teacher_nfes)),
+            ("progressive", "progressive",
+             list(zip(args.pareto_pd_nfes, args.pareto_pd_checkpoints))),
+            ("consistency", "consistency",
+             _pairs(args.consistency_checkpoint, args.pareto_cd_nfes)),
+            ("flowcast",    "flowcast",
+             _pairs(args.flowcast_checkpoint, args.pareto_cfm_nfes)),
         ]
-        for tag, ckpt, method, nfes in sweep_plan:
-            print(f"[E5] loading {tag} for sweep")
-            model = Module.from_checkpoint(str(ckpt)).to(device).eval()
-            for N in nfes:
+        rows: list[dict] = []
+        for tag, method, entries in sweep_plan:
+            model = None
+            loaded_ckpt: Optional[Path] = None
+            for N, ckpt in entries:
                 if method == "teacher" and N < 2:
                     continue  # Heun sampler requires N>=2
+                if ckpt != loaded_ckpt:
+                    if model is not None:
+                        del model
+                        if use_cuda:
+                            torch.cuda.empty_cache()
+                    print(f"[E5] loading {tag} ← {ckpt}")
+                    model = Module.from_checkpoint(str(ckpt)).to(device).eval()
+                    loaded_ckpt = ckpt
                 arr, ms = run_method_on_samples(
                     model=model, method=method, num_steps=N,
                     sample_inputs=sample_inputs,
@@ -928,6 +1067,7 @@ def main():
                 csi10 = categorical_scores(qp, qp_truth, [10.0])[10.0]["csi"]
                 row = {
                     "method": tag, "nfe": N,
+                    "checkpoint": str(ckpt),
                     "ms_mean": float(np.mean(ms)),
                     "rmse_mean": float(rmse_vec.mean()),
                     "logpsd_l1_mean": float(psd_vec.mean()),
@@ -941,7 +1081,8 @@ def main():
                 print(f"[E5] {tag:>11s} N={N:>3d}  RMSE={row['rmse_mean']:.3f}  "
                       f"logPSD_L1={row['logpsd_l1_mean']:.3f}  "
                       f"CSI@10={csi10:.3f}  ({row['ms_mean']:.1f} ms)")
-            del model
+            if model is not None:
+                del model
             if use_cuda:
                 torch.cuda.empty_cache()
 

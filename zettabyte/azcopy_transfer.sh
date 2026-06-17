@@ -4,22 +4,27 @@
 # Usage:
 #   ./azcopy_transfer.sh up   <local_src>        <remote_dst_relative>
 #   ./azcopy_transfer.sh down <remote_src_relative> <local_dst>
-#   ./azcopy_transfer.sh list [remote_relative]
+#   ./azcopy_transfer.sh list [--depth N] [remote_relative]
 #
 # Examples:
 #   ./azcopy_transfer.sh up   /data/exp_3/progressive_zettabyte_v1  desmond/results/progressive
 #   ./azcopy_transfer.sh down desmond/results/progressive/progressive_zettabyte_v1  ./downloads
 #   ./azcopy_transfer.sh list desmond/results/progressive
+#   ./azcopy_transfer.sh list --depth 1 desmond/results          # direct children only
+#   ./azcopy_transfer.sh list --depth 2 desmond/results          # two levels deep
+#   ./azcopy_transfer.sh list -d 1                               # top-level of container
 #
 # Notes:
 #   - Folders are transferred recursively automatically.
 #   - Append "/*" to a local source to upload folder contents without the parent dir.
 #   - Remote paths are relative to the container root (no leading slash).
+#   - --depth (or -d) filters listed blobs to at most N path segments below the prefix.
+#     Depth 1 = direct children, 2 = one level of subdirectories, etc.
 
 set -euo pipefail
 
-SAS_BASE=
-SAS_QUERY=
+SAS_BASE="https://zbstore2026.blob.core.windows.net/g-019c8ca2-605d-7bb5-b98b-1c53fbdf2b7f"
+SAS_QUERY="se=2026-09-14T06%3A47%3A36Z&sp=rwdl&sv=2026-02-06&sr=c&sig=oK8hMT%2BAJiBIzbozGc%2BgVk3N2e861Nm%2B9MvMyoi6UMg%3D"
 
 remote_url() {
     local rel="${1:-}"
@@ -51,7 +56,37 @@ case "$cmd" in
         azcopy copy "$(remote_url "$src_rel")" "$dst" --recursive
         ;;
     list|ls)
-        azcopy list "$(remote_url "${1:-}")"
+        depth=""
+        remote_rel=""
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --depth|-d)
+                    shift
+                    [[ $# -gt 0 ]] || { echo "ERROR: --depth requires a numeric argument" >&2; exit 1; }
+                    depth="$1"
+                    ;;
+                *)
+                    remote_rel="$1"
+                    ;;
+            esac
+            shift
+        done
+
+        if [[ -z "$depth" ]]; then
+            azcopy list "$(remote_url "$remote_rel")"
+        else
+            # azcopy list outputs lines as: "<blob-path>; Content Length: ..."
+            # Paths are already relative to the listed URL prefix, so no prefix stripping needed.
+            azcopy list "$(remote_url "$remote_rel")" | awk -v depth="$depth" '
+                {
+                    sc = index($0, ";")
+                    blob = (sc > 0) ? substr($0, 1, sc - 1) : $0
+                    gsub(/[[:space:]]+$/, "", blob)
+                    n_slashes = split(blob, parts, "/") - 1
+                    if (n_slashes < depth) print $0
+                }
+            '
+        fi
         ;;
     *)
         usage
