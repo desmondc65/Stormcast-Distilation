@@ -38,6 +38,9 @@ log_file="${log_dir}/train_meanflow_ablations_$(date +%Y%m%d_%H%M%S).log"
 echo "Logging to ${log_file}"
 exec > >(tee -a "${log_file}") 2>&1
 
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate stormcast_env
+
 # Resolve the ablation-suite orchestrator relative to this script so it works
 # whether the repo is at /workspace/Stormcast-Distilation (zettabyte) or local.
 suite="$(cd "$(dirname "$0")/../../experiment_scripts/meanflow_ablations" && pwd)/run_all.sh"
