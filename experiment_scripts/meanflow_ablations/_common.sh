@@ -34,8 +34,30 @@
 set -euo pipefail
 
 # --- Environment ---------------------------------------------------------------
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate stormcast_env
+# Activate the training env. NB: a `bash <script>` child shell does NOT inherit
+# conda's shell *function* (only PATH/CONDA_* env vars), so calling `conda`
+# directly fails with "command not found" when this file is sourced from
+# run_all.sh / the zettabyte wrapper. Skip if the env is already active (those
+# launchers activate and export CONDA_DEFAULT_ENV), else locate conda's profile
+# script without relying on `conda` being on PATH.
+if [[ "${CONDA_DEFAULT_ENV:-}" != "stormcast_env" ]]; then
+    __conda_base=""
+    if command -v conda >/dev/null 2>&1; then
+        __conda_base="$(conda info --base)"
+    elif [[ -n "${CONDA_EXE:-}" ]]; then
+        __conda_base="$(dirname "$(dirname "${CONDA_EXE}")")"
+    else
+        for __c in /opt/conda "${HOME}/miniconda3" "${HOME}/anaconda3" /workspace/miniconda3; do
+            [[ -f "${__c}/etc/profile.d/conda.sh" ]] && { __conda_base="${__c}"; break; }
+        done
+    fi
+    if [[ -n "${__conda_base}" && -f "${__conda_base}/etc/profile.d/conda.sh" ]]; then
+        source "${__conda_base}/etc/profile.d/conda.sh"
+        conda activate stormcast_env
+    else
+        echo "WARN: could not locate conda to activate stormcast_env; relying on inherited PATH" >&2
+    fi
+fi
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6
 
