@@ -1,0 +1,70 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026_raw valid=['2022/01/01', '2022/12/31'] hr=[192, 96]
+[data] usable pairs=8759 channels=['u10', 'v10', 't2m', 'qpepre']
+[seqs] 6 sequences x 12 steps (first=0, last=8746)
+[load] regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026_NO_log1p/regression_cleaned_NO_log1p/run_0/checkpoints_regression/StormCastUNet.0.10000.mdlus
+[load] diffusion /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026_NO_log1p/edm_cleaned_NO_log1p/run_0/checkpoints_diffusion/EDMPrecond.0.20000.mdlus
+[run] diffusion ensemble (K=4, NFE/step≈36)
+[run] diffusion ensemble starting: K=4 x S=6 x T=12 = 24 sequence-rollouts
+[run] diffusion  k=1/4 seq=1/6 (1/24)  t0=0      rollout= 20.2s  avg=20.2s/seq  elapsed=  0.3m  eta=  7.7m
+[run] diffusion  k=1/4 seq=2/6 (2/24)  t0=1749   rollout= 20.0s  avg=20.1s/seq  elapsed=  0.7m  eta=  7.4m
+[run] diffusion  k=1/4 seq=3/6 (3/24)  t0=3498   rollout= 20.4s  avg=20.2s/seq  elapsed=  1.0m  eta=  7.1m
+[run] diffusion  k=1/4 seq=4/6 (4/24)  t0=5247   rollout= 20.2s  avg=20.2s/seq  elapsed=  1.3m  eta=  6.7m
+[run] diffusion  k=1/4 seq=5/6 (5/24)  t0=6996   rollout= 19.7s  avg=20.1s/seq  elapsed=  1.7m  eta=  6.4m
+[run] diffusion  k=1/4 seq=6/6 (6/24)  t0=8746   rollout= 20.0s  avg=20.1s/seq  elapsed=  2.0m  eta=  6.0m
+[run] diffusion  k=2/4 seq=1/6 (7/24)  t0=0      rollout= 19.6s  avg=20.0s/seq  elapsed=  2.3m  eta=  5.7m
+[run] diffusion  k=2/4 seq=2/6 (8/24)  t0=1749   rollout= 18.9s  avg=19.9s/seq  elapsed=  2.7m  eta=  5.3m
+[run] diffusion  k=2/4 seq=3/6 (9/24)  t0=3498   rollout= 19.2s  avg=19.8s/seq  elapsed=  3.0m  eta=  5.0m
+[run] diffusion  k=2/4 seq=4/6 (10/24)  t0=5247   rollout= 19.2s  avg=19.7s/seq  elapsed=  3.3m  eta=  4.6m
+[run] diffusion  k=2/4 seq=5/6 (11/24)  t0=6996   rollout= 19.2s  avg=19.7s/seq  elapsed=  3.6m  eta=  4.3m
+[run] diffusion  k=2/4 seq=6/6 (12/24)  t0=8746   rollout= 19.2s  avg=19.7s/seq  elapsed=  3.9m  eta=  3.9m
+[run] diffusion  k=3/4 seq=1/6 (13/24)  t0=0      rollout= 19.2s  avg=19.6s/seq  elapsed=  4.3m  eta=  3.6m
+[run] diffusion  k=3/4 seq=2/6 (14/24)  t0=1749   rollout= 18.9s  avg=19.6s/seq  elapsed=  4.6m  eta=  3.3m
+[run] diffusion  k=3/4 seq=3/6 (15/24)  t0=3498   rollout= 19.5s  avg=19.6s/seq  elapsed=  4.9m  eta=  2.9m
+[run] diffusion  k=3/4 seq=4/6 (16/24)  t0=5247   rollout= 19.6s  avg=19.6s/seq  elapsed=  5.2m  eta=  2.6m
+[run] diffusion  k=3/4 seq=5/6 (17/24)  t0=6996   rollout= 19.2s  avg=19.5s/seq  elapsed=  5.5m  eta=  2.3m
+[run] diffusion  k=3/4 seq=6/6 (18/24)  t0=8746   rollout= 19.2s  avg=19.5s/seq  elapsed=  5.9m  eta=  2.0m
+[run] diffusion  k=4/4 seq=1/6 (19/24)  t0=0      rollout= 19.5s  avg=19.5s/seq  elapsed=  6.2m  eta=  1.6m
+[run] diffusion  k=4/4 seq=2/6 (20/24)  t0=1749   rollout= 19.2s  avg=19.5s/seq  elapsed=  6.5m  eta=  1.3m
+[run] diffusion  k=4/4 seq=3/6 (21/24)  t0=3498   rollout= 19.3s  avg=19.5s/seq  elapsed=  6.8m  eta=  1.0m
+[run] diffusion  k=4/4 seq=4/6 (22/24)  t0=5247   rollout= 19.4s  avg=19.5s/seq  elapsed=  7.1m  eta=  0.6m
+[run] diffusion  k=4/4 seq=5/6 (23/24)  t0=6996   rollout= 19.5s  avg=19.5s/seq  elapsed=  7.5m  eta=  0.3m
+[run] diffusion  k=4/4 seq=6/6 (24/24)  t0=8746   rollout= 20.1s  avg=19.5s/seq  elapsed=  7.8m  eta=  0.0m
+[run] diffusion ensemble finished in 7.8m
+[load] flowcast /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026_NO_log1p/flowcast_cleaned_NO_log1p/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[run] flowcast ensemble (K=4, NFE=10)
+[run] flowcast ensemble starting: K=4 x S=6 x T=12 = 24 sequence-rollouts
+[run] flowcast  k=1/4 seq=1/6 (1/24)  t0=0      rollout=  6.3s  avg= 6.3s/seq  elapsed=  0.1m  eta=  2.4m
+[run] flowcast  k=1/4 seq=2/6 (2/24)  t0=1749   rollout=  6.2s  avg= 6.3s/seq  elapsed=  0.2m  eta=  2.3m
+[run] flowcast  k=1/4 seq=3/6 (3/24)  t0=3498   rollout=  6.1s  avg= 6.2s/seq  elapsed=  0.3m  eta=  2.2m
+[run] flowcast  k=1/4 seq=4/6 (4/24)  t0=5247   rollout=  6.4s  avg= 6.3s/seq  elapsed=  0.4m  eta=  2.1m
+[run] flowcast  k=1/4 seq=5/6 (5/24)  t0=6996   rollout=  6.2s  avg= 6.3s/seq  elapsed=  0.5m  eta=  2.0m
+[run] flowcast  k=1/4 seq=6/6 (6/24)  t0=8746   rollout=  6.1s  avg= 6.2s/seq  elapsed=  0.6m  eta=  1.9m
+[run] flowcast  k=2/4 seq=1/6 (7/24)  t0=0      rollout=  6.2s  avg= 6.2s/seq  elapsed=  0.7m  eta=  1.8m
+[run] flowcast  k=2/4 seq=2/6 (8/24)  t0=1749   rollout=  6.5s  avg= 6.3s/seq  elapsed=  0.8m  eta=  1.7m
+[run] flowcast  k=2/4 seq=3/6 (9/24)  t0=3498   rollout=  6.1s  avg= 6.2s/seq  elapsed=  0.9m  eta=  1.6m
+[run] flowcast  k=2/4 seq=4/6 (10/24)  t0=5247   rollout=  7.6s  avg= 6.4s/seq  elapsed=  1.1m  eta=  1.5m
+[run] flowcast  k=2/4 seq=5/6 (11/24)  t0=6996   rollout=  7.2s  avg= 6.4s/seq  elapsed=  1.2m  eta=  1.4m
+[run] flowcast  k=2/4 seq=6/6 (12/24)  t0=8746   rollout=  6.5s  avg= 6.5s/seq  elapsed=  1.3m  eta=  1.3m
+[run] flowcast  k=3/4 seq=1/6 (13/24)  t0=0      rollout=  6.3s  avg= 6.4s/seq  elapsed=  1.4m  eta=  1.2m
+[run] flowcast  k=3/4 seq=2/6 (14/24)  t0=1749   rollout=  6.0s  avg= 6.4s/seq  elapsed=  1.5m  eta=  1.1m
+[run] flowcast  k=3/4 seq=3/6 (15/24)  t0=3498   rollout=  6.1s  avg= 6.4s/seq  elapsed=  1.6m  eta=  1.0m
+[run] flowcast  k=3/4 seq=4/6 (16/24)  t0=5247   rollout=  6.1s  avg= 6.4s/seq  elapsed=  1.7m  eta=  0.8m
+[run] flowcast  k=3/4 seq=5/6 (17/24)  t0=6996   rollout=  6.0s  avg= 6.3s/seq  elapsed=  1.8m  eta=  0.7m
+[run] flowcast  k=3/4 seq=6/6 (18/24)  t0=8746   rollout=  6.2s  avg= 6.3s/seq  elapsed=  1.9m  eta=  0.6m
+[run] flowcast  k=4/4 seq=1/6 (19/24)  t0=0      rollout=  6.3s  avg= 6.3s/seq  elapsed=  2.0m  eta=  0.5m
+[run] flowcast  k=4/4 seq=2/6 (20/24)  t0=1749   rollout=  6.1s  avg= 6.3s/seq  elapsed=  2.1m  eta=  0.4m
+[run] flowcast  k=4/4 seq=3/6 (21/24)  t0=3498   rollout=  6.1s  avg= 6.3s/seq  elapsed=  2.2m  eta=  0.3m
+[run] flowcast  k=4/4 seq=4/6 (22/24)  t0=5247   rollout=  6.0s  avg= 6.3s/seq  elapsed=  2.3m  eta=  0.2m
+[run] flowcast  k=4/4 seq=5/6 (23/24)  t0=6996   rollout=  6.1s  avg= 6.3s/seq  elapsed=  2.4m  eta=  0.1m
+[run] flowcast  k=4/4 seq=6/6 (24/24)  t0=8746   rollout=  6.0s  avg= 6.3s/seq  elapsed=  2.5m  eta=  0.0m
+[run] flowcast ensemble finished in 2.5m
+[skip] meanflow leg disabled (pass --meanflow-checkpoint to enable)
+[score] aggregating...
+| method | Time/Seq.(s) | CRPS↓ | CSI-M↑ | CSI-P16↑ | FSS-P16-M↑ | HSS-M↑ | FAR-M↓ | RMSE_u10↓ | RMSE_v10↓ | RMSE_t2m↓ | RMSE_qpepre↓ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| diffusion | 20.084 | 0.7889 | 0.1557 | 0.0162 | 0.1022 | 0.2033 | 0.8033 | 1.6951 | 1.9503 | 1.6300 | 1.5443 |
+| flowcast | 6.223 | 0.8671 | 0.1471 | 0.0198 | 0.0822 | 0.1857 | 0.7846 | 1.8188 | 2.0348 | 1.4818 | 1.4191 |
+[done] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/log1p_ablation/NO_log1p

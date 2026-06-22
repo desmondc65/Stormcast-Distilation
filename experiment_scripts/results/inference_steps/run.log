@@ -1,0 +1,18 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] building dataset @ /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026
+[data] pairs=8759 channels=['u10', 'v10', 't2m', 'qpepre']
+[seqs] n_times=3 first=0 last=8757
+[load] regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[load] diffusion  /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[load] flowcast   /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[vlims] pre-pass: loading truth + running regression for color scales
+[vlims]   t2m: forecast=[274.4, 303.1]  residual=[-2.84, 2.342]
+[vlims]   u10: forecast=[-12.41, 13.69]  residual=[-6.886, 14.09]
+[vlims]   v10: forecast=[-16.85, 11.83]  residual=[-8.505, 7.175]
+[vlims]   qpepre: forecast=[7.451e-09, 75.42]  residual=[-8.82, 72.41]
+[time 1/3] idx=0      2022-01-01 01:00 UTC  wrote=236  dt=  8.5s  total=  0.1m
+[time 2/3] idx=4378   2022-07-02 11:00 UTC  wrote=236  dt= 12.6s  total=  0.4m
+[time 3/3] idx=8757   2022-12-31 22:00 UTC  wrote=236  dt=  6.9s  total=  0.5m
+[done] outputs in /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/inference_steps

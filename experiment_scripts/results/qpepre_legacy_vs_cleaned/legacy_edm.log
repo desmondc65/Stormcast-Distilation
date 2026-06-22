@@ -1,0 +1,66 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full valid=['2022/01/01', '2022/12/31'] hr=[224, 128]
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/stormcast/datasets/data_loader_rwrf_era5_stable.py:254: FutureWarning: The return type of `Dataset.dims` will be changed to return a set of dimension names in future, in order to be more consistent with `DataArray.dims`. To access a mapping from dimension names to lengths, please use `Dataset.sizes`.
+  return np.ones(ds.dims["time"], dtype=bool)
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+[data] usable pairs=8759 channels=['t2m', 'u10', 'v10', 'qpepre']
+[seqs] 10 sequences x 12 steps (first=0, last=8746)
+[load] regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[load] diffusion /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[run] diffusion ensemble starting: K=4 x S=10 x T=12 = 40 sequence-rollouts
+[run] diffusion  k=1/4 seq=1/10 (1/40)  t0=0      rollout= 51.2s  avg=51.2s/seq  elapsed=  0.9m  eta= 33.3m
+[run] diffusion  k=1/4 seq=2/10 (2/40)  t0=971    rollout= 50.1s  avg=50.7s/seq  elapsed=  1.7m  eta= 32.1m
+[run] diffusion  k=1/4 seq=3/10 (3/40)  t0=1943   rollout=122.6s  avg=74.7s/seq  elapsed=  3.7m  eta= 46.0m
+[run] diffusion  k=1/4 seq=4/10 (4/40)  t0=2915   rollout=118.9s  avg=85.7s/seq  elapsed=  5.7m  eta= 51.4m
+[run] diffusion  k=1/4 seq=5/10 (5/40)  t0=3887   rollout=118.9s  avg=92.4s/seq  elapsed=  7.7m  eta= 53.9m
+[run] diffusion  k=1/4 seq=6/10 (6/40)  t0=4858   rollout=118.8s  avg=96.8s/seq  elapsed=  9.7m  eta= 54.8m
+[run] diffusion  k=1/4 seq=7/10 (7/40)  t0=5830   rollout=118.6s  avg=99.9s/seq  elapsed= 11.7m  eta= 54.9m
+[run] diffusion  k=1/4 seq=8/10 (8/40)  t0=6802   rollout=115.2s  avg=101.8s/seq  elapsed= 13.6m  eta= 54.3m
+[run] diffusion  k=1/4 seq=9/10 (9/40)  t0=7774   rollout=115.1s  avg=103.3s/seq  elapsed= 15.5m  eta= 53.4m
+[run] diffusion  k=1/4 seq=10/10 (10/40)  t0=8746   rollout= 47.3s  avg=97.7s/seq  elapsed= 16.3m  eta= 48.8m
+[run] diffusion  k=2/4 seq=1/10 (11/40)  t0=0      rollout= 49.7s  avg=93.3s/seq  elapsed= 17.1m  eta= 45.1m
+[run] diffusion  k=2/4 seq=2/10 (12/40)  t0=971    rollout= 48.7s  avg=89.6s/seq  elapsed= 17.9m  eta= 41.8m
+[run] diffusion  k=2/4 seq=3/10 (13/40)  t0=1943   rollout= 46.6s  avg=86.3s/seq  elapsed= 18.7m  eta= 38.8m
+[run] diffusion  k=2/4 seq=4/10 (14/40)  t0=2915   rollout= 46.0s  avg=83.4s/seq  elapsed= 19.5m  eta= 36.2m
+[run] diffusion  k=2/4 seq=5/10 (15/40)  t0=3887   rollout= 47.8s  avg=81.1s/seq  elapsed= 20.3m  eta= 33.8m
+[run] diffusion  k=2/4 seq=6/10 (16/40)  t0=4858   rollout= 46.4s  avg=78.9s/seq  elapsed= 21.0m  eta= 31.6m
+[run] diffusion  k=2/4 seq=7/10 (17/40)  t0=5830   rollout= 47.1s  avg=77.0s/seq  elapsed= 21.8m  eta= 29.5m
+[run] diffusion  k=2/4 seq=8/10 (18/40)  t0=6802   rollout= 45.6s  avg=75.3s/seq  elapsed= 22.6m  eta= 27.6m
+[run] diffusion  k=2/4 seq=9/10 (19/40)  t0=7774   rollout= 45.8s  avg=73.7s/seq  elapsed= 23.3m  eta= 25.8m
+[run] diffusion  k=2/4 seq=10/10 (20/40)  t0=8746   rollout= 45.1s  avg=72.3s/seq  elapsed= 24.1m  eta= 24.1m
+[run] diffusion  k=3/4 seq=1/10 (21/40)  t0=0      rollout= 49.0s  avg=71.2s/seq  elapsed= 24.9m  eta= 22.5m
+[run] diffusion  k=3/4 seq=2/10 (22/40)  t0=971    rollout= 49.4s  avg=70.2s/seq  elapsed= 25.7m  eta= 21.1m
+[run] diffusion  k=3/4 seq=3/10 (23/40)  t0=1943   rollout= 48.4s  avg=69.3s/seq  elapsed= 26.6m  eta= 19.6m
+[run] diffusion  k=3/4 seq=4/10 (24/40)  t0=2915   rollout= 46.9s  avg=68.3s/seq  elapsed= 27.3m  eta= 18.2m
+[run] diffusion  k=3/4 seq=5/10 (25/40)  t0=3887   rollout= 46.7s  avg=67.5s/seq  elapsed= 28.1m  eta= 16.9m
+[run] diffusion  k=3/4 seq=6/10 (26/40)  t0=4858   rollout= 48.3s  avg=66.7s/seq  elapsed= 28.9m  eta= 15.6m
+[run] diffusion  k=3/4 seq=7/10 (27/40)  t0=5830   rollout= 47.3s  avg=66.0s/seq  elapsed= 29.7m  eta= 14.3m
+[run] diffusion  k=3/4 seq=8/10 (28/40)  t0=6802   rollout= 46.6s  avg=65.3s/seq  elapsed= 30.5m  eta= 13.1m
+[run] diffusion  k=3/4 seq=9/10 (29/40)  t0=7774   rollout= 45.8s  avg=64.6s/seq  elapsed= 31.2m  eta= 11.9m
+[run] diffusion  k=3/4 seq=10/10 (30/40)  t0=8746   rollout= 46.8s  avg=64.0s/seq  elapsed= 32.0m  eta= 10.7m
+[run] diffusion  k=4/4 seq=1/10 (31/40)  t0=0      rollout= 49.2s  avg=63.6s/seq  elapsed= 32.8m  eta=  9.5m
+[run] diffusion  k=4/4 seq=2/10 (32/40)  t0=971    rollout= 49.0s  avg=63.1s/seq  elapsed= 33.7m  eta=  8.4m
+[run] diffusion  k=4/4 seq=3/10 (33/40)  t0=1943   rollout= 45.9s  avg=62.6s/seq  elapsed= 34.4m  eta=  7.3m
+[run] diffusion  k=4/4 seq=4/10 (34/40)  t0=2915   rollout= 47.5s  avg=62.2s/seq  elapsed= 35.2m  eta=  6.2m
+[run] diffusion  k=4/4 seq=5/10 (35/40)  t0=3887   rollout= 47.2s  avg=61.7s/seq  elapsed= 36.0m  eta=  5.1m
+[run] diffusion  k=4/4 seq=6/10 (36/40)  t0=4858   rollout= 47.9s  avg=61.3s/seq  elapsed= 36.8m  eta=  4.1m
+[run] diffusion  k=4/4 seq=7/10 (37/40)  t0=5830   rollout= 45.9s  avg=60.9s/seq  elapsed= 37.6m  eta=  3.0m
+[run] diffusion  k=4/4 seq=8/10 (38/40)  t0=6802   rollout= 46.0s  avg=60.5s/seq  elapsed= 38.3m  eta=  2.0m
+[run] diffusion  k=4/4 seq=9/10 (39/40)  t0=7774   rollout= 44.5s  avg=60.1s/seq  elapsed= 39.1m  eta=  1.0m
+[run] diffusion  k=4/4 seq=10/10 (40/40)  t0=8746   rollout= 45.0s  avg=59.7s/seq  elapsed= 39.8m  eta=  0.0m
+[run] diffusion ensemble finished in 39.8m
+[skip] flowcast leg disabled
+[skip] bridge leg disabled
+[score] writing scoreboard + detail CSVs...
+| method | Time/Seq.(s) | CRPS↓ | CSI-M↑ | CSI-P16↑ | FSS-P16-M↑ | HSS-M↑ | FAR-M↓ | RMSE_t2m↓ | RMSE_u10↓ | RMSE_v10↓ | RMSE_qpepre↓ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| diffusion | 97.676 | 0.8717 | 0.0727 | 0.0028 | 0.0089 | 0.0795 | 0.7621 | 1.5749 | 2.0010 | 2.0893 | 1.1852 |
+[nbr-csi] CSI vs kernel @ ≥1.0 mm/h:
+  method           k1       k2       k4       k8      k16
+  diffusion     0.102    0.120    0.148    0.195    0.284
+[nbr-csi] wrote csi_neighborhood.{csv,md,png}
+[psd] wrote ps1d_<ch>.csv + psd_<ch>.png for 4 channels
+[done] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/qpepre_legacy_vs_cleaned/legacy_edm

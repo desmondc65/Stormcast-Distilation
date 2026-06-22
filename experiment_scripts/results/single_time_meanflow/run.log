@@ -1,0 +1,134 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] building legacy dataset
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/stormcast/datasets/data_loader_rwrf_era5_stable.py:254: FutureWarning: The return type of `Dataset.dims` will be changed to return a set of dimension names in future, in order to be more consistent with `DataArray.dims`. To access a mapping from dimension names to lengths, please use `Dataset.sizes`.
+  return np.ones(ds.dims["time"], dtype=bool)
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+[data] legacy  pairs=8759 channels=['t2m', 'u10', 'v10', 'qpepre']
+[data] building cleaned dataset
+[data] cleaned pairs=8759 channels=['u10', 'v10', 't2m', 'qpepre']
+[seqs] appended 1 hand-picked t0(s): [7283]
+[seqs] n_times=21 lead=1h first=0 last=7283
+[load] legacy regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[load] legacy diffusion  /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[run] orig_stormcast starting: 21 times x lead=1h
+[run] orig_stormcast  t=1/21 t0=0     rollout=  4.5s  avg= 4.5s  elapsed=  0.1m  eta=  1.5m
+[run] orig_stormcast  t=2/21 t0=460   rollout=  3.5s  avg= 4.0s  elapsed=  0.1m  eta=  1.3m
+[run] orig_stormcast  t=3/21 t0=921   rollout=  3.5s  avg= 3.8s  elapsed=  0.2m  eta=  1.1m
+[run] orig_stormcast  t=4/21 t0=1382  rollout=  3.8s  avg= 3.8s  elapsed=  0.3m  eta=  1.1m
+[run] orig_stormcast  t=5/21 t0=1843  rollout=  3.5s  avg= 3.7s  elapsed=  0.3m  eta=  1.0m
+[run] orig_stormcast  t=6/21 t0=2304  rollout=  3.6s  avg= 3.7s  elapsed=  0.4m  eta=  0.9m
+[run] orig_stormcast  t=7/21 t0=2765  rollout=  3.6s  avg= 3.7s  elapsed=  0.4m  eta=  0.9m
+[run] orig_stormcast  t=8/21 t0=3226  rollout=  3.6s  avg= 3.7s  elapsed=  0.5m  eta=  0.8m
+[run] orig_stormcast  t=9/21 t0=3687  rollout=  3.7s  avg= 3.7s  elapsed=  0.6m  eta=  0.7m
+[run] orig_stormcast  t=10/21 t0=4148  rollout=  3.5s  avg= 3.7s  elapsed=  0.6m  eta=  0.7m
+[run] orig_stormcast  t=11/21 t0=4608  rollout=  3.8s  avg= 3.7s  elapsed=  0.7m  eta=  0.6m
+[run] orig_stormcast  t=12/21 t0=5069  rollout=  3.7s  avg= 3.7s  elapsed=  0.7m  eta=  0.6m
+[run] orig_stormcast  t=13/21 t0=5530  rollout=  3.8s  avg= 3.7s  elapsed=  0.8m  eta=  0.5m
+[run] orig_stormcast  t=14/21 t0=5991  rollout=  3.8s  avg= 3.7s  elapsed=  0.9m  eta=  0.4m
+[run] orig_stormcast  t=15/21 t0=6452  rollout=  3.4s  avg= 3.7s  elapsed=  0.9m  eta=  0.4m
+[run] orig_stormcast  t=16/21 t0=6913  rollout=  3.6s  avg= 3.7s  elapsed=  1.0m  eta=  0.3m
+[run] orig_stormcast  t=17/21 t0=7374  rollout=  3.4s  avg= 3.7s  elapsed=  1.0m  eta=  0.2m
+[run] orig_stormcast  t=18/21 t0=7835  rollout=  3.9s  avg= 3.7s  elapsed=  1.1m  eta=  0.2m
+[run] orig_stormcast  t=19/21 t0=8296  rollout=  3.4s  avg= 3.7s  elapsed=  1.2m  eta=  0.1m
+[run] orig_stormcast  t=20/21 t0=8757  rollout=  3.4s  avg= 3.6s  elapsed=  1.2m  eta=  0.1m
+[run] orig_stormcast  t=21/21 t0=7283  rollout=  3.2s  avg= 3.6s  elapsed=  1.3m  eta=  0.0m
+[run] orig_stormcast finished in 1.3m
+[load] cleaned regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[load] cleaned diffusion  /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[run] cleaned_stormcast starting: 21 times x lead=1h
+[run] cleaned_stormcast  t=1/21 t0=0     rollout=  1.6s  avg= 1.6s  elapsed=  0.0m  eta=  0.5m
+[run] cleaned_stormcast  t=2/21 t0=460   rollout=  1.8s  avg= 1.7s  elapsed=  0.1m  eta=  0.5m
+[run] cleaned_stormcast  t=3/21 t0=921   rollout=  1.9s  avg= 1.8s  elapsed=  0.1m  eta=  0.5m
+[run] cleaned_stormcast  t=4/21 t0=1382  rollout=  1.9s  avg= 1.8s  elapsed=  0.1m  eta=  0.5m
+[run] cleaned_stormcast  t=5/21 t0=1843  rollout=  1.9s  avg= 1.8s  elapsed=  0.2m  eta=  0.5m
+[run] cleaned_stormcast  t=6/21 t0=2304  rollout=  1.9s  avg= 1.8s  elapsed=  0.2m  eta=  0.5m
+[run] cleaned_stormcast  t=7/21 t0=2765  rollout=  1.9s  avg= 1.9s  elapsed=  0.2m  eta=  0.4m
+[run] cleaned_stormcast  t=8/21 t0=3226  rollout=  1.9s  avg= 1.9s  elapsed=  0.2m  eta=  0.4m
+[run] cleaned_stormcast  t=9/21 t0=3687  rollout=  1.9s  avg= 1.9s  elapsed=  0.3m  eta=  0.4m
+[run] cleaned_stormcast  t=10/21 t0=4148  rollout=  1.9s  avg= 1.9s  elapsed=  0.3m  eta=  0.3m
+[run] cleaned_stormcast  t=11/21 t0=4608  rollout=  1.9s  avg= 1.9s  elapsed=  0.3m  eta=  0.3m
+[run] cleaned_stormcast  t=12/21 t0=5069  rollout=  2.0s  avg= 1.9s  elapsed=  0.4m  eta=  0.3m
+[run] cleaned_stormcast  t=13/21 t0=5530  rollout=  1.9s  avg= 1.9s  elapsed=  0.4m  eta=  0.3m
+[run] cleaned_stormcast  t=14/21 t0=5991  rollout=  1.9s  avg= 1.9s  elapsed=  0.4m  eta=  0.2m
+[run] cleaned_stormcast  t=15/21 t0=6452  rollout=  1.9s  avg= 1.9s  elapsed=  0.5m  eta=  0.2m
+[run] cleaned_stormcast  t=16/21 t0=6913  rollout=  1.8s  avg= 1.9s  elapsed=  0.5m  eta=  0.2m
+[run] cleaned_stormcast  t=17/21 t0=7374  rollout=  1.6s  avg= 1.9s  elapsed=  0.5m  eta=  0.1m
+[run] cleaned_stormcast  t=18/21 t0=7835  rollout=  1.6s  avg= 1.8s  elapsed=  0.6m  eta=  0.1m
+[run] cleaned_stormcast  t=19/21 t0=8296  rollout=  1.7s  avg= 1.8s  elapsed=  0.6m  eta=  0.1m
+[run] cleaned_stormcast  t=20/21 t0=8757  rollout=  1.6s  avg= 1.8s  elapsed=  0.6m  eta=  0.0m
+[run] cleaned_stormcast  t=21/21 t0=7283  rollout=  1.6s  avg= 1.8s  elapsed=  0.6m  eta=  0.0m
+[run] cleaned_stormcast finished in 0.6m
+[load] cleaned flowcast   /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[run] flowcast starting: 21 times x lead=1h
+[run] flowcast  t=1/21 t0=0     rollout=  0.5s  avg= 0.5s  elapsed=  0.0m  eta=  0.2m
+[run] flowcast  t=2/21 t0=460   rollout=  0.5s  avg= 0.5s  elapsed=  0.0m  eta=  0.2m
+[run] flowcast  t=3/21 t0=921   rollout=  0.5s  avg= 0.5s  elapsed=  0.0m  eta=  0.1m
+[run] flowcast  t=4/21 t0=1382  rollout=  0.5s  avg= 0.5s  elapsed=  0.0m  eta=  0.1m
+[run] flowcast  t=5/21 t0=1843  rollout=  0.5s  avg= 0.5s  elapsed=  0.0m  eta=  0.1m
+[run] flowcast  t=6/21 t0=2304  rollout=  0.5s  avg= 0.5s  elapsed=  0.0m  eta=  0.1m
+[run] flowcast  t=7/21 t0=2765  rollout=  0.6s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=8/21 t0=3226  rollout=  0.6s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=9/21 t0=3687  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=10/21 t0=4148  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=11/21 t0=4608  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=12/21 t0=5069  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=13/21 t0=5530  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=14/21 t0=5991  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.1m
+[run] flowcast  t=15/21 t0=6452  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.0m
+[run] flowcast  t=16/21 t0=6913  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.0m
+[run] flowcast  t=17/21 t0=7374  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.0m
+[run] flowcast  t=18/21 t0=7835  rollout=  0.5s  avg= 0.5s  elapsed=  0.1m  eta=  0.0m
+[run] flowcast  t=19/21 t0=8296  rollout=  0.5s  avg= 0.5s  elapsed=  0.2m  eta=  0.0m
+[run] flowcast  t=20/21 t0=8757  rollout=  0.5s  avg= 0.5s  elapsed=  0.2m  eta=  0.0m
+[run] flowcast  t=21/21 t0=7283  rollout=  0.5s  avg= 0.5s  elapsed=  0.2m  eta=  0.0m
+[run] flowcast finished in 0.2m
+[load] cleaned meanflow   /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[run] meanflow starting: 21 times x lead=1h
+[run] meanflow  t=1/21 t0=0     rollout=  0.3s  avg= 0.3s  elapsed=  0.0m  eta=  0.1m
+[run] meanflow  t=2/21 t0=460   rollout=  0.2s  avg= 0.3s  elapsed=  0.0m  eta=  0.1m
+[run] meanflow  t=3/21 t0=921   rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.1m
+[run] meanflow  t=4/21 t0=1382  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.1m
+[run] meanflow  t=5/21 t0=1843  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.1m
+[run] meanflow  t=6/21 t0=2304  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.1m
+[run] meanflow  t=7/21 t0=2765  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=8/21 t0=3226  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=9/21 t0=3687  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=10/21 t0=4148  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=11/21 t0=4608  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=12/21 t0=5069  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=13/21 t0=5530  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=14/21 t0=5991  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=15/21 t0=6452  rollout=  0.2s  avg= 0.2s  elapsed=  0.0m  eta=  0.0m
+[run] meanflow  t=16/21 t0=6913  rollout=  0.2s  avg= 0.2s  elapsed=  0.1m  eta=  0.0m
+[run] meanflow  t=17/21 t0=7374  rollout=  0.2s  avg= 0.2s  elapsed=  0.1m  eta=  0.0m
+[run] meanflow  t=18/21 t0=7835  rollout=  0.2s  avg= 0.2s  elapsed=  0.1m  eta=  0.0m
+[run] meanflow  t=19/21 t0=8296  rollout=  0.2s  avg= 0.2s  elapsed=  0.1m  eta=  0.0m
+[run] meanflow  t=20/21 t0=8757  rollout=  0.2s  avg= 0.2s  elapsed=  0.1m  eta=  0.0m
+[run] meanflow  t=21/21 t0=7283  rollout=  0.2s  avg= 0.2s  elapsed=  0.1m  eta=  0.0m
+[run] meanflow finished in 0.1m
+[plot] rendering 21 figures into /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_01_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_02_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_03_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_04_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_05_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_06_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_07_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_08_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_09_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_10_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_11_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_12_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_13_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_14_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_15_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_16_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_17_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_18_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_19_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_20_lead_1h.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow/time_21_lead_1h.png
+[done] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/single_time_meanflow

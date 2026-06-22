@@ -1,0 +1,13 @@
+data: exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026
+valid_dates: ['2022/01/01', '2022/12/31']
+n_times: 2
+t0_indices: [0, 8757]
+seed: 0
+channels (plot order): ['t2m', 'u10', 'v10', 'qpepre']
+diffusion: num_steps=18 solver=heun sigma_min=0.002 sigma_max=80.0 rho=7.0
+flowcast:  num_steps=10 solver=euler sigma_data=0.5
+meanflow:  num_steps=2 sigma_data=0.5
+regression: runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+diffusion:  runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+flowcast:   runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+meanflow:   runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus

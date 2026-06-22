@@ -1,0 +1,5 @@
+method,metric,3,7,15
+diffusion,fss_p16,-0.000000,0.000000,0.000000
+flowcast,fss_p16,0.000000,0.000000,0.000000
+meanflow_nfe1,fss_p16,0.000000,0.000000,0.000000
+meanflow_nfe2,fss_p16,0.000000,0.000000,0.000000

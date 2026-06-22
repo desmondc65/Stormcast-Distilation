@@ -1,0 +1,16 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.15}
+\begin{document}
+\begin{tabular}{lcccc}
+\toprule
+\multicolumn{5}{c}{\textbf{RMSE per channel} $\downarrow$} \\
+\midrule
+\textbf{Method} & \textbf{t2m} $\downarrow$ & \textbf{u10} $\downarrow$ & \textbf{v10} $\downarrow$ & \textbf{qpepre} $\downarrow$ \\
+\midrule
+stormcast (224$\times$128) & \textbf{1.5621} & \textbf{1.9491} & \textbf{2.0435} & \textbf{1.1736} \\
+\bottomrule
+\end{tabular}
+\end{document}

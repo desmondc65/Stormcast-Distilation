@@ -1,0 +1,10 @@
+# log1p vs NO_log1p qpepre encoding ablation
+
+Matched ~2M-sample-budget checkpoints. qpepre is reported in mm/h on both sides (denormalize_state undoes log1p when applicable), so threshold-based metrics are directly comparable across encodings.
+
+| method | Time/Seq.(s) | CRPS↓ | CSI-M↑ | CSI-P16↑ | FSS-P16-M↑ | HSS-M↑ | FAR-M↓ | RMSE_u10↓ | RMSE_v10↓ | RMSE_t2m↓ | RMSE_qpepre↓ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| log1p_diffusion | 20.492 | 0.7912 | 0.1760 | 0.0306 | 0.1257 | 0.2374 | 0.6059 | 1.7365 | 2.0010 | 1.5160 | 1.1833 |
+| log1p_flowcast | 5.900 | 0.8615 | 0.1649 | 0.0332 | 0.1486 | 0.2308 | 0.5269 | 1.6667 | 1.8057 | 1.7501 | 1.1274 |
+| NO_log1p_diffusion | 20.084 | 0.7889 | 0.1557 | 0.0162 | 0.1022 | 0.2033 | 0.8033 | 1.6951 | 1.9503 | 1.6300 | 1.5443 |
+| NO_log1p_flowcast | 6.223 | 0.8671 | 0.1471 | 0.0198 | 0.0822 | 0.1857 | 0.7846 | 1.8188 | 2.0348 | 1.4818 | 1.4191 |

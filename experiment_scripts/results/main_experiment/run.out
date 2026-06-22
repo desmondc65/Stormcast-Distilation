@@ -1,0 +1,901 @@
+
+================================================================
+[2026-06-15 09:32:54] Main experiment — legacy vs. cleaned-2M (3-way)
+================================================================
+[2026-06-15 09:32:54] [run_main] skipping conda activation (already in 'base' / SKIP_CONDA=1)
+[2026-06-15 09:32:54] [run_main] python : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/stormcast_env/bin/python
+[2026-06-15 09:32:54] [run_main] version: Python 3.10.12
+[2026-06-15 09:32:54] [run_main] host   : gpu03  user=davidlcs  pid=1962364
+[2026-06-15 09:32:54] [run_main] cwd    : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation
+[2026-06-15 09:32:54] [run_main] cuda   : 0
+
+================================================================
+[2026-06-15 09:32:54] Configuration
+================================================================
+[2026-06-15 09:32:54] [run_main] REPO_ROOT     = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation
+[2026-06-15 09:32:54] [run_main] OUT_DIR       = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd
+[2026-06-15 09:32:54] [run_main] N_SEQUENCES   = 10    (initial times across 2022)
+[2026-06-15 09:32:54] [run_main] N_STEPS       = 12    (autoregressive horizon, hours)
+[2026-06-15 09:32:54] [run_main] ENSEMBLE      = 10    (members per sequence)
+[2026-06-15 09:32:54] [run_main] DIFFUSION_NFE = 18   (Heun steps; NFE = 2 * this)
+[2026-06-15 09:32:54] [run_main] FLOWCAST_NFES = 10 15 20   (Euler steps; one row per value)
+[2026-06-15 09:32:54] [run_main] MEANFLOW_NFES = 1 2   (avg-velocity NFE; one row per value)
+[2026-06-15 09:32:54] [run_main] N_PANELS_SEQ  = 6    PANEL_STEPS = ''
+[2026-06-15 09:32:54] [run_main] SEED          = 0
+[2026-06-15 09:32:54] [run_main] 
+[2026-06-15 09:32:54] [run_main] Inputs:
+[2026-06-15 09:32:54] [run_main]   LEGACY_DATA  = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full
+[2026-06-15 09:32:54] [run_main]   LEGACY_REG   = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[2026-06-15 09:32:54] [run_main]   LEGACY_EDM   = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[2026-06-15 09:32:54] [run_main]   CLEANED_DATA = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026
+[2026-06-15 09:32:54] [run_main]   CLEANED_REG  = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[2026-06-15 09:32:54] [run_main]   CLEANED_EDM  = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[2026-06-15 09:32:54] [run_main]   CLEANED_FLOW = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[2026-06-15 09:32:54] [run_main]   CLEANED_MEAN = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+
+================================================================
+[2026-06-15 09:32:54] Pre-flight checks
+================================================================
+[2026-06-15 09:32:54] [run_main]   OK     LEGACY_DATA=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full
+[2026-06-15 09:32:54] [run_main]   OK     LEGACY_REG=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[2026-06-15 09:32:54] [run_main]   OK     LEGACY_EDM=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[2026-06-15 09:32:54] [run_main]   OK     CLEANED_DATA=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026
+[2026-06-15 09:32:54] [run_main]   OK     CLEANED_REG=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[2026-06-15 09:32:54] [run_main]   OK     CLEANED_EDM=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[2026-06-15 09:32:54] [run_main]   OK     CLEANED_FLOW=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[2026-06-15 09:32:54] [run_main]   OK     CLEANED_MEANFLOW=/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[2026-06-15 09:32:54] [run_main] pre-flight OK
+
+================================================================
+[2026-06-15 09:32:54] Leg A — legacy old-stormcast on old 224x128 dataset
+================================================================
+[2026-06-15 09:32:54] [run_main] regression : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[2026-06-15 09:32:54] [run_main] diffusion  : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[2026-06-15 09:32:54] [run_main] dataset    : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full
+[2026-06-15 09:32:54] [run_main] log -> /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/legacy.log
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full valid=['2022/01/01', '2022/12/31'] hr=[224, 128]
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/stormcast/datasets/data_loader_rwrf_era5_stable.py:254: FutureWarning: The return type of `Dataset.dims` will be changed to return a set of dimension names in future, in order to be more consistent with `DataArray.dims`. To access a mapping from dimension names to lengths, please use `Dataset.sizes`.
+  return np.ones(ds.dims["time"], dtype=bool)
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+[data] usable pairs=8759 channels=['t2m', 'u10', 'v10', 'qpepre']
+[seqs] 10 sequences x 12 steps (first=0, last=8746)
+[load] regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[load] diffusion /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[run] diffusion ensemble (K=10, NFE/step≈36)
+[run] diffusion ensemble starting: K=10 x S=10 x T=12 = 100 sequence-rollouts
+[run] diffusion  k=1/10 seq=1/10 (1/100)  t0=0      rollout=126.5s  avg=126.6s/seq  elapsed=  2.1m  eta=208.9m
+[run] diffusion  k=1/10 seq=2/10 (2/100)  t0=971    rollout= 39.3s  avg=83.0s/seq  elapsed=  2.8m  eta=135.5m
+[run] diffusion  k=1/10 seq=3/10 (3/100)  t0=1943   rollout=126.3s  avg=97.4s/seq  elapsed=  4.9m  eta=157.5m
+[run] diffusion  k=1/10 seq=4/10 (4/100)  t0=2915   rollout=155.7s  avg=112.0s/seq  elapsed=  7.5m  eta=179.2m
+[run] diffusion  k=1/10 seq=5/10 (5/100)  t0=3887   rollout=135.3s  avg=116.6s/seq  elapsed=  9.7m  eta=184.7m
+[run] diffusion  k=1/10 seq=6/10 (6/100)  t0=4858   rollout=130.9s  avg=119.0s/seq  elapsed= 11.9m  eta=186.5m
+[run] diffusion  k=1/10 seq=7/10 (7/100)  t0=5830   rollout=138.2s  avg=121.8s/seq  elapsed= 14.2m  eta=188.7m
+[run] diffusion  k=1/10 seq=8/10 (8/100)  t0=6802   rollout=138.9s  avg=123.9s/seq  elapsed= 16.5m  eta=190.0m
+[run] diffusion  k=1/10 seq=9/10 (9/100)  t0=7774   rollout=128.0s  avg=124.4s/seq  elapsed= 18.7m  eta=188.6m
+[run] diffusion  k=1/10 seq=10/10 (10/100)  t0=8746   rollout= 58.5s  avg=117.8s/seq  elapsed= 19.6m  eta=176.7m
+[run] diffusion  k=2/10 seq=1/10 (11/100)  t0=0      rollout= 67.4s  avg=113.2s/seq  elapsed= 20.8m  eta=167.9m
+[run] diffusion  k=2/10 seq=2/10 (12/100)  t0=971    rollout= 66.7s  avg=109.3s/seq  elapsed= 21.9m  eta=160.3m
+[run] diffusion  k=2/10 seq=3/10 (13/100)  t0=1943   rollout= 64.0s  avg=105.8s/seq  elapsed= 22.9m  eta=153.5m
+[run] diffusion  k=2/10 seq=4/10 (14/100)  t0=2915   rollout= 40.1s  avg=101.1s/seq  elapsed= 23.6m  eta=145.0m
+[run] diffusion  k=2/10 seq=5/10 (15/100)  t0=3887   rollout= 38.8s  avg=97.0s/seq  elapsed= 24.2m  eta=137.4m
+[run] diffusion  k=2/10 seq=6/10 (16/100)  t0=4858   rollout= 38.8s  avg=93.3s/seq  elapsed= 24.9m  eta=130.7m
+[run] diffusion  k=2/10 seq=7/10 (17/100)  t0=5830   rollout= 38.9s  avg=90.1s/seq  elapsed= 25.5m  eta=124.7m
+[run] diffusion  k=2/10 seq=8/10 (18/100)  t0=6802   rollout= 38.4s  avg=87.3s/seq  elapsed= 26.2m  eta=119.3m
+[run] diffusion  k=2/10 seq=9/10 (19/100)  t0=7774   rollout= 38.6s  avg=84.7s/seq  elapsed= 26.8m  eta=114.3m
+[run] diffusion  k=2/10 seq=10/10 (20/100)  t0=8746   rollout= 38.7s  avg=82.4s/seq  elapsed= 27.5m  eta=109.9m
+[run] diffusion  k=3/10 seq=1/10 (21/100)  t0=0      rollout= 62.7s  avg=81.5s/seq  elapsed= 28.5m  eta=107.3m
+[run] diffusion  k=3/10 seq=2/10 (22/100)  t0=971    rollout= 71.2s  avg=81.0s/seq  elapsed= 29.7m  eta=105.3m
+[run] diffusion  k=3/10 seq=3/10 (23/100)  t0=1943   rollout= 48.0s  avg=79.6s/seq  elapsed= 30.5m  eta=102.1m
+[run] diffusion  k=3/10 seq=4/10 (24/100)  t0=2915   rollout= 64.1s  avg=78.9s/seq  elapsed= 31.6m  eta=100.0m
+[run] diffusion  k=3/10 seq=5/10 (25/100)  t0=3887   rollout= 56.7s  avg=78.0s/seq  elapsed= 32.5m  eta= 97.6m
+[run] diffusion  k=3/10 seq=6/10 (26/100)  t0=4858   rollout= 50.5s  avg=77.0s/seq  elapsed= 33.4m  eta= 94.9m
+[run] diffusion  k=3/10 seq=7/10 (27/100)  t0=5830   rollout= 67.7s  avg=76.6s/seq  elapsed= 34.5m  eta= 93.2m
+[run] diffusion  k=3/10 seq=8/10 (28/100)  t0=6802   rollout= 53.2s  avg=75.8s/seq  elapsed= 35.4m  eta= 91.0m
+[run] diffusion  k=3/10 seq=9/10 (29/100)  t0=7774   rollout= 49.1s  avg=74.9s/seq  elapsed= 36.2m  eta= 88.6m
+[run] diffusion  k=3/10 seq=10/10 (30/100)  t0=8746   rollout= 65.0s  avg=74.6s/seq  elapsed= 37.3m  eta= 87.0m
+[run] diffusion  k=4/10 seq=1/10 (31/100)  t0=0      rollout= 57.8s  avg=74.0s/seq  elapsed= 38.2m  eta= 85.1m
+[run] diffusion  k=4/10 seq=2/10 (32/100)  t0=971    rollout= 46.5s  avg=73.2s/seq  elapsed= 39.0m  eta= 82.9m
+[run] diffusion  k=4/10 seq=3/10 (33/100)  t0=1943   rollout= 67.5s  avg=73.0s/seq  elapsed= 40.1m  eta= 81.5m
+[run] diffusion  k=4/10 seq=4/10 (34/100)  t0=2915   rollout= 61.6s  avg=72.7s/seq  elapsed= 41.2m  eta= 79.9m
+[run] diffusion  k=4/10 seq=5/10 (35/100)  t0=3887   rollout= 54.2s  avg=72.1s/seq  elapsed= 42.1m  eta= 78.1m
+[run] diffusion  k=4/10 seq=6/10 (36/100)  t0=4858   rollout= 64.0s  avg=71.9s/seq  elapsed= 43.1m  eta= 76.7m
+[run] diffusion  k=4/10 seq=7/10 (37/100)  t0=5830   rollout= 63.0s  avg=71.7s/seq  elapsed= 44.2m  eta= 75.2m
+[run] diffusion  k=4/10 seq=8/10 (38/100)  t0=6802   rollout= 59.9s  avg=71.4s/seq  elapsed= 45.2m  eta= 73.7m
+[run] diffusion  k=4/10 seq=9/10 (39/100)  t0=7774   rollout= 62.2s  avg=71.1s/seq  elapsed= 46.2m  eta= 72.3m
+[run] diffusion  k=4/10 seq=10/10 (40/100)  t0=8746   rollout= 65.2s  avg=71.0s/seq  elapsed= 47.3m  eta= 71.0m
+[run] diffusion  k=5/10 seq=1/10 (41/100)  t0=0      rollout= 55.9s  avg=70.6s/seq  elapsed= 48.2m  eta= 69.4m
+[run] diffusion  k=5/10 seq=2/10 (42/100)  t0=971    rollout= 62.4s  avg=70.4s/seq  elapsed= 49.3m  eta= 68.1m
+[run] diffusion  k=5/10 seq=3/10 (43/100)  t0=1943   rollout= 65.2s  avg=70.3s/seq  elapsed= 50.4m  eta= 66.8m
+[run] diffusion  k=5/10 seq=4/10 (44/100)  t0=2915   rollout= 67.1s  avg=70.2s/seq  elapsed= 51.5m  eta= 65.5m
+[run] diffusion  k=5/10 seq=5/10 (45/100)  t0=3887   rollout=136.9s  avg=71.7s/seq  elapsed= 53.8m  eta= 65.7m
+[run] diffusion  k=5/10 seq=6/10 (46/100)  t0=4858   rollout=107.7s  avg=72.5s/seq  elapsed= 55.6m  eta= 65.2m
+[run] diffusion  k=5/10 seq=7/10 (47/100)  t0=5830   rollout= 86.8s  avg=72.8s/seq  elapsed= 57.0m  eta= 64.3m
+[run] diffusion  k=5/10 seq=8/10 (48/100)  t0=6802   rollout= 60.2s  avg=72.5s/seq  elapsed= 58.0m  eta= 62.9m
+[run] diffusion  k=5/10 seq=9/10 (49/100)  t0=7774   rollout= 40.2s  avg=71.9s/seq  elapsed= 58.7m  eta= 61.1m
+[run] diffusion  k=5/10 seq=10/10 (50/100)  t0=8746   rollout= 38.3s  avg=71.2s/seq  elapsed= 59.3m  eta= 59.3m
+[run] diffusion  k=6/10 seq=1/10 (51/100)  t0=0      rollout= 40.6s  avg=70.6s/seq  elapsed= 60.0m  eta= 57.7m
+[run] diffusion  k=6/10 seq=2/10 (52/100)  t0=971    rollout= 39.3s  avg=70.0s/seq  elapsed= 60.7m  eta= 56.0m
+[run] diffusion  k=6/10 seq=3/10 (53/100)  t0=1943   rollout= 44.9s  avg=69.5s/seq  elapsed= 61.4m  eta= 54.5m
+[run] diffusion  k=6/10 seq=4/10 (54/100)  t0=2915   rollout= 45.1s  avg=69.1s/seq  elapsed= 62.2m  eta= 53.0m
+[run] diffusion  k=6/10 seq=5/10 (55/100)  t0=3887   rollout= 38.8s  avg=68.5s/seq  elapsed= 62.8m  eta= 51.4m
+[run] diffusion  k=6/10 seq=6/10 (56/100)  t0=4858   rollout= 39.3s  avg=68.0s/seq  elapsed= 63.5m  eta= 49.9m
+[run] diffusion  k=6/10 seq=7/10 (57/100)  t0=5830   rollout= 38.9s  avg=67.5s/seq  elapsed= 64.1m  eta= 48.4m
+[run] diffusion  k=6/10 seq=8/10 (58/100)  t0=6802   rollout= 38.4s  avg=67.0s/seq  elapsed= 64.8m  eta= 46.9m
+[run] diffusion  k=6/10 seq=9/10 (59/100)  t0=7774   rollout= 38.2s  avg=66.5s/seq  elapsed= 65.4m  eta= 45.4m
+[run] diffusion  k=6/10 seq=10/10 (60/100)  t0=8746   rollout= 38.0s  avg=66.0s/seq  elapsed= 66.0m  eta= 44.0m
+[run] diffusion  k=7/10 seq=1/10 (61/100)  t0=0      rollout= 39.1s  avg=65.6s/seq  elapsed= 66.7m  eta= 42.6m
+[run] diffusion  k=7/10 seq=2/10 (62/100)  t0=971    rollout= 38.7s  avg=65.2s/seq  elapsed= 67.3m  eta= 41.3m
+[run] diffusion  k=7/10 seq=3/10 (63/100)  t0=1943   rollout= 39.7s  avg=64.7s/seq  elapsed= 68.0m  eta= 39.9m
+[run] diffusion  k=7/10 seq=4/10 (64/100)  t0=2915   rollout= 39.7s  avg=64.4s/seq  elapsed= 68.6m  eta= 38.6m
+[run] diffusion  k=7/10 seq=5/10 (65/100)  t0=3887   rollout= 38.6s  avg=64.0s/seq  elapsed= 69.3m  eta= 37.3m
+[run] diffusion  k=7/10 seq=6/10 (66/100)  t0=4858   rollout= 39.2s  avg=63.6s/seq  elapsed= 69.9m  eta= 36.0m
+[run] diffusion  k=7/10 seq=7/10 (67/100)  t0=5830   rollout= 39.3s  avg=63.2s/seq  elapsed= 70.6m  eta= 34.8m
+[run] diffusion  k=7/10 seq=8/10 (68/100)  t0=6802   rollout= 37.9s  avg=62.8s/seq  elapsed= 71.2m  eta= 33.5m
+[run] diffusion  k=7/10 seq=9/10 (69/100)  t0=7774   rollout= 38.6s  avg=62.5s/seq  elapsed= 71.9m  eta= 32.3m
+[run] diffusion  k=7/10 seq=10/10 (70/100)  t0=8746   rollout= 38.4s  avg=62.2s/seq  elapsed= 72.5m  eta= 31.1m
+[run] diffusion  k=8/10 seq=1/10 (71/100)  t0=0      rollout= 39.5s  avg=61.8s/seq  elapsed= 73.2m  eta= 29.9m
+[run] diffusion  k=8/10 seq=2/10 (72/100)  t0=971    rollout= 39.4s  avg=61.5s/seq  elapsed= 73.8m  eta= 28.7m
+[run] diffusion  k=8/10 seq=3/10 (73/100)  t0=1943   rollout= 39.3s  avg=61.2s/seq  elapsed= 74.5m  eta= 27.5m
+[run] diffusion  k=8/10 seq=4/10 (74/100)  t0=2915   rollout= 39.9s  avg=60.9s/seq  elapsed= 75.1m  eta= 26.4m
+[run] diffusion  k=8/10 seq=5/10 (75/100)  t0=3887   rollout= 38.8s  avg=60.6s/seq  elapsed= 75.8m  eta= 25.3m
+[run] diffusion  k=8/10 seq=6/10 (76/100)  t0=4858   rollout= 39.1s  avg=60.4s/seq  elapsed= 76.4m  eta= 24.1m
+[run] diffusion  k=8/10 seq=7/10 (77/100)  t0=5830   rollout= 38.5s  avg=60.1s/seq  elapsed= 77.1m  eta= 23.0m
+[run] diffusion  k=8/10 seq=8/10 (78/100)  t0=6802   rollout= 37.9s  avg=59.8s/seq  elapsed= 77.7m  eta= 21.9m
+[run] diffusion  k=8/10 seq=9/10 (79/100)  t0=7774   rollout= 38.8s  avg=59.5s/seq  elapsed= 78.4m  eta= 20.8m
+[run] diffusion  k=8/10 seq=10/10 (80/100)  t0=8746   rollout= 38.6s  avg=59.3s/seq  elapsed= 79.0m  eta= 19.8m
+[run] diffusion  k=9/10 seq=1/10 (81/100)  t0=0      rollout= 39.5s  avg=59.0s/seq  elapsed= 79.7m  eta= 18.7m
+[run] diffusion  k=9/10 seq=2/10 (82/100)  t0=971    rollout= 39.1s  avg=58.8s/seq  elapsed= 80.3m  eta= 17.6m
+[run] diffusion  k=9/10 seq=3/10 (83/100)  t0=1943   rollout= 39.5s  avg=58.5s/seq  elapsed= 81.0m  eta= 16.6m
+[run] diffusion  k=9/10 seq=4/10 (84/100)  t0=2915   rollout= 39.6s  avg=58.3s/seq  elapsed= 81.6m  eta= 15.6m
+[run] diffusion  k=9/10 seq=5/10 (85/100)  t0=3887   rollout= 38.9s  avg=58.1s/seq  elapsed= 82.3m  eta= 14.5m
+[run] diffusion  k=9/10 seq=6/10 (86/100)  t0=4858   rollout= 38.9s  avg=57.9s/seq  elapsed= 82.9m  eta= 13.5m
+[run] diffusion  k=9/10 seq=7/10 (87/100)  t0=5830   rollout= 39.3s  avg=57.6s/seq  elapsed= 83.6m  eta= 12.5m
+[run] diffusion  k=9/10 seq=8/10 (88/100)  t0=6802   rollout= 38.0s  avg=57.4s/seq  elapsed= 84.2m  eta= 11.5m
+[run] diffusion  k=9/10 seq=9/10 (89/100)  t0=7774   rollout= 38.5s  avg=57.2s/seq  elapsed= 84.9m  eta= 10.5m
+[run] diffusion  k=9/10 seq=10/10 (90/100)  t0=8746   rollout= 38.8s  avg=57.0s/seq  elapsed= 85.5m  eta=  9.5m
+[run] diffusion  k=10/10 seq=1/10 (91/100)  t0=0      rollout= 39.1s  avg=56.8s/seq  elapsed= 86.2m  eta=  8.5m
+[run] diffusion  k=10/10 seq=2/10 (92/100)  t0=971    rollout= 39.6s  avg=56.6s/seq  elapsed= 86.8m  eta=  7.5m
+[run] diffusion  k=10/10 seq=3/10 (93/100)  t0=1943   rollout= 39.0s  avg=56.4s/seq  elapsed= 87.5m  eta=  6.6m
+[run] diffusion  k=10/10 seq=4/10 (94/100)  t0=2915   rollout= 39.9s  avg=56.3s/seq  elapsed= 88.1m  eta=  5.6m
+[run] diffusion  k=10/10 seq=5/10 (95/100)  t0=3887   rollout= 38.9s  avg=56.1s/seq  elapsed= 88.8m  eta=  4.7m
+[run] diffusion  k=10/10 seq=6/10 (96/100)  t0=4858   rollout= 39.3s  avg=55.9s/seq  elapsed= 89.4m  eta=  3.7m
+[run] diffusion  k=10/10 seq=7/10 (97/100)  t0=5830   rollout= 38.9s  avg=55.7s/seq  elapsed= 90.1m  eta=  2.8m
+[run] diffusion  k=10/10 seq=8/10 (98/100)  t0=6802   rollout= 37.8s  avg=55.5s/seq  elapsed= 90.7m  eta=  1.9m
+[run] diffusion  k=10/10 seq=9/10 (99/100)  t0=7774   rollout= 38.6s  avg=55.4s/seq  elapsed= 91.4m  eta=  0.9m
+[run] diffusion  k=10/10 seq=10/10 (100/100)  t0=8746   rollout= 38.2s  avg=55.2s/seq  elapsed= 92.0m  eta=  0.0m
+[run] diffusion ensemble finished in 92.0m
+[skip] flowcast leg disabled via --skip-flowcast
+[skip] meanflow leg disabled (pass --meanflow-checkpoint to enable)
+[score] aggregating...
+| method | Time/Seq.(s) | CRPS↓ | CSI-M@10km↑ | HSS-M@10km↑ | FAR-M@10km↓ | FSS-P16@10km↑ | CSI-M@0.25°↑ | HSS-M@0.25°↑ | FAR-M@0.25°↓ | FSS-P16@0.25°↑ | RMSE_t2m↓ | RMSE_u10↓ | RMSE_v10↓ | RMSE_qpepre↓ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| diffusion | 117.759 | 0.8762 | 0.0833 | 0.0762 | 0.5679 | 0.0050 | 0.1162 | 0.0845 | 0.4581 | 0.0036 | 1.5621 | 1.9491 | 2.0435 | 1.1736 |
+[done] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/legacy
+[2026-06-15 11:06:28] [run_main] leg A done in 5614s
+[2026-06-15 11:06:28] [run_main] [legacy] outputs: 103 files (38M) under /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/legacy
+[2026-06-15 11:06:28] [run_main] [legacy] scoreboard.md:
+[run_main]     | | method | Time/Seq.(s) | CRPS↓ | CSI-M@10km↑ | HSS-M@10km↑ | FAR-M@10km↓ | FSS-P16@10km↑ | CSI-M@0.25°↑ | HSS-M@0.25°↑ | FAR-M@0.25°↓ | FSS-P16@0.25°↑ | RMSE_t2m↓ | RMSE_u10↓ | RMSE_v10↓ | RMSE_qpepre↓ |
+[run_main]     | |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+[run_main]     | | diffusion | 117.759 | 0.8762 | 0.0833 | 0.0762 | 0.5679 | 0.0050 | 0.1162 | 0.0845 | 0.4581 | 0.0036 | 1.5621 | 1.9491 | 2.0435 | 1.1736 |
+[2026-06-15 11:06:28] [run_main] [legacy] panels rendered: 96 PNGs
+
+================================================================
+[2026-06-15 11:06:28] Leg B — cleaned EDM + FlowCast + MeanFlow (all @ ~2M samples)
+================================================================
+[2026-06-15 11:06:28] [run_main] regression : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[2026-06-15 11:06:28] [run_main] diffusion  : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[2026-06-15 11:06:28] [run_main] flowcast   : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[2026-06-15 11:06:28] [run_main] meanflow   : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus (NFE 1 2)
+[2026-06-15 11:06:28] [run_main] dataset    : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026
+[2026-06-15 11:06:28] [run_main] log -> /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M.log
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026 valid=['2022/01/01', '2022/12/31'] hr=[192, 96]
+[data] usable pairs=8759 channels=['u10', 'v10', 't2m', 'qpepre']
+[seqs] 10 sequences x 12 steps (first=0, last=8746)
+[load] regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[load] diffusion /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[run] diffusion ensemble (K=10, NFE/step≈36)
+[run] diffusion ensemble starting: K=10 x S=10 x T=12 = 100 sequence-rollouts
+[run] diffusion  k=1/10 seq=1/10 (1/100)  t0=0      rollout= 24.3s  avg=24.4s/seq  elapsed=  0.4m  eta= 40.3m
+[run] diffusion  k=1/10 seq=2/10 (2/100)  t0=971    rollout= 22.3s  avg=23.3s/seq  elapsed=  0.8m  eta= 38.1m
+[run] diffusion  k=1/10 seq=3/10 (3/100)  t0=1943   rollout= 20.3s  avg=22.3s/seq  elapsed=  1.1m  eta= 36.1m
+[run] diffusion  k=1/10 seq=4/10 (4/100)  t0=2915   rollout= 19.7s  avg=21.7s/seq  elapsed=  1.4m  eta= 34.7m
+[run] diffusion  k=1/10 seq=5/10 (5/100)  t0=3887   rollout= 20.2s  avg=21.4s/seq  elapsed=  1.8m  eta= 33.8m
+[run] diffusion  k=1/10 seq=6/10 (6/100)  t0=4858   rollout= 19.7s  avg=21.1s/seq  elapsed=  2.1m  eta= 33.0m
+[run] diffusion  k=1/10 seq=7/10 (7/100)  t0=5830   rollout= 20.3s  avg=21.0s/seq  elapsed=  2.4m  eta= 32.5m
+[run] diffusion  k=1/10 seq=8/10 (8/100)  t0=6802   rollout= 19.8s  avg=20.8s/seq  elapsed=  2.8m  eta= 31.9m
+[run] diffusion  k=1/10 seq=9/10 (9/100)  t0=7774   rollout= 20.4s  avg=20.8s/seq  elapsed=  3.1m  eta= 31.5m
+[run] diffusion  k=1/10 seq=10/10 (10/100)  t0=8746   rollout= 19.8s  avg=20.7s/seq  elapsed=  3.4m  eta= 31.0m
+[run] diffusion  k=2/10 seq=1/10 (11/100)  t0=0      rollout= 19.1s  avg=20.5s/seq  elapsed=  3.8m  eta= 30.5m
+[run] diffusion  k=2/10 seq=2/10 (12/100)  t0=971    rollout= 19.1s  avg=20.4s/seq  elapsed=  4.1m  eta= 30.0m
+[run] diffusion  k=2/10 seq=3/10 (13/100)  t0=1943   rollout= 19.1s  avg=20.3s/seq  elapsed=  4.4m  eta= 29.5m
+[run] diffusion  k=2/10 seq=4/10 (14/100)  t0=2915   rollout= 19.2s  avg=20.2s/seq  elapsed=  4.7m  eta= 29.0m
+[run] diffusion  k=2/10 seq=5/10 (15/100)  t0=3887   rollout= 19.4s  avg=20.2s/seq  elapsed=  5.0m  eta= 28.6m
+[run] diffusion  k=2/10 seq=6/10 (16/100)  t0=4858   rollout= 19.3s  avg=20.1s/seq  elapsed=  5.4m  eta= 28.2m
+[run] diffusion  k=2/10 seq=7/10 (17/100)  t0=5830   rollout= 19.3s  avg=20.1s/seq  elapsed=  5.7m  eta= 27.8m
+[run] diffusion  k=2/10 seq=8/10 (18/100)  t0=6802   rollout= 19.4s  avg=20.0s/seq  elapsed=  6.0m  eta= 27.4m
+[run] diffusion  k=2/10 seq=9/10 (19/100)  t0=7774   rollout= 19.3s  avg=20.0s/seq  elapsed=  6.3m  eta= 27.0m
+[run] diffusion  k=2/10 seq=10/10 (20/100)  t0=8746   rollout= 19.4s  avg=20.0s/seq  elapsed=  6.7m  eta= 26.6m
+[run] diffusion  k=3/10 seq=1/10 (21/100)  t0=0      rollout= 19.4s  avg=20.0s/seq  elapsed=  7.0m  eta= 26.3m
+[run] diffusion  k=3/10 seq=2/10 (22/100)  t0=971    rollout= 20.7s  avg=20.0s/seq  elapsed=  7.3m  eta= 26.0m
+[run] diffusion  k=3/10 seq=3/10 (23/100)  t0=1943   rollout= 21.7s  avg=20.1s/seq  elapsed=  7.7m  eta= 25.7m
+[run] diffusion  k=3/10 seq=4/10 (24/100)  t0=2915   rollout= 19.9s  avg=20.1s/seq  elapsed=  8.0m  eta= 25.4m
+[run] diffusion  k=3/10 seq=5/10 (25/100)  t0=3887   rollout= 19.6s  avg=20.0s/seq  elapsed=  8.3m  eta= 25.0m
+[run] diffusion  k=3/10 seq=6/10 (26/100)  t0=4858   rollout= 19.3s  avg=20.0s/seq  elapsed=  8.7m  eta= 24.7m
+[run] diffusion  k=3/10 seq=7/10 (27/100)  t0=5830   rollout= 19.6s  avg=20.0s/seq  elapsed=  9.0m  eta= 24.3m
+[run] diffusion  k=3/10 seq=8/10 (28/100)  t0=6802   rollout= 19.4s  avg=20.0s/seq  elapsed=  9.3m  eta= 24.0m
+[run] diffusion  k=3/10 seq=9/10 (29/100)  t0=7774   rollout= 19.5s  avg=20.0s/seq  elapsed=  9.6m  eta= 23.6m
+[run] diffusion  k=3/10 seq=10/10 (30/100)  t0=8746   rollout= 19.4s  avg=19.9s/seq  elapsed= 10.0m  eta= 23.3m
+[run] diffusion  k=4/10 seq=1/10 (31/100)  t0=0      rollout= 19.4s  avg=19.9s/seq  elapsed= 10.3m  eta= 22.9m
+[run] diffusion  k=4/10 seq=2/10 (32/100)  t0=971    rollout= 19.3s  avg=19.9s/seq  elapsed= 10.6m  eta= 22.6m
+[run] diffusion  k=4/10 seq=3/10 (33/100)  t0=1943   rollout= 19.6s  avg=19.9s/seq  elapsed= 10.9m  eta= 22.2m
+[run] diffusion  k=4/10 seq=4/10 (34/100)  t0=2915   rollout= 19.4s  avg=19.9s/seq  elapsed= 11.3m  eta= 21.9m
+[run] diffusion  k=4/10 seq=5/10 (35/100)  t0=3887   rollout= 19.3s  avg=19.9s/seq  elapsed= 11.6m  eta= 21.5m
+[run] diffusion  k=4/10 seq=6/10 (36/100)  t0=4858   rollout= 21.1s  avg=19.9s/seq  elapsed= 11.9m  eta= 21.2m
+[run] diffusion  k=4/10 seq=7/10 (37/100)  t0=5830   rollout= 19.5s  avg=19.9s/seq  elapsed= 12.3m  eta= 20.9m
+[run] diffusion  k=4/10 seq=8/10 (38/100)  t0=6802   rollout= 19.5s  avg=19.9s/seq  elapsed= 12.6m  eta= 20.5m
+[run] diffusion  k=4/10 seq=9/10 (39/100)  t0=7774   rollout= 23.0s  avg=20.0s/seq  elapsed= 13.0m  eta= 20.3m
+[run] diffusion  k=4/10 seq=10/10 (40/100)  t0=8746   rollout= 22.7s  avg=20.0s/seq  elapsed= 13.4m  eta= 20.0m
+[run] diffusion  k=5/10 seq=1/10 (41/100)  t0=0      rollout= 21.9s  avg=20.1s/seq  elapsed= 13.7m  eta= 19.7m
+[run] diffusion  k=5/10 seq=2/10 (42/100)  t0=971    rollout= 19.5s  avg=20.1s/seq  elapsed= 14.0m  eta= 19.4m
+[run] diffusion  k=5/10 seq=3/10 (43/100)  t0=1943   rollout= 19.5s  avg=20.0s/seq  elapsed= 14.4m  eta= 19.0m
+[run] diffusion  k=5/10 seq=4/10 (44/100)  t0=2915   rollout= 22.9s  avg=20.1s/seq  elapsed= 14.7m  eta= 18.8m
+[run] diffusion  k=5/10 seq=5/10 (45/100)  t0=3887   rollout= 23.3s  avg=20.2s/seq  elapsed= 15.1m  eta= 18.5m
+[run] diffusion  k=5/10 seq=6/10 (46/100)  t0=4858   rollout= 23.2s  avg=20.2s/seq  elapsed= 15.5m  eta= 18.2m
+[run] diffusion  k=5/10 seq=7/10 (47/100)  t0=5830   rollout= 23.0s  avg=20.3s/seq  elapsed= 15.9m  eta= 17.9m
+[run] diffusion  k=5/10 seq=8/10 (48/100)  t0=6802   rollout= 23.0s  avg=20.4s/seq  elapsed= 16.3m  eta= 17.6m
+[run] diffusion  k=5/10 seq=9/10 (49/100)  t0=7774   rollout= 20.5s  avg=20.4s/seq  elapsed= 16.6m  eta= 17.3m
+[run] diffusion  k=5/10 seq=10/10 (50/100)  t0=8746   rollout= 19.6s  avg=20.4s/seq  elapsed= 17.0m  eta= 17.0m
+[run] diffusion  k=6/10 seq=1/10 (51/100)  t0=0      rollout= 22.1s  avg=20.4s/seq  elapsed= 17.3m  eta= 16.7m
+[run] diffusion  k=6/10 seq=2/10 (52/100)  t0=971    rollout= 19.7s  avg=20.4s/seq  elapsed= 17.7m  eta= 16.3m
+[run] diffusion  k=6/10 seq=3/10 (53/100)  t0=1943   rollout= 19.3s  avg=20.4s/seq  elapsed= 18.0m  eta= 15.9m
+[run] diffusion  k=6/10 seq=4/10 (54/100)  t0=2915   rollout= 19.2s  avg=20.3s/seq  elapsed= 18.3m  eta= 15.6m
+[run] diffusion  k=6/10 seq=5/10 (55/100)  t0=3887   rollout= 19.4s  avg=20.3s/seq  elapsed= 18.6m  eta= 15.2m
+[run] diffusion  k=6/10 seq=6/10 (56/100)  t0=4858   rollout= 19.3s  avg=20.3s/seq  elapsed= 18.9m  eta= 14.9m
+[run] diffusion  k=6/10 seq=7/10 (57/100)  t0=5830   rollout= 19.6s  avg=20.3s/seq  elapsed= 19.3m  eta= 14.5m
+[run] diffusion  k=6/10 seq=8/10 (58/100)  t0=6802   rollout= 19.4s  avg=20.3s/seq  elapsed= 19.6m  eta= 14.2m
+[run] diffusion  k=6/10 seq=9/10 (59/100)  t0=7774   rollout= 19.3s  avg=20.3s/seq  elapsed= 19.9m  eta= 13.8m
+[run] diffusion  k=6/10 seq=10/10 (60/100)  t0=8746   rollout= 19.3s  avg=20.2s/seq  elapsed= 20.2m  eta= 13.5m
+[run] diffusion  k=7/10 seq=1/10 (61/100)  t0=0      rollout= 19.2s  avg=20.2s/seq  elapsed= 20.6m  eta= 13.1m
+[run] diffusion  k=7/10 seq=2/10 (62/100)  t0=971    rollout= 19.2s  avg=20.2s/seq  elapsed= 20.9m  eta= 12.8m
+[run] diffusion  k=7/10 seq=3/10 (63/100)  t0=1943   rollout= 19.1s  avg=20.2s/seq  elapsed= 21.2m  eta= 12.4m
+[run] diffusion  k=7/10 seq=4/10 (64/100)  t0=2915   rollout= 19.2s  avg=20.2s/seq  elapsed= 21.5m  eta= 12.1m
+[run] diffusion  k=7/10 seq=5/10 (65/100)  t0=3887   rollout= 19.4s  avg=20.2s/seq  elapsed= 21.8m  eta= 11.8m
+[run] diffusion  k=7/10 seq=6/10 (66/100)  t0=4858   rollout= 19.6s  avg=20.2s/seq  elapsed= 22.2m  eta= 11.4m
+[run] diffusion  k=7/10 seq=7/10 (67/100)  t0=5830   rollout= 19.5s  avg=20.1s/seq  elapsed= 22.5m  eta= 11.1m
+[run] diffusion  k=7/10 seq=8/10 (68/100)  t0=6802   rollout= 19.6s  avg=20.1s/seq  elapsed= 22.8m  eta= 10.7m
+[run] diffusion  k=7/10 seq=9/10 (69/100)  t0=7774   rollout= 19.6s  avg=20.1s/seq  elapsed= 23.1m  eta= 10.4m
+[run] diffusion  k=7/10 seq=10/10 (70/100)  t0=8746   rollout= 19.4s  avg=20.1s/seq  elapsed= 23.5m  eta= 10.1m
+[run] diffusion  k=8/10 seq=1/10 (71/100)  t0=0      rollout= 19.4s  avg=20.1s/seq  elapsed= 23.8m  eta=  9.7m
+[run] diffusion  k=8/10 seq=2/10 (72/100)  t0=971    rollout= 19.4s  avg=20.1s/seq  elapsed= 24.1m  eta=  9.4m
+[run] diffusion  k=8/10 seq=3/10 (73/100)  t0=1943   rollout= 19.6s  avg=20.1s/seq  elapsed= 24.4m  eta=  9.0m
+[run] diffusion  k=8/10 seq=4/10 (74/100)  t0=2915   rollout= 19.5s  avg=20.1s/seq  elapsed= 24.8m  eta=  8.7m
+[run] diffusion  k=8/10 seq=5/10 (75/100)  t0=3887   rollout= 19.3s  avg=20.1s/seq  elapsed= 25.1m  eta=  8.4m
+[run] diffusion  k=8/10 seq=6/10 (76/100)  t0=4858   rollout= 19.3s  avg=20.1s/seq  elapsed= 25.4m  eta=  8.0m
+[run] diffusion  k=8/10 seq=7/10 (77/100)  t0=5830   rollout= 19.3s  avg=20.1s/seq  elapsed= 25.7m  eta=  7.7m
+[run] diffusion  k=8/10 seq=8/10 (78/100)  t0=6802   rollout= 19.3s  avg=20.0s/seq  elapsed= 26.1m  eta=  7.3m
+[run] diffusion  k=8/10 seq=9/10 (79/100)  t0=7774   rollout= 19.4s  avg=20.0s/seq  elapsed= 26.4m  eta=  7.0m
+[run] diffusion  k=8/10 seq=10/10 (80/100)  t0=8746   rollout= 19.4s  avg=20.0s/seq  elapsed= 26.7m  eta=  6.7m
+[run] diffusion  k=9/10 seq=1/10 (81/100)  t0=0      rollout= 19.4s  avg=20.0s/seq  elapsed= 27.0m  eta=  6.3m
+[run] diffusion  k=9/10 seq=2/10 (82/100)  t0=971    rollout= 19.5s  avg=20.0s/seq  elapsed= 27.4m  eta=  6.0m
+[run] diffusion  k=9/10 seq=3/10 (83/100)  t0=1943   rollout= 19.4s  avg=20.0s/seq  elapsed= 27.7m  eta=  5.7m
+[run] diffusion  k=9/10 seq=4/10 (84/100)  t0=2915   rollout= 19.3s  avg=20.0s/seq  elapsed= 28.0m  eta=  5.3m
+[run] diffusion  k=9/10 seq=5/10 (85/100)  t0=3887   rollout= 19.3s  avg=20.0s/seq  elapsed= 28.3m  eta=  5.0m
+[run] diffusion  k=9/10 seq=6/10 (86/100)  t0=4858   rollout= 19.5s  avg=20.0s/seq  elapsed= 28.6m  eta=  4.7m
+[run] diffusion  k=9/10 seq=7/10 (87/100)  t0=5830   rollout= 19.4s  avg=20.0s/seq  elapsed= 29.0m  eta=  4.3m
+[run] diffusion  k=9/10 seq=8/10 (88/100)  t0=6802   rollout= 19.2s  avg=20.0s/seq  elapsed= 29.3m  eta=  4.0m
+[run] diffusion  k=9/10 seq=9/10 (89/100)  t0=7774   rollout= 19.7s  avg=20.0s/seq  elapsed= 29.6m  eta=  3.7m
+[run] diffusion  k=9/10 seq=10/10 (90/100)  t0=8746   rollout= 19.6s  avg=20.0s/seq  elapsed= 29.9m  eta=  3.3m
+[run] diffusion  k=10/10 seq=1/10 (91/100)  t0=0      rollout= 19.6s  avg=20.0s/seq  elapsed= 30.3m  eta=  3.0m
+[run] diffusion  k=10/10 seq=2/10 (92/100)  t0=971    rollout= 19.6s  avg=20.0s/seq  elapsed= 30.6m  eta=  2.7m
+[run] diffusion  k=10/10 seq=3/10 (93/100)  t0=1943   rollout= 19.5s  avg=20.0s/seq  elapsed= 30.9m  eta=  2.3m
+[run] diffusion  k=10/10 seq=4/10 (94/100)  t0=2915   rollout= 19.5s  avg=19.9s/seq  elapsed= 31.2m  eta=  2.0m
+[run] diffusion  k=10/10 seq=5/10 (95/100)  t0=3887   rollout= 19.5s  avg=19.9s/seq  elapsed= 31.6m  eta=  1.7m
+[run] diffusion  k=10/10 seq=6/10 (96/100)  t0=4858   rollout= 19.5s  avg=19.9s/seq  elapsed= 31.9m  eta=  1.3m
+[run] diffusion  k=10/10 seq=7/10 (97/100)  t0=5830   rollout= 19.5s  avg=19.9s/seq  elapsed= 32.2m  eta=  1.0m
+[run] diffusion  k=10/10 seq=8/10 (98/100)  t0=6802   rollout= 19.8s  avg=19.9s/seq  elapsed= 32.6m  eta=  0.7m
+[run] diffusion  k=10/10 seq=9/10 (99/100)  t0=7774   rollout= 19.6s  avg=19.9s/seq  elapsed= 32.9m  eta=  0.3m
+[run] diffusion  k=10/10 seq=10/10 (100/100)  t0=8746   rollout= 19.6s  avg=19.9s/seq  elapsed= 33.2m  eta=  0.0m
+[run] diffusion ensemble finished in 33.2m
+[load] flowcast /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[run] flowcast_nfe10 ensemble (K=10, NFE=10)
+[run] flowcast ensemble starting: K=10 x S=10 x T=12 = 100 sequence-rollouts
+[run] flowcast  k=1/10 seq=1/10 (1/100)  t0=0      rollout=  6.1s  avg= 6.1s/seq  elapsed=  0.1m  eta= 10.0m
+[run] flowcast  k=1/10 seq=2/10 (2/100)  t0=971    rollout=  6.0s  avg= 6.0s/seq  elapsed=  0.2m  eta=  9.9m
+[run] flowcast  k=1/10 seq=3/10 (3/100)  t0=1943   rollout=  5.9s  avg= 6.0s/seq  elapsed=  0.3m  eta=  9.7m
+[run] flowcast  k=1/10 seq=4/10 (4/100)  t0=2915   rollout=  5.9s  avg= 6.0s/seq  elapsed=  0.4m  eta=  9.6m
+[run] flowcast  k=1/10 seq=5/10 (5/100)  t0=3887   rollout=  5.9s  avg= 6.0s/seq  elapsed=  0.5m  eta=  9.4m
+[run] flowcast  k=1/10 seq=6/10 (6/100)  t0=4858   rollout=  5.9s  avg= 5.9s/seq  elapsed=  0.6m  eta=  9.3m
+[run] flowcast  k=1/10 seq=7/10 (7/100)  t0=5830   rollout=  5.9s  avg= 5.9s/seq  elapsed=  0.7m  eta=  9.2m
+[run] flowcast  k=1/10 seq=8/10 (8/100)  t0=6802   rollout=  5.8s  avg= 5.9s/seq  elapsed=  0.8m  eta=  9.1m
+[run] flowcast  k=1/10 seq=9/10 (9/100)  t0=7774   rollout=  5.9s  avg= 5.9s/seq  elapsed=  0.9m  eta=  9.0m
+[run] flowcast  k=1/10 seq=10/10 (10/100)  t0=8746   rollout=  5.9s  avg= 5.9s/seq  elapsed=  1.0m  eta=  8.9m
+[run] flowcast  k=2/10 seq=1/10 (11/100)  t0=0      rollout=  6.0s  avg= 5.9s/seq  elapsed=  1.1m  eta=  8.8m
+[run] flowcast  k=2/10 seq=2/10 (12/100)  t0=971    rollout=  6.0s  avg= 5.9s/seq  elapsed=  1.2m  eta=  8.7m
+[run] flowcast  k=2/10 seq=3/10 (13/100)  t0=1943   rollout=  6.0s  avg= 5.9s/seq  elapsed=  1.3m  eta=  8.6m
+[run] flowcast  k=2/10 seq=4/10 (14/100)  t0=2915   rollout=  6.1s  avg= 5.9s/seq  elapsed=  1.4m  eta=  8.5m
+[run] flowcast  k=2/10 seq=5/10 (15/100)  t0=3887   rollout=  7.1s  avg= 6.0s/seq  elapsed=  1.5m  eta=  8.5m
+[run] flowcast  k=2/10 seq=6/10 (16/100)  t0=4858   rollout=  7.2s  avg= 6.1s/seq  elapsed=  1.6m  eta=  8.5m
+[run] flowcast  k=2/10 seq=7/10 (17/100)  t0=5830   rollout=  6.9s  avg= 6.1s/seq  elapsed=  1.7m  eta=  8.5m
+[run] flowcast  k=2/10 seq=8/10 (18/100)  t0=6802   rollout=  6.1s  avg= 6.1s/seq  elapsed=  1.8m  eta=  8.4m
+[run] flowcast  k=2/10 seq=9/10 (19/100)  t0=7774   rollout=  5.9s  avg= 6.1s/seq  elapsed=  1.9m  eta=  8.3m
+[run] flowcast  k=2/10 seq=10/10 (20/100)  t0=8746   rollout=  6.0s  avg= 6.1s/seq  elapsed=  2.0m  eta=  8.2m
+[run] flowcast  k=3/10 seq=1/10 (21/100)  t0=0      rollout=  5.9s  avg= 6.1s/seq  elapsed=  2.1m  eta=  8.0m
+[run] flowcast  k=3/10 seq=2/10 (22/100)  t0=971    rollout=  6.0s  avg= 6.1s/seq  elapsed=  2.2m  eta=  7.9m
+[run] flowcast  k=3/10 seq=3/10 (23/100)  t0=1943   rollout=  6.0s  avg= 6.1s/seq  elapsed=  2.3m  eta=  7.8m
+[run] flowcast  k=3/10 seq=4/10 (24/100)  t0=2915   rollout=  6.1s  avg= 6.1s/seq  elapsed=  2.4m  eta=  7.7m
+[run] flowcast  k=3/10 seq=5/10 (25/100)  t0=3887   rollout=  6.1s  avg= 6.1s/seq  elapsed=  2.5m  eta=  7.6m
+[run] flowcast  k=3/10 seq=6/10 (26/100)  t0=4858   rollout=  6.1s  avg= 6.1s/seq  elapsed=  2.6m  eta=  7.5m
+[run] flowcast  k=3/10 seq=7/10 (27/100)  t0=5830   rollout=  6.0s  avg= 6.1s/seq  elapsed=  2.7m  eta=  7.4m
+[run] flowcast  k=3/10 seq=8/10 (28/100)  t0=6802   rollout=  6.0s  avg= 6.1s/seq  elapsed=  2.8m  eta=  7.3m
+[run] flowcast  k=3/10 seq=9/10 (29/100)  t0=7774   rollout=  5.9s  avg= 6.1s/seq  elapsed=  2.9m  eta=  7.2m
+[run] flowcast  k=3/10 seq=10/10 (30/100)  t0=8746   rollout=  5.9s  avg= 6.1s/seq  elapsed=  3.0m  eta=  7.1m
+[run] flowcast  k=4/10 seq=1/10 (31/100)  t0=0      rollout=  5.9s  avg= 6.1s/seq  elapsed=  3.1m  eta=  7.0m
+[run] flowcast  k=4/10 seq=2/10 (32/100)  t0=971    rollout=  6.0s  avg= 6.1s/seq  elapsed=  3.2m  eta=  6.9m
+[run] flowcast  k=4/10 seq=3/10 (33/100)  t0=1943   rollout=  6.0s  avg= 6.1s/seq  elapsed=  3.3m  eta=  6.8m
+[run] flowcast  k=4/10 seq=4/10 (34/100)  t0=2915   rollout=  6.0s  avg= 6.1s/seq  elapsed=  3.4m  eta=  6.7m
+[run] flowcast  k=4/10 seq=5/10 (35/100)  t0=3887   rollout=  5.9s  avg= 6.1s/seq  elapsed=  3.5m  eta=  6.6m
+[run] flowcast  k=4/10 seq=6/10 (36/100)  t0=4858   rollout=  5.9s  avg= 6.1s/seq  elapsed=  3.6m  eta=  6.5m
+[run] flowcast  k=4/10 seq=7/10 (37/100)  t0=5830   rollout=  5.9s  avg= 6.1s/seq  elapsed=  3.7m  eta=  6.4m
+[run] flowcast  k=4/10 seq=8/10 (38/100)  t0=6802   rollout=  6.0s  avg= 6.1s/seq  elapsed=  3.8m  eta=  6.3m
+[run] flowcast  k=4/10 seq=9/10 (39/100)  t0=7774   rollout=  6.0s  avg= 6.0s/seq  elapsed=  3.9m  eta=  6.2m
+[run] flowcast  k=4/10 seq=10/10 (40/100)  t0=8746   rollout=  6.0s  avg= 6.0s/seq  elapsed=  4.0m  eta=  6.0m
+[run] flowcast  k=5/10 seq=1/10 (41/100)  t0=0      rollout=  5.9s  avg= 6.0s/seq  elapsed=  4.1m  eta=  5.9m
+[run] flowcast  k=5/10 seq=2/10 (42/100)  t0=971    rollout=  5.9s  avg= 6.0s/seq  elapsed=  4.2m  eta=  5.8m
+[run] flowcast  k=5/10 seq=3/10 (43/100)  t0=1943   rollout=  5.8s  avg= 6.0s/seq  elapsed=  4.3m  eta=  5.7m
+[run] flowcast  k=5/10 seq=4/10 (44/100)  t0=2915   rollout=  5.9s  avg= 6.0s/seq  elapsed=  4.4m  eta=  5.6m
+[run] flowcast  k=5/10 seq=5/10 (45/100)  t0=3887   rollout=  5.8s  avg= 6.0s/seq  elapsed=  4.5m  eta=  5.5m
+[run] flowcast  k=5/10 seq=6/10 (46/100)  t0=4858   rollout=  5.9s  avg= 6.0s/seq  elapsed=  4.6m  eta=  5.4m
+[run] flowcast  k=5/10 seq=7/10 (47/100)  t0=5830   rollout=  6.0s  avg= 6.0s/seq  elapsed=  4.7m  eta=  5.3m
+[run] flowcast  k=5/10 seq=8/10 (48/100)  t0=6802   rollout=  5.8s  avg= 6.0s/seq  elapsed=  4.8m  eta=  5.2m
+[run] flowcast  k=5/10 seq=9/10 (49/100)  t0=7774   rollout=  6.0s  avg= 6.0s/seq  elapsed=  4.9m  eta=  5.1m
+[run] flowcast  k=5/10 seq=10/10 (50/100)  t0=8746   rollout=  6.0s  avg= 6.0s/seq  elapsed=  5.0m  eta=  5.0m
+[run] flowcast  k=6/10 seq=1/10 (51/100)  t0=0      rollout=  6.1s  avg= 6.0s/seq  elapsed=  5.1m  eta=  4.9m
+[run] flowcast  k=6/10 seq=2/10 (52/100)  t0=971    rollout=  6.0s  avg= 6.0s/seq  elapsed=  5.2m  eta=  4.8m
+[run] flowcast  k=6/10 seq=3/10 (53/100)  t0=1943   rollout=  5.9s  avg= 6.0s/seq  elapsed=  5.3m  eta=  4.7m
+[run] flowcast  k=6/10 seq=4/10 (54/100)  t0=2915   rollout=  6.0s  avg= 6.0s/seq  elapsed=  5.4m  eta=  4.6m
+[run] flowcast  k=6/10 seq=5/10 (55/100)  t0=3887   rollout=  5.9s  avg= 6.0s/seq  elapsed=  5.5m  eta=  4.5m
+[run] flowcast  k=6/10 seq=6/10 (56/100)  t0=4858   rollout=  5.9s  avg= 6.0s/seq  elapsed=  5.6m  eta=  4.4m
+[run] flowcast  k=6/10 seq=7/10 (57/100)  t0=5830   rollout=  6.0s  avg= 6.0s/seq  elapsed=  5.7m  eta=  4.3m
+[run] flowcast  k=6/10 seq=8/10 (58/100)  t0=6802   rollout=  6.0s  avg= 6.0s/seq  elapsed=  5.8m  eta=  4.2m
+[run] flowcast  k=6/10 seq=9/10 (59/100)  t0=7774   rollout=  6.1s  avg= 6.0s/seq  elapsed=  5.9m  eta=  4.1m
+[run] flowcast  k=6/10 seq=10/10 (60/100)  t0=8746   rollout=  5.9s  avg= 6.0s/seq  elapsed=  6.0m  eta=  4.0m
+[run] flowcast  k=7/10 seq=1/10 (61/100)  t0=0      rollout=  6.1s  avg= 6.0s/seq  elapsed=  6.1m  eta=  3.9m
+[run] flowcast  k=7/10 seq=2/10 (62/100)  t0=971    rollout=  5.9s  avg= 6.0s/seq  elapsed=  6.2m  eta=  3.8m
+[run] flowcast  k=7/10 seq=3/10 (63/100)  t0=1943   rollout=  6.0s  avg= 6.0s/seq  elapsed=  6.3m  eta=  3.7m
+[run] flowcast  k=7/10 seq=4/10 (64/100)  t0=2915   rollout=  5.9s  avg= 6.0s/seq  elapsed=  6.4m  eta=  3.6m
+[run] flowcast  k=7/10 seq=5/10 (65/100)  t0=3887   rollout=  6.0s  avg= 6.0s/seq  elapsed=  6.5m  eta=  3.5m
+[run] flowcast  k=7/10 seq=6/10 (66/100)  t0=4858   rollout=  6.0s  avg= 6.0s/seq  elapsed=  6.6m  eta=  3.4m
+[run] flowcast  k=7/10 seq=7/10 (67/100)  t0=5830   rollout=  5.9s  avg= 6.0s/seq  elapsed=  6.7m  eta=  3.3m
+[run] flowcast  k=7/10 seq=8/10 (68/100)  t0=6802   rollout=  5.9s  avg= 6.0s/seq  elapsed=  6.8m  eta=  3.2m
+[run] flowcast  k=7/10 seq=9/10 (69/100)  t0=7774   rollout=  6.0s  avg= 6.0s/seq  elapsed=  6.9m  eta=  3.1m
+[run] flowcast  k=7/10 seq=10/10 (70/100)  t0=8746   rollout=  5.9s  avg= 6.0s/seq  elapsed=  7.0m  eta=  3.0m
+[run] flowcast  k=8/10 seq=1/10 (71/100)  t0=0      rollout=  5.9s  avg= 6.0s/seq  elapsed=  7.1m  eta=  2.9m
+[run] flowcast  k=8/10 seq=2/10 (72/100)  t0=971    rollout=  5.9s  avg= 6.0s/seq  elapsed=  7.2m  eta=  2.8m
+[run] flowcast  k=8/10 seq=3/10 (73/100)  t0=1943   rollout=  6.0s  avg= 6.0s/seq  elapsed=  7.3m  eta=  2.7m
+[run] flowcast  k=8/10 seq=4/10 (74/100)  t0=2915   rollout=  6.0s  avg= 6.0s/seq  elapsed=  7.4m  eta=  2.6m
+[run] flowcast  k=8/10 seq=5/10 (75/100)  t0=3887   rollout=  6.1s  avg= 6.0s/seq  elapsed=  7.5m  eta=  2.5m
+[run] flowcast  k=8/10 seq=6/10 (76/100)  t0=4858   rollout=  6.0s  avg= 6.0s/seq  elapsed=  7.6m  eta=  2.4m
+[run] flowcast  k=8/10 seq=7/10 (77/100)  t0=5830   rollout=  6.0s  avg= 6.0s/seq  elapsed=  7.7m  eta=  2.3m
+[run] flowcast  k=8/10 seq=8/10 (78/100)  t0=6802   rollout=  5.8s  avg= 6.0s/seq  elapsed=  7.8m  eta=  2.2m
+[run] flowcast  k=8/10 seq=9/10 (79/100)  t0=7774   rollout=  5.9s  avg= 6.0s/seq  elapsed=  7.9m  eta=  2.1m
+[run] flowcast  k=8/10 seq=10/10 (80/100)  t0=8746   rollout=  5.8s  avg= 6.0s/seq  elapsed=  8.0m  eta=  2.0m
+[run] flowcast  k=9/10 seq=1/10 (81/100)  t0=0      rollout=  5.8s  avg= 6.0s/seq  elapsed=  8.1m  eta=  1.9m
+[run] flowcast  k=9/10 seq=2/10 (82/100)  t0=971    rollout=  6.0s  avg= 6.0s/seq  elapsed=  8.2m  eta=  1.8m
+[run] flowcast  k=9/10 seq=3/10 (83/100)  t0=1943   rollout=  5.8s  avg= 6.0s/seq  elapsed=  8.3m  eta=  1.7m
+[run] flowcast  k=9/10 seq=4/10 (84/100)  t0=2915   rollout=  6.0s  avg= 6.0s/seq  elapsed=  8.4m  eta=  1.6m
+[run] flowcast  k=9/10 seq=5/10 (85/100)  t0=3887   rollout=  6.1s  avg= 6.0s/seq  elapsed=  8.5m  eta=  1.5m
+[run] flowcast  k=9/10 seq=6/10 (86/100)  t0=4858   rollout=  6.0s  avg= 6.0s/seq  elapsed=  8.6m  eta=  1.4m
+[run] flowcast  k=9/10 seq=7/10 (87/100)  t0=5830   rollout=  6.0s  avg= 6.0s/seq  elapsed=  8.7m  eta=  1.3m
+[run] flowcast  k=9/10 seq=8/10 (88/100)  t0=6802   rollout=  5.8s  avg= 6.0s/seq  elapsed=  8.8m  eta=  1.2m
+[run] flowcast  k=9/10 seq=9/10 (89/100)  t0=7774   rollout=  5.8s  avg= 6.0s/seq  elapsed=  8.9m  eta=  1.1m
+[run] flowcast  k=9/10 seq=10/10 (90/100)  t0=8746   rollout=  5.9s  avg= 6.0s/seq  elapsed=  9.0m  eta=  1.0m
+[run] flowcast  k=10/10 seq=1/10 (91/100)  t0=0      rollout=  5.9s  avg= 6.0s/seq  elapsed=  9.1m  eta=  0.9m
+[run] flowcast  k=10/10 seq=2/10 (92/100)  t0=971    rollout=  6.0s  avg= 6.0s/seq  elapsed=  9.2m  eta=  0.8m
+[run] flowcast  k=10/10 seq=3/10 (93/100)  t0=1943   rollout=  6.0s  avg= 6.0s/seq  elapsed=  9.3m  eta=  0.7m
+[run] flowcast  k=10/10 seq=4/10 (94/100)  t0=2915   rollout=  5.8s  avg= 6.0s/seq  elapsed=  9.4m  eta=  0.6m
+[run] flowcast  k=10/10 seq=5/10 (95/100)  t0=3887   rollout=  5.8s  avg= 6.0s/seq  elapsed=  9.5m  eta=  0.5m
+[run] flowcast  k=10/10 seq=6/10 (96/100)  t0=4858   rollout=  5.9s  avg= 6.0s/seq  elapsed=  9.6m  eta=  0.4m
+[run] flowcast  k=10/10 seq=7/10 (97/100)  t0=5830   rollout=  5.9s  avg= 6.0s/seq  elapsed=  9.7m  eta=  0.3m
+[run] flowcast  k=10/10 seq=8/10 (98/100)  t0=6802   rollout=  5.9s  avg= 6.0s/seq  elapsed=  9.8m  eta=  0.2m
+[run] flowcast  k=10/10 seq=9/10 (99/100)  t0=7774   rollout=  5.9s  avg= 6.0s/seq  elapsed=  9.9m  eta=  0.1m
+[run] flowcast  k=10/10 seq=10/10 (100/100)  t0=8746   rollout=  5.8s  avg= 6.0s/seq  elapsed= 10.0m  eta=  0.0m
+[run] flowcast ensemble finished in 10.0m
+[run] flowcast_nfe15 ensemble (K=10, NFE=15)
+[run] flowcast ensemble starting: K=10 x S=10 x T=12 = 100 sequence-rollouts
+[run] flowcast  k=1/10 seq=1/10 (1/100)  t0=0      rollout=  8.1s  avg= 8.1s/seq  elapsed=  0.1m  eta= 13.3m
+[run] flowcast  k=1/10 seq=2/10 (2/100)  t0=971    rollout=  7.9s  avg= 8.0s/seq  elapsed=  0.3m  eta= 13.1m
+[run] flowcast  k=1/10 seq=3/10 (3/100)  t0=1943   rollout=  8.0s  avg= 8.0s/seq  elapsed=  0.4m  eta= 13.0m
+[run] flowcast  k=1/10 seq=4/10 (4/100)  t0=2915   rollout=  8.0s  avg= 8.0s/seq  elapsed=  0.5m  eta= 12.8m
+[run] flowcast  k=1/10 seq=5/10 (5/100)  t0=3887   rollout=  8.2s  avg= 8.1s/seq  elapsed=  0.7m  eta= 12.8m
+[run] flowcast  k=1/10 seq=6/10 (6/100)  t0=4858   rollout=  8.1s  avg= 8.1s/seq  elapsed=  0.8m  eta= 12.6m
+[run] flowcast  k=1/10 seq=7/10 (7/100)  t0=5830   rollout=  8.2s  avg= 8.1s/seq  elapsed=  0.9m  eta= 12.5m
+[run] flowcast  k=1/10 seq=8/10 (8/100)  t0=6802   rollout=  8.1s  avg= 8.1s/seq  elapsed=  1.1m  eta= 12.4m
+[run] flowcast  k=1/10 seq=9/10 (9/100)  t0=7774   rollout=  8.1s  avg= 8.1s/seq  elapsed=  1.2m  eta= 12.3m
+[run] flowcast  k=1/10 seq=10/10 (10/100)  t0=8746   rollout=  8.0s  avg= 8.1s/seq  elapsed=  1.3m  eta= 12.1m
+[run] flowcast  k=2/10 seq=1/10 (11/100)  t0=0      rollout=  8.0s  avg= 8.1s/seq  elapsed=  1.5m  eta= 12.0m
+[run] flowcast  k=2/10 seq=2/10 (12/100)  t0=971    rollout=  8.1s  avg= 8.1s/seq  elapsed=  1.6m  eta= 11.9m
+[run] flowcast  k=2/10 seq=3/10 (13/100)  t0=1943   rollout=  8.1s  avg= 8.1s/seq  elapsed=  1.8m  eta= 11.7m
+[run] flowcast  k=2/10 seq=4/10 (14/100)  t0=2915   rollout=  8.1s  avg= 8.1s/seq  elapsed=  1.9m  eta= 11.6m
+[run] flowcast  k=2/10 seq=5/10 (15/100)  t0=3887   rollout=  8.1s  avg= 8.1s/seq  elapsed=  2.0m  eta= 11.5m
+[run] flowcast  k=2/10 seq=6/10 (16/100)  t0=4858   rollout=  8.1s  avg= 8.1s/seq  elapsed=  2.2m  eta= 11.3m
+[run] flowcast  k=2/10 seq=7/10 (17/100)  t0=5830   rollout=  8.1s  avg= 8.1s/seq  elapsed=  2.3m  eta= 11.2m
+[run] flowcast  k=2/10 seq=8/10 (18/100)  t0=6802   rollout=  8.0s  avg= 8.1s/seq  elapsed=  2.4m  eta= 11.0m
+[run] flowcast  k=2/10 seq=9/10 (19/100)  t0=7774   rollout=  8.0s  avg= 8.1s/seq  elapsed=  2.6m  eta= 10.9m
+[run] flowcast  k=2/10 seq=10/10 (20/100)  t0=8746   rollout=  8.0s  avg= 8.1s/seq  elapsed=  2.7m  eta= 10.8m
+[run] flowcast  k=3/10 seq=1/10 (21/100)  t0=0      rollout=  8.3s  avg= 8.1s/seq  elapsed=  2.8m  eta= 10.7m
+[run] flowcast  k=3/10 seq=2/10 (22/100)  t0=971    rollout=  8.0s  avg= 8.1s/seq  elapsed=  3.0m  eta= 10.5m
+[run] flowcast  k=3/10 seq=3/10 (23/100)  t0=1943   rollout=  8.2s  avg= 8.1s/seq  elapsed=  3.1m  eta= 10.4m
+[run] flowcast  k=3/10 seq=4/10 (24/100)  t0=2915   rollout=  8.2s  avg= 8.1s/seq  elapsed=  3.2m  eta= 10.3m
+[run] flowcast  k=3/10 seq=5/10 (25/100)  t0=3887   rollout=  8.2s  avg= 8.1s/seq  elapsed=  3.4m  eta= 10.1m
+[run] flowcast  k=3/10 seq=6/10 (26/100)  t0=4858   rollout=  8.2s  avg= 8.1s/seq  elapsed=  3.5m  eta= 10.0m
+[run] flowcast  k=3/10 seq=7/10 (27/100)  t0=5830   rollout=  8.2s  avg= 8.1s/seq  elapsed=  3.7m  eta=  9.9m
+[run] flowcast  k=3/10 seq=8/10 (28/100)  t0=6802   rollout=  8.0s  avg= 8.1s/seq  elapsed=  3.8m  eta=  9.7m
+[run] flowcast  k=3/10 seq=9/10 (29/100)  t0=7774   rollout=  8.2s  avg= 8.1s/seq  elapsed=  3.9m  eta=  9.6m
+[run] flowcast  k=3/10 seq=10/10 (30/100)  t0=8746   rollout=  8.1s  avg= 8.1s/seq  elapsed=  4.1m  eta=  9.5m
+[run] flowcast  k=4/10 seq=1/10 (31/100)  t0=0      rollout=  8.1s  avg= 8.1s/seq  elapsed=  4.2m  eta=  9.3m
+[run] flowcast  k=4/10 seq=2/10 (32/100)  t0=971    rollout=  8.2s  avg= 8.1s/seq  elapsed=  4.3m  eta=  9.2m
+[run] flowcast  k=4/10 seq=3/10 (33/100)  t0=1943   rollout=  8.3s  avg= 8.1s/seq  elapsed=  4.5m  eta=  9.1m
+[run] flowcast  k=4/10 seq=4/10 (34/100)  t0=2915   rollout=  8.3s  avg= 8.1s/seq  elapsed=  4.6m  eta=  8.9m
+[run] flowcast  k=4/10 seq=5/10 (35/100)  t0=3887   rollout=  8.2s  avg= 8.1s/seq  elapsed=  4.7m  eta=  8.8m
+[run] flowcast  k=4/10 seq=6/10 (36/100)  t0=4858   rollout=  8.1s  avg= 8.1s/seq  elapsed=  4.9m  eta=  8.7m
+[run] flowcast  k=4/10 seq=7/10 (37/100)  t0=5830   rollout=  8.3s  avg= 8.1s/seq  elapsed=  5.0m  eta=  8.5m
+[run] flowcast  k=4/10 seq=8/10 (38/100)  t0=6802   rollout=  8.2s  avg= 8.1s/seq  elapsed=  5.1m  eta=  8.4m
+[run] flowcast  k=4/10 seq=9/10 (39/100)  t0=7774   rollout=  8.1s  avg= 8.1s/seq  elapsed=  5.3m  eta=  8.3m
+[run] flowcast  k=4/10 seq=10/10 (40/100)  t0=8746   rollout=  8.2s  avg= 8.1s/seq  elapsed=  5.4m  eta=  8.1m
+[run] flowcast  k=5/10 seq=1/10 (41/100)  t0=0      rollout=  8.1s  avg= 8.1s/seq  elapsed=  5.6m  eta=  8.0m
+[run] flowcast  k=5/10 seq=2/10 (42/100)  t0=971    rollout=  8.3s  avg= 8.1s/seq  elapsed=  5.7m  eta=  7.9m
+[run] flowcast  k=5/10 seq=3/10 (43/100)  t0=1943   rollout=  8.4s  avg= 8.1s/seq  elapsed=  5.8m  eta=  7.7m
+[run] flowcast  k=5/10 seq=4/10 (44/100)  t0=2915   rollout=  8.4s  avg= 8.1s/seq  elapsed=  6.0m  eta=  7.6m
+[run] flowcast  k=5/10 seq=5/10 (45/100)  t0=3887   rollout=  8.3s  avg= 8.2s/seq  elapsed=  6.1m  eta=  7.5m
+[run] flowcast  k=5/10 seq=6/10 (46/100)  t0=4858   rollout=  8.3s  avg= 8.2s/seq  elapsed=  6.3m  eta=  7.3m
+[run] flowcast  k=5/10 seq=7/10 (47/100)  t0=5830   rollout=  8.3s  avg= 8.2s/seq  elapsed=  6.4m  eta=  7.2m
+[run] flowcast  k=5/10 seq=8/10 (48/100)  t0=6802   rollout=  8.3s  avg= 8.2s/seq  elapsed=  6.5m  eta=  7.1m
+[run] flowcast  k=5/10 seq=9/10 (49/100)  t0=7774   rollout=  8.3s  avg= 8.2s/seq  elapsed=  6.7m  eta=  6.9m
+[run] flowcast  k=5/10 seq=10/10 (50/100)  t0=8746   rollout=  8.3s  avg= 8.2s/seq  elapsed=  6.8m  eta=  6.8m
+[run] flowcast  k=6/10 seq=1/10 (51/100)  t0=0      rollout=  8.3s  avg= 8.2s/seq  elapsed=  6.9m  eta=  6.7m
+[run] flowcast  k=6/10 seq=2/10 (52/100)  t0=971    rollout=  8.3s  avg= 8.2s/seq  elapsed=  7.1m  eta=  6.5m
+[run] flowcast  k=6/10 seq=3/10 (53/100)  t0=1943   rollout=  8.3s  avg= 8.2s/seq  elapsed=  7.2m  eta=  6.4m
+[run] flowcast  k=6/10 seq=4/10 (54/100)  t0=2915   rollout=  8.1s  avg= 8.2s/seq  elapsed=  7.4m  eta=  6.3m
+[run] flowcast  k=6/10 seq=5/10 (55/100)  t0=3887   rollout=  8.3s  avg= 8.2s/seq  elapsed=  7.5m  eta=  6.1m
+[run] flowcast  k=6/10 seq=6/10 (56/100)  t0=4858   rollout=  8.2s  avg= 8.2s/seq  elapsed=  7.6m  eta=  6.0m
+[run] flowcast  k=6/10 seq=7/10 (57/100)  t0=5830   rollout=  8.2s  avg= 8.2s/seq  elapsed=  7.8m  eta=  5.9m
+[run] flowcast  k=6/10 seq=8/10 (58/100)  t0=6802   rollout=  8.2s  avg= 8.2s/seq  elapsed=  7.9m  eta=  5.7m
+[run] flowcast  k=6/10 seq=9/10 (59/100)  t0=7774   rollout=  8.2s  avg= 8.2s/seq  elapsed=  8.0m  eta=  5.6m
+[run] flowcast  k=6/10 seq=10/10 (60/100)  t0=8746   rollout=  8.2s  avg= 8.2s/seq  elapsed=  8.2m  eta=  5.5m
+[run] flowcast  k=7/10 seq=1/10 (61/100)  t0=0      rollout=  8.2s  avg= 8.2s/seq  elapsed=  8.3m  eta=  5.3m
+[run] flowcast  k=7/10 seq=2/10 (62/100)  t0=971    rollout=  8.2s  avg= 8.2s/seq  elapsed=  8.5m  eta=  5.2m
+[run] flowcast  k=7/10 seq=3/10 (63/100)  t0=1943   rollout=  8.2s  avg= 8.2s/seq  elapsed=  8.6m  eta=  5.0m
+[run] flowcast  k=7/10 seq=4/10 (64/100)  t0=2915   rollout=  8.3s  avg= 8.2s/seq  elapsed=  8.7m  eta=  4.9m
+[run] flowcast  k=7/10 seq=5/10 (65/100)  t0=3887   rollout=  8.4s  avg= 8.2s/seq  elapsed=  8.9m  eta=  4.8m
+[run] flowcast  k=7/10 seq=6/10 (66/100)  t0=4858   rollout=  8.3s  avg= 8.2s/seq  elapsed=  9.0m  eta=  4.6m
+[run] flowcast  k=7/10 seq=7/10 (67/100)  t0=5830   rollout=  8.3s  avg= 8.2s/seq  elapsed=  9.1m  eta=  4.5m
+[run] flowcast  k=7/10 seq=8/10 (68/100)  t0=6802   rollout=  8.4s  avg= 8.2s/seq  elapsed=  9.3m  eta=  4.4m
+[run] flowcast  k=7/10 seq=9/10 (69/100)  t0=7774   rollout=  8.4s  avg= 8.2s/seq  elapsed=  9.4m  eta=  4.2m
+[run] flowcast  k=7/10 seq=10/10 (70/100)  t0=8746   rollout=  8.3s  avg= 8.2s/seq  elapsed=  9.6m  eta=  4.1m
+[run] flowcast  k=8/10 seq=1/10 (71/100)  t0=0      rollout=  8.1s  avg= 8.2s/seq  elapsed=  9.7m  eta=  4.0m
+[run] flowcast  k=8/10 seq=2/10 (72/100)  t0=971    rollout=  8.2s  avg= 8.2s/seq  elapsed=  9.8m  eta=  3.8m
+[run] flowcast  k=8/10 seq=3/10 (73/100)  t0=1943   rollout=  8.1s  avg= 8.2s/seq  elapsed= 10.0m  eta=  3.7m
+[run] flowcast  k=8/10 seq=4/10 (74/100)  t0=2915   rollout=  8.1s  avg= 8.2s/seq  elapsed= 10.1m  eta=  3.6m
+[run] flowcast  k=8/10 seq=5/10 (75/100)  t0=3887   rollout=  8.3s  avg= 8.2s/seq  elapsed= 10.2m  eta=  3.4m
+[run] flowcast  k=8/10 seq=6/10 (76/100)  t0=4858   rollout=  8.1s  avg= 8.2s/seq  elapsed= 10.4m  eta=  3.3m
+[run] flowcast  k=8/10 seq=7/10 (77/100)  t0=5830   rollout=  8.4s  avg= 8.2s/seq  elapsed= 10.5m  eta=  3.1m
+[run] flowcast  k=8/10 seq=8/10 (78/100)  t0=6802   rollout=  8.3s  avg= 8.2s/seq  elapsed= 10.7m  eta=  3.0m
+[run] flowcast  k=8/10 seq=9/10 (79/100)  t0=7774   rollout=  8.2s  avg= 8.2s/seq  elapsed= 10.8m  eta=  2.9m
+[run] flowcast  k=8/10 seq=10/10 (80/100)  t0=8746   rollout=  8.4s  avg= 8.2s/seq  elapsed= 10.9m  eta=  2.7m
+[run] flowcast  k=9/10 seq=1/10 (81/100)  t0=0      rollout=  8.6s  avg= 8.2s/seq  elapsed= 11.1m  eta=  2.6m
+[run] flowcast  k=9/10 seq=2/10 (82/100)  t0=971    rollout=  8.4s  avg= 8.2s/seq  elapsed= 11.2m  eta=  2.5m
+[run] flowcast  k=9/10 seq=3/10 (83/100)  t0=1943   rollout=  8.3s  avg= 8.2s/seq  elapsed= 11.4m  eta=  2.3m
+[run] flowcast  k=9/10 seq=4/10 (84/100)  t0=2915   rollout=  8.5s  avg= 8.2s/seq  elapsed= 11.5m  eta=  2.2m
+[run] flowcast  k=9/10 seq=5/10 (85/100)  t0=3887   rollout=  8.2s  avg= 8.2s/seq  elapsed= 11.6m  eta=  2.1m
+[run] flowcast  k=9/10 seq=6/10 (86/100)  t0=4858   rollout=  8.5s  avg= 8.2s/seq  elapsed= 11.8m  eta=  1.9m
+[run] flowcast  k=9/10 seq=7/10 (87/100)  t0=5830   rollout=  8.3s  avg= 8.2s/seq  elapsed= 11.9m  eta=  1.8m
+[run] flowcast  k=9/10 seq=8/10 (88/100)  t0=6802   rollout=  8.2s  avg= 8.2s/seq  elapsed= 12.1m  eta=  1.6m
+[run] flowcast  k=9/10 seq=9/10 (89/100)  t0=7774   rollout=  8.3s  avg= 8.2s/seq  elapsed= 12.2m  eta=  1.5m
+[run] flowcast  k=9/10 seq=10/10 (90/100)  t0=8746   rollout=  8.4s  avg= 8.2s/seq  elapsed= 12.3m  eta=  1.4m
+[run] flowcast  k=10/10 seq=1/10 (91/100)  t0=0      rollout=  8.3s  avg= 8.2s/seq  elapsed= 12.5m  eta=  1.2m
+[run] flowcast  k=10/10 seq=2/10 (92/100)  t0=971    rollout=  8.3s  avg= 8.2s/seq  elapsed= 12.6m  eta=  1.1m
+[run] flowcast  k=10/10 seq=3/10 (93/100)  t0=1943   rollout=  8.2s  avg= 8.2s/seq  elapsed= 12.7m  eta=  1.0m
+[run] flowcast  k=10/10 seq=4/10 (94/100)  t0=2915   rollout=  8.3s  avg= 8.2s/seq  elapsed= 12.9m  eta=  0.8m
+[run] flowcast  k=10/10 seq=5/10 (95/100)  t0=3887   rollout=  8.3s  avg= 8.2s/seq  elapsed= 13.0m  eta=  0.7m
+[run] flowcast  k=10/10 seq=6/10 (96/100)  t0=4858   rollout=  8.3s  avg= 8.2s/seq  elapsed= 13.2m  eta=  0.5m
+[run] flowcast  k=10/10 seq=7/10 (97/100)  t0=5830   rollout=  8.3s  avg= 8.2s/seq  elapsed= 13.3m  eta=  0.4m
+[run] flowcast  k=10/10 seq=8/10 (98/100)  t0=6802   rollout=  8.2s  avg= 8.2s/seq  elapsed= 13.4m  eta=  0.3m
+[run] flowcast  k=10/10 seq=9/10 (99/100)  t0=7774   rollout=  8.2s  avg= 8.2s/seq  elapsed= 13.6m  eta=  0.1m
+[run] flowcast  k=10/10 seq=10/10 (100/100)  t0=8746   rollout=  8.2s  avg= 8.2s/seq  elapsed= 13.7m  eta=  0.0m
+[run] flowcast ensemble finished in 13.7m
+[run] flowcast_nfe20 ensemble (K=10, NFE=20)
+[run] flowcast ensemble starting: K=10 x S=10 x T=12 = 100 sequence-rollouts
+[run] flowcast  k=1/10 seq=1/10 (1/100)  t0=0      rollout= 10.4s  avg=10.4s/seq  elapsed=  0.2m  eta= 17.1m
+[run] flowcast  k=1/10 seq=2/10 (2/100)  t0=971    rollout= 10.3s  avg=10.3s/seq  elapsed=  0.3m  eta= 16.9m
+[run] flowcast  k=1/10 seq=3/10 (3/100)  t0=1943   rollout= 10.4s  avg=10.4s/seq  elapsed=  0.5m  eta= 16.8m
+[run] flowcast  k=1/10 seq=4/10 (4/100)  t0=2915   rollout= 10.4s  avg=10.4s/seq  elapsed=  0.7m  eta= 16.6m
+[run] flowcast  k=1/10 seq=5/10 (5/100)  t0=3887   rollout= 10.4s  avg=10.4s/seq  elapsed=  0.9m  eta= 16.4m
+[run] flowcast  k=1/10 seq=6/10 (6/100)  t0=4858   rollout= 10.5s  avg=10.4s/seq  elapsed=  1.0m  eta= 16.3m
+[run] flowcast  k=1/10 seq=7/10 (7/100)  t0=5830   rollout= 10.5s  avg=10.4s/seq  elapsed=  1.2m  eta= 16.2m
+[run] flowcast  k=1/10 seq=8/10 (8/100)  t0=6802   rollout= 10.6s  avg=10.4s/seq  elapsed=  1.4m  eta= 16.0m
+[run] flowcast  k=1/10 seq=9/10 (9/100)  t0=7774   rollout= 10.6s  avg=10.5s/seq  elapsed=  1.6m  eta= 15.9m
+[run] flowcast  k=1/10 seq=10/10 (10/100)  t0=8746   rollout= 10.5s  avg=10.5s/seq  elapsed=  1.7m  eta= 15.7m
+[run] flowcast  k=2/10 seq=1/10 (11/100)  t0=0      rollout= 10.5s  avg=10.5s/seq  elapsed=  1.9m  eta= 15.5m
+[run] flowcast  k=2/10 seq=2/10 (12/100)  t0=971    rollout= 10.6s  avg=10.5s/seq  elapsed=  2.1m  eta= 15.4m
+[run] flowcast  k=2/10 seq=3/10 (13/100)  t0=1943   rollout= 10.5s  avg=10.5s/seq  elapsed=  2.3m  eta= 15.2m
+[run] flowcast  k=2/10 seq=4/10 (14/100)  t0=2915   rollout= 10.5s  avg=10.5s/seq  elapsed=  2.4m  eta= 15.0m
+[run] flowcast  k=2/10 seq=5/10 (15/100)  t0=3887   rollout= 10.5s  avg=10.5s/seq  elapsed=  2.6m  eta= 14.9m
+[run] flowcast  k=2/10 seq=6/10 (16/100)  t0=4858   rollout= 10.5s  avg=10.5s/seq  elapsed=  2.8m  eta= 14.7m
+[run] flowcast  k=2/10 seq=7/10 (17/100)  t0=5830   rollout= 10.6s  avg=10.5s/seq  elapsed=  3.0m  eta= 14.5m
+[run] flowcast  k=2/10 seq=8/10 (18/100)  t0=6802   rollout= 10.6s  avg=10.5s/seq  elapsed=  3.1m  eta= 14.3m
+[run] flowcast  k=2/10 seq=9/10 (19/100)  t0=7774   rollout= 10.6s  avg=10.5s/seq  elapsed=  3.3m  eta= 14.2m
+[run] flowcast  k=2/10 seq=10/10 (20/100)  t0=8746   rollout= 10.6s  avg=10.5s/seq  elapsed=  3.5m  eta= 14.0m
+[run] flowcast  k=3/10 seq=1/10 (21/100)  t0=0      rollout= 10.4s  avg=10.5s/seq  elapsed=  3.7m  eta= 13.8m
+[run] flowcast  k=3/10 seq=2/10 (22/100)  t0=971    rollout= 10.4s  avg=10.5s/seq  elapsed=  3.8m  eta= 13.6m
+[run] flowcast  k=3/10 seq=3/10 (23/100)  t0=1943   rollout= 10.5s  avg=10.5s/seq  elapsed=  4.0m  eta= 13.5m
+[run] flowcast  k=3/10 seq=4/10 (24/100)  t0=2915   rollout= 10.5s  avg=10.5s/seq  elapsed=  4.2m  eta= 13.3m
+[run] flowcast  k=3/10 seq=5/10 (25/100)  t0=3887   rollout= 11.8s  avg=10.5s/seq  elapsed=  4.4m  eta= 13.2m
+[run] flowcast  k=3/10 seq=6/10 (26/100)  t0=4858   rollout= 12.8s  avg=10.6s/seq  elapsed=  4.6m  eta= 13.1m
+[run] flowcast  k=3/10 seq=7/10 (27/100)  t0=5830   rollout= 12.8s  avg=10.7s/seq  elapsed=  4.8m  eta= 13.0m
+[run] flowcast  k=3/10 seq=8/10 (28/100)  t0=6802   rollout= 12.8s  avg=10.8s/seq  elapsed=  5.0m  eta= 12.9m
+[run] flowcast  k=3/10 seq=9/10 (29/100)  t0=7774   rollout= 12.8s  avg=10.9s/seq  elapsed=  5.2m  eta= 12.8m
+[run] flowcast  k=3/10 seq=10/10 (30/100)  t0=8746   rollout= 12.7s  avg=10.9s/seq  elapsed=  5.5m  eta= 12.7m
+[run] flowcast  k=4/10 seq=1/10 (31/100)  t0=0      rollout= 12.7s  avg=11.0s/seq  elapsed=  5.7m  eta= 12.6m
+[run] flowcast  k=4/10 seq=2/10 (32/100)  t0=971    rollout= 12.8s  avg=11.0s/seq  elapsed=  5.9m  eta= 12.5m
+[run] flowcast  k=4/10 seq=3/10 (33/100)  t0=1943   rollout= 12.8s  avg=11.1s/seq  elapsed=  6.1m  eta= 12.4m
+[run] flowcast  k=4/10 seq=4/10 (34/100)  t0=2915   rollout= 10.5s  avg=11.1s/seq  elapsed=  6.3m  eta= 12.2m
+[run] flowcast  k=4/10 seq=5/10 (35/100)  t0=3887   rollout= 10.5s  avg=11.1s/seq  elapsed=  6.4m  eta= 12.0m
+[run] flowcast  k=4/10 seq=6/10 (36/100)  t0=4858   rollout= 10.5s  avg=11.0s/seq  elapsed=  6.6m  eta= 11.8m
+[run] flowcast  k=4/10 seq=7/10 (37/100)  t0=5830   rollout= 10.4s  avg=11.0s/seq  elapsed=  6.8m  eta= 11.6m
+[run] flowcast  k=4/10 seq=8/10 (38/100)  t0=6802   rollout= 10.5s  avg=11.0s/seq  elapsed=  7.0m  eta= 11.4m
+[run] flowcast  k=4/10 seq=9/10 (39/100)  t0=7774   rollout= 10.5s  avg=11.0s/seq  elapsed=  7.1m  eta= 11.2m
+[run] flowcast  k=4/10 seq=10/10 (40/100)  t0=8746   rollout= 10.5s  avg=11.0s/seq  elapsed=  7.3m  eta= 11.0m
+[run] flowcast  k=5/10 seq=1/10 (41/100)  t0=0      rollout= 10.4s  avg=11.0s/seq  elapsed=  7.5m  eta= 10.8m
+[run] flowcast  k=5/10 seq=2/10 (42/100)  t0=971    rollout= 10.5s  avg=11.0s/seq  elapsed=  7.7m  eta= 10.6m
+[run] flowcast  k=5/10 seq=3/10 (43/100)  t0=1943   rollout= 10.8s  avg=11.0s/seq  elapsed=  7.8m  eta= 10.4m
+[run] flowcast  k=5/10 seq=4/10 (44/100)  t0=2915   rollout= 12.9s  avg=11.0s/seq  elapsed=  8.1m  eta= 10.3m
+[run] flowcast  k=5/10 seq=5/10 (45/100)  t0=3887   rollout= 12.9s  avg=11.0s/seq  elapsed=  8.3m  eta= 10.1m
+[run] flowcast  k=5/10 seq=6/10 (46/100)  t0=4858   rollout= 12.9s  avg=11.1s/seq  elapsed=  8.5m  eta= 10.0m
+[run] flowcast  k=5/10 seq=7/10 (47/100)  t0=5830   rollout= 12.8s  avg=11.1s/seq  elapsed=  8.7m  eta=  9.8m
+[run] flowcast  k=5/10 seq=8/10 (48/100)  t0=6802   rollout= 12.7s  avg=11.2s/seq  elapsed=  8.9m  eta=  9.7m
+[run] flowcast  k=5/10 seq=9/10 (49/100)  t0=7774   rollout= 12.9s  avg=11.2s/seq  elapsed=  9.1m  eta=  9.5m
+[run] flowcast  k=5/10 seq=10/10 (50/100)  t0=8746   rollout= 13.0s  avg=11.2s/seq  elapsed=  9.4m  eta=  9.4m
+[run] flowcast  k=6/10 seq=1/10 (51/100)  t0=0      rollout= 13.0s  avg=11.3s/seq  elapsed=  9.6m  eta=  9.2m
+[run] flowcast  k=6/10 seq=2/10 (52/100)  t0=971    rollout= 13.0s  avg=11.3s/seq  elapsed=  9.8m  eta=  9.0m
+[run] flowcast  k=6/10 seq=3/10 (53/100)  t0=1943   rollout= 13.0s  avg=11.3s/seq  elapsed= 10.0m  eta=  8.9m
+[run] flowcast  k=6/10 seq=4/10 (54/100)  t0=2915   rollout= 12.9s  avg=11.3s/seq  elapsed= 10.2m  eta=  8.7m
+[run] flowcast  k=6/10 seq=5/10 (55/100)  t0=3887   rollout= 12.9s  avg=11.4s/seq  elapsed= 10.4m  eta=  8.5m
+[run] flowcast  k=6/10 seq=6/10 (56/100)  t0=4858   rollout= 12.9s  avg=11.4s/seq  elapsed= 10.6m  eta=  8.4m
+[run] flowcast  k=6/10 seq=7/10 (57/100)  t0=5830   rollout= 12.8s  avg=11.4s/seq  elapsed= 10.9m  eta=  8.2m
+[run] flowcast  k=6/10 seq=8/10 (58/100)  t0=6802   rollout= 12.8s  avg=11.5s/seq  elapsed= 11.1m  eta=  8.0m
+[run] flowcast  k=6/10 seq=9/10 (59/100)  t0=7774   rollout= 12.9s  avg=11.5s/seq  elapsed= 11.3m  eta=  7.8m
+[run] flowcast  k=6/10 seq=10/10 (60/100)  t0=8746   rollout= 13.0s  avg=11.5s/seq  elapsed= 11.5m  eta=  7.7m
+[run] flowcast  k=7/10 seq=1/10 (61/100)  t0=0      rollout= 10.8s  avg=11.5s/seq  elapsed= 11.7m  eta=  7.5m
+[run] flowcast  k=7/10 seq=2/10 (62/100)  t0=971    rollout= 10.6s  avg=11.5s/seq  elapsed= 11.9m  eta=  7.3m
+[run] flowcast  k=7/10 seq=3/10 (63/100)  t0=1943   rollout= 11.0s  avg=11.5s/seq  elapsed= 12.0m  eta=  7.1m
+[run] flowcast  k=7/10 seq=4/10 (64/100)  t0=2915   rollout= 10.5s  avg=11.5s/seq  elapsed= 12.2m  eta=  6.9m
+[run] flowcast  k=7/10 seq=5/10 (65/100)  t0=3887   rollout= 10.6s  avg=11.4s/seq  elapsed= 12.4m  eta=  6.7m
+[run] flowcast  k=7/10 seq=6/10 (66/100)  t0=4858   rollout= 10.6s  avg=11.4s/seq  elapsed= 12.6m  eta=  6.5m
+[run] flowcast  k=7/10 seq=7/10 (67/100)  t0=5830   rollout= 10.5s  avg=11.4s/seq  elapsed= 12.7m  eta=  6.3m
+[run] flowcast  k=7/10 seq=8/10 (68/100)  t0=6802   rollout= 10.5s  avg=11.4s/seq  elapsed= 12.9m  eta=  6.1m
+[run] flowcast  k=7/10 seq=9/10 (69/100)  t0=7774   rollout= 10.5s  avg=11.4s/seq  elapsed= 13.1m  eta=  5.9m
+[run] flowcast  k=7/10 seq=10/10 (70/100)  t0=8746   rollout= 10.5s  avg=11.4s/seq  elapsed= 13.3m  eta=  5.7m
+[run] flowcast  k=8/10 seq=1/10 (71/100)  t0=0      rollout= 10.5s  avg=11.4s/seq  elapsed= 13.4m  eta=  5.5m
+[run] flowcast  k=8/10 seq=2/10 (72/100)  t0=971    rollout= 10.5s  avg=11.4s/seq  elapsed= 13.6m  eta=  5.3m
+[run] flowcast  k=8/10 seq=3/10 (73/100)  t0=1943   rollout= 10.6s  avg=11.3s/seq  elapsed= 13.8m  eta=  5.1m
+[run] flowcast  k=8/10 seq=4/10 (74/100)  t0=2915   rollout= 10.6s  avg=11.3s/seq  elapsed= 14.0m  eta=  4.9m
+[run] flowcast  k=8/10 seq=5/10 (75/100)  t0=3887   rollout= 10.6s  avg=11.3s/seq  elapsed= 14.2m  eta=  4.7m
+[run] flowcast  k=8/10 seq=6/10 (76/100)  t0=4858   rollout= 10.5s  avg=11.3s/seq  elapsed= 14.3m  eta=  4.5m
+[run] flowcast  k=8/10 seq=7/10 (77/100)  t0=5830   rollout= 10.5s  avg=11.3s/seq  elapsed= 14.5m  eta=  4.3m
+[run] flowcast  k=8/10 seq=8/10 (78/100)  t0=6802   rollout= 10.4s  avg=11.3s/seq  elapsed= 14.7m  eta=  4.1m
+[run] flowcast  k=8/10 seq=9/10 (79/100)  t0=7774   rollout= 10.5s  avg=11.3s/seq  elapsed= 14.9m  eta=  3.9m
+[run] flowcast  k=8/10 seq=10/10 (80/100)  t0=8746   rollout= 10.5s  avg=11.3s/seq  elapsed= 15.0m  eta=  3.8m
+[run] flowcast  k=9/10 seq=1/10 (81/100)  t0=0      rollout= 10.5s  avg=11.3s/seq  elapsed= 15.2m  eta=  3.6m
+[run] flowcast  k=9/10 seq=2/10 (82/100)  t0=971    rollout= 10.6s  avg=11.3s/seq  elapsed= 15.4m  eta=  3.4m
+[run] flowcast  k=9/10 seq=3/10 (83/100)  t0=1943   rollout= 10.6s  avg=11.2s/seq  elapsed= 15.6m  eta=  3.2m
+[run] flowcast  k=9/10 seq=4/10 (84/100)  t0=2915   rollout= 10.5s  avg=11.2s/seq  elapsed= 15.7m  eta=  3.0m
+[run] flowcast  k=9/10 seq=5/10 (85/100)  t0=3887   rollout= 10.5s  avg=11.2s/seq  elapsed= 15.9m  eta=  2.8m
+[run] flowcast  k=9/10 seq=6/10 (86/100)  t0=4858   rollout= 10.4s  avg=11.2s/seq  elapsed= 16.1m  eta=  2.6m
+[run] flowcast  k=9/10 seq=7/10 (87/100)  t0=5830   rollout= 10.4s  avg=11.2s/seq  elapsed= 16.3m  eta=  2.4m
+[run] flowcast  k=9/10 seq=8/10 (88/100)  t0=6802   rollout= 10.5s  avg=11.2s/seq  elapsed= 16.4m  eta=  2.2m
+[run] flowcast  k=9/10 seq=9/10 (89/100)  t0=7774   rollout= 10.6s  avg=11.2s/seq  elapsed= 16.6m  eta=  2.1m
+[run] flowcast  k=9/10 seq=10/10 (90/100)  t0=8746   rollout= 10.6s  avg=11.2s/seq  elapsed= 16.8m  eta=  1.9m
+[run] flowcast  k=10/10 seq=1/10 (91/100)  t0=0      rollout= 10.7s  avg=11.2s/seq  elapsed= 17.0m  eta=  1.7m
+[run] flowcast  k=10/10 seq=2/10 (92/100)  t0=971    rollout= 10.6s  avg=11.2s/seq  elapsed= 17.1m  eta=  1.5m
+[run] flowcast  k=10/10 seq=3/10 (93/100)  t0=1943   rollout= 10.6s  avg=11.2s/seq  elapsed= 17.3m  eta=  1.3m
+[run] flowcast  k=10/10 seq=4/10 (94/100)  t0=2915   rollout= 10.7s  avg=11.2s/seq  elapsed= 17.5m  eta=  1.1m
+[run] flowcast  k=10/10 seq=5/10 (95/100)  t0=3887   rollout= 10.7s  avg=11.2s/seq  elapsed= 17.7m  eta=  0.9m
+[run] flowcast  k=10/10 seq=6/10 (96/100)  t0=4858   rollout= 10.6s  avg=11.2s/seq  elapsed= 17.8m  eta=  0.7m
+[run] flowcast  k=10/10 seq=7/10 (97/100)  t0=5830   rollout= 10.7s  avg=11.2s/seq  elapsed= 18.0m  eta=  0.6m
+[run] flowcast  k=10/10 seq=8/10 (98/100)  t0=6802   rollout= 10.7s  avg=11.1s/seq  elapsed= 18.2m  eta=  0.4m
+[run] flowcast  k=10/10 seq=9/10 (99/100)  t0=7774   rollout= 10.8s  avg=11.1s/seq  elapsed= 18.4m  eta=  0.2m
+[run] flowcast  k=10/10 seq=10/10 (100/100)  t0=8746   rollout= 10.7s  avg=11.1s/seq  elapsed= 18.6m  eta=  0.0m
+[run] flowcast ensemble finished in 18.6m
+[load] meanflow /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[run] meanflow_nfe1 ensemble (K=10, NFE=1)
+[run] meanflow ensemble starting: K=10 x S=10 x T=12 = 100 sequence-rollouts
+[run] meanflow  k=1/10 seq=1/10 (1/100)  t0=0      rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.0m  eta=  3.0m
+[run] meanflow  k=1/10 seq=2/10 (2/100)  t0=971    rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.1m  eta=  3.0m
+[run] meanflow  k=1/10 seq=3/10 (3/100)  t0=1943   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.1m  eta=  2.9m
+[run] meanflow  k=1/10 seq=4/10 (4/100)  t0=2915   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.1m  eta=  2.9m
+[run] meanflow  k=1/10 seq=5/10 (5/100)  t0=3887   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.2m  eta=  2.9m
+[run] meanflow  k=1/10 seq=6/10 (6/100)  t0=4858   rollout=  1.7s  avg= 1.8s/seq  elapsed=  0.2m  eta=  2.8m
+[run] meanflow  k=1/10 seq=7/10 (7/100)  t0=5830   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.2m  eta=  2.8m
+[run] meanflow  k=1/10 seq=8/10 (8/100)  t0=6802   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.2m  eta=  2.8m
+[run] meanflow  k=1/10 seq=9/10 (9/100)  t0=7774   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.3m  eta=  2.7m
+[run] meanflow  k=1/10 seq=10/10 (10/100)  t0=8746   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.3m  eta=  2.7m
+[run] meanflow  k=2/10 seq=1/10 (11/100)  t0=0      rollout=  1.7s  avg= 1.8s/seq  elapsed=  0.3m  eta=  2.7m
+[run] meanflow  k=2/10 seq=2/10 (12/100)  t0=971    rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.4m  eta=  2.6m
+[run] meanflow  k=2/10 seq=3/10 (13/100)  t0=1943   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.4m  eta=  2.6m
+[run] meanflow  k=2/10 seq=4/10 (14/100)  t0=2915   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.4m  eta=  2.6m
+[run] meanflow  k=2/10 seq=5/10 (15/100)  t0=3887   rollout=  1.9s  avg= 1.8s/seq  elapsed=  0.5m  eta=  2.6m
+[run] meanflow  k=2/10 seq=6/10 (16/100)  t0=4858   rollout=  2.0s  avg= 1.8s/seq  elapsed=  0.5m  eta=  2.6m
+[run] meanflow  k=2/10 seq=7/10 (17/100)  t0=5830   rollout=  2.0s  avg= 1.8s/seq  elapsed=  0.5m  eta=  2.5m
+[run] meanflow  k=2/10 seq=8/10 (18/100)  t0=6802   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.6m  eta=  2.5m
+[run] meanflow  k=2/10 seq=9/10 (19/100)  t0=7774   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.6m  eta=  2.5m
+[run] meanflow  k=2/10 seq=10/10 (20/100)  t0=8746   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.6m  eta=  2.4m
+[run] meanflow  k=3/10 seq=1/10 (21/100)  t0=0      rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.6m  eta=  2.4m
+[run] meanflow  k=3/10 seq=2/10 (22/100)  t0=971    rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.7m  eta=  2.4m
+[run] meanflow  k=3/10 seq=3/10 (23/100)  t0=1943   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.7m  eta=  2.3m
+[run] meanflow  k=3/10 seq=4/10 (24/100)  t0=2915   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.7m  eta=  2.3m
+[run] meanflow  k=3/10 seq=5/10 (25/100)  t0=3887   rollout=  1.9s  avg= 1.8s/seq  elapsed=  0.8m  eta=  2.3m
+[run] meanflow  k=3/10 seq=6/10 (26/100)  t0=4858   rollout=  2.0s  avg= 1.8s/seq  elapsed=  0.8m  eta=  2.3m
+[run] meanflow  k=3/10 seq=7/10 (27/100)  t0=5830   rollout=  2.0s  avg= 1.8s/seq  elapsed=  0.8m  eta=  2.2m
+[run] meanflow  k=3/10 seq=8/10 (28/100)  t0=6802   rollout=  2.0s  avg= 1.9s/seq  elapsed=  0.9m  eta=  2.2m
+[run] meanflow  k=3/10 seq=9/10 (29/100)  t0=7774   rollout=  2.0s  avg= 1.9s/seq  elapsed=  0.9m  eta=  2.2m
+[run] meanflow  k=3/10 seq=10/10 (30/100)  t0=8746   rollout=  1.9s  avg= 1.9s/seq  elapsed=  0.9m  eta=  2.2m
+[run] meanflow  k=4/10 seq=1/10 (31/100)  t0=0      rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.0m  eta=  2.1m
+[run] meanflow  k=4/10 seq=2/10 (32/100)  t0=971    rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.0m  eta=  2.1m
+[run] meanflow  k=4/10 seq=3/10 (33/100)  t0=1943   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.0m  eta=  2.1m
+[run] meanflow  k=4/10 seq=4/10 (34/100)  t0=2915   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.0m  eta=  2.0m
+[run] meanflow  k=4/10 seq=5/10 (35/100)  t0=3887   rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.1m  eta=  2.0m
+[run] meanflow  k=4/10 seq=6/10 (36/100)  t0=4858   rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.1m  eta=  2.0m
+[run] meanflow  k=4/10 seq=7/10 (37/100)  t0=5830   rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.1m  eta=  1.9m
+[run] meanflow  k=4/10 seq=8/10 (38/100)  t0=6802   rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.2m  eta=  1.9m
+[run] meanflow  k=4/10 seq=9/10 (39/100)  t0=7774   rollout=  1.9s  avg= 1.8s/seq  elapsed=  1.2m  eta=  1.9m
+[run] meanflow  k=4/10 seq=10/10 (40/100)  t0=8746   rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.2m  eta=  1.8m
+[run] meanflow  k=5/10 seq=1/10 (41/100)  t0=0      rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.3m  eta=  1.8m
+[run] meanflow  k=5/10 seq=2/10 (42/100)  t0=971    rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.3m  eta=  1.8m
+[run] meanflow  k=5/10 seq=3/10 (43/100)  t0=1943   rollout=  2.0s  avg= 1.8s/seq  elapsed=  1.3m  eta=  1.8m
+[run] meanflow  k=5/10 seq=4/10 (44/100)  t0=2915   rollout=  2.0s  avg= 1.9s/seq  elapsed=  1.4m  eta=  1.7m
+[run] meanflow  k=5/10 seq=5/10 (45/100)  t0=3887   rollout=  2.0s  avg= 1.9s/seq  elapsed=  1.4m  eta=  1.7m
+[run] meanflow  k=5/10 seq=6/10 (46/100)  t0=4858   rollout=  1.9s  avg= 1.9s/seq  elapsed=  1.4m  eta=  1.7m
+[run] meanflow  k=5/10 seq=7/10 (47/100)  t0=5830   rollout=  1.9s  avg= 1.9s/seq  elapsed=  1.5m  eta=  1.6m
+[run] meanflow  k=5/10 seq=8/10 (48/100)  t0=6802   rollout=  1.9s  avg= 1.9s/seq  elapsed=  1.5m  eta=  1.6m
+[run] meanflow  k=5/10 seq=9/10 (49/100)  t0=7774   rollout=  2.0s  avg= 1.9s/seq  elapsed=  1.5m  eta=  1.6m
+[run] meanflow  k=5/10 seq=10/10 (50/100)  t0=8746   rollout=  2.0s  avg= 1.9s/seq  elapsed=  1.6m  eta=  1.6m
+[run] meanflow  k=6/10 seq=1/10 (51/100)  t0=0      rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.6m  eta=  1.5m
+[run] meanflow  k=6/10 seq=2/10 (52/100)  t0=971    rollout=  2.0s  avg= 1.9s/seq  elapsed=  1.6m  eta=  1.5m
+[run] meanflow  k=6/10 seq=3/10 (53/100)  t0=1943   rollout=  1.9s  avg= 1.9s/seq  elapsed=  1.6m  eta=  1.5m
+[run] meanflow  k=6/10 seq=4/10 (54/100)  t0=2915   rollout=  2.0s  avg= 1.9s/seq  elapsed=  1.7m  eta=  1.4m
+[run] meanflow  k=6/10 seq=5/10 (55/100)  t0=3887   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.7m  eta=  1.4m
+[run] meanflow  k=6/10 seq=6/10 (56/100)  t0=4858   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.7m  eta=  1.4m
+[run] meanflow  k=6/10 seq=7/10 (57/100)  t0=5830   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.8m  eta=  1.3m
+[run] meanflow  k=6/10 seq=8/10 (58/100)  t0=6802   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.8m  eta=  1.3m
+[run] meanflow  k=6/10 seq=9/10 (59/100)  t0=7774   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.8m  eta=  1.3m
+[run] meanflow  k=6/10 seq=10/10 (60/100)  t0=8746   rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.9m  eta=  1.2m
+[run] meanflow  k=7/10 seq=1/10 (61/100)  t0=0      rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.9m  eta=  1.2m
+[run] meanflow  k=7/10 seq=2/10 (62/100)  t0=971    rollout=  1.8s  avg= 1.9s/seq  elapsed=  1.9m  eta=  1.2m
+[run] meanflow  k=7/10 seq=3/10 (63/100)  t0=1943   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.0m  eta=  1.1m
+[run] meanflow  k=7/10 seq=4/10 (64/100)  t0=2915   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.0m  eta=  1.1m
+[run] meanflow  k=7/10 seq=5/10 (65/100)  t0=3887   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.0m  eta=  1.1m
+[run] meanflow  k=7/10 seq=6/10 (66/100)  t0=4858   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.0m  eta=  1.1m
+[run] meanflow  k=7/10 seq=7/10 (67/100)  t0=5830   rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.1m  eta=  1.0m
+[run] meanflow  k=7/10 seq=8/10 (68/100)  t0=6802   rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.1m  eta=  1.0m
+[run] meanflow  k=7/10 seq=9/10 (69/100)  t0=7774   rollout=  2.1s  avg= 1.9s/seq  elapsed=  2.1m  eta=  1.0m
+[run] meanflow  k=7/10 seq=10/10 (70/100)  t0=8746   rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.2m  eta=  0.9m
+[run] meanflow  k=8/10 seq=1/10 (71/100)  t0=0      rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.2m  eta=  0.9m
+[run] meanflow  k=8/10 seq=2/10 (72/100)  t0=971    rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.2m  eta=  0.9m
+[run] meanflow  k=8/10 seq=3/10 (73/100)  t0=1943   rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.3m  eta=  0.8m
+[run] meanflow  k=8/10 seq=4/10 (74/100)  t0=2915   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.3m  eta=  0.8m
+[run] meanflow  k=8/10 seq=5/10 (75/100)  t0=3887   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.3m  eta=  0.8m
+[run] meanflow  k=8/10 seq=6/10 (76/100)  t0=4858   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.4m  eta=  0.7m
+[run] meanflow  k=8/10 seq=7/10 (77/100)  t0=5830   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.4m  eta=  0.7m
+[run] meanflow  k=8/10 seq=8/10 (78/100)  t0=6802   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.4m  eta=  0.7m
+[run] meanflow  k=8/10 seq=9/10 (79/100)  t0=7774   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.5m  eta=  0.7m
+[run] meanflow  k=8/10 seq=10/10 (80/100)  t0=8746   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.5m  eta=  0.6m
+[run] meanflow  k=9/10 seq=1/10 (81/100)  t0=0      rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.5m  eta=  0.6m
+[run] meanflow  k=9/10 seq=2/10 (82/100)  t0=971    rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.6m  eta=  0.6m
+[run] meanflow  k=9/10 seq=3/10 (83/100)  t0=1943   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.6m  eta=  0.5m
+[run] meanflow  k=9/10 seq=4/10 (84/100)  t0=2915   rollout=  2.1s  avg= 1.9s/seq  elapsed=  2.6m  eta=  0.5m
+[run] meanflow  k=9/10 seq=5/10 (85/100)  t0=3887   rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.7m  eta=  0.5m
+[run] meanflow  k=9/10 seq=6/10 (86/100)  t0=4858   rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.7m  eta=  0.4m
+[run] meanflow  k=9/10 seq=7/10 (87/100)  t0=5830   rollout=  2.0s  avg= 1.9s/seq  elapsed=  2.7m  eta=  0.4m
+[run] meanflow  k=9/10 seq=8/10 (88/100)  t0=6802   rollout=  2.1s  avg= 1.9s/seq  elapsed=  2.8m  eta=  0.4m
+[run] meanflow  k=9/10 seq=9/10 (89/100)  t0=7774   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.8m  eta=  0.3m
+[run] meanflow  k=9/10 seq=10/10 (90/100)  t0=8746   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.8m  eta=  0.3m
+[run] meanflow  k=10/10 seq=1/10 (91/100)  t0=0      rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.9m  eta=  0.3m
+[run] meanflow  k=10/10 seq=2/10 (92/100)  t0=971    rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.9m  eta=  0.3m
+[run] meanflow  k=10/10 seq=3/10 (93/100)  t0=1943   rollout=  1.8s  avg= 1.9s/seq  elapsed=  2.9m  eta=  0.2m
+[run] meanflow  k=10/10 seq=4/10 (94/100)  t0=2915   rollout=  1.9s  avg= 1.9s/seq  elapsed=  2.9m  eta=  0.2m
+[run] meanflow  k=10/10 seq=5/10 (95/100)  t0=3887   rollout=  1.9s  avg= 1.9s/seq  elapsed=  3.0m  eta=  0.2m
+[run] meanflow  k=10/10 seq=6/10 (96/100)  t0=4858   rollout=  1.9s  avg= 1.9s/seq  elapsed=  3.0m  eta=  0.1m
+[run] meanflow  k=10/10 seq=7/10 (97/100)  t0=5830   rollout=  1.9s  avg= 1.9s/seq  elapsed=  3.0m  eta=  0.1m
+[run] meanflow  k=10/10 seq=8/10 (98/100)  t0=6802   rollout=  1.9s  avg= 1.9s/seq  elapsed=  3.1m  eta=  0.1m
+[run] meanflow  k=10/10 seq=9/10 (99/100)  t0=7774   rollout=  1.9s  avg= 1.9s/seq  elapsed=  3.1m  eta=  0.0m
+[run] meanflow  k=10/10 seq=10/10 (100/100)  t0=8746   rollout=  1.9s  avg= 1.9s/seq  elapsed=  3.1m  eta=  0.0m
+[run] meanflow ensemble finished in 3.1m
+[run] meanflow_nfe2 ensemble (K=10, NFE=2)
+[run] meanflow ensemble starting: K=10 x S=10 x T=12 = 100 sequence-rollouts
+[run] meanflow  k=1/10 seq=1/10 (1/100)  t0=0      rollout=  2.6s  avg= 2.6s/seq  elapsed=  0.0m  eta=  4.4m
+[run] meanflow  k=1/10 seq=2/10 (2/100)  t0=971    rollout=  2.6s  avg= 2.6s/seq  elapsed=  0.1m  eta=  4.3m
+[run] meanflow  k=1/10 seq=3/10 (3/100)  t0=1943   rollout=  2.4s  avg= 2.5s/seq  elapsed=  0.1m  eta=  4.1m
+[run] meanflow  k=1/10 seq=4/10 (4/100)  t0=2915   rollout=  2.3s  avg= 2.5s/seq  elapsed=  0.2m  eta=  4.0m
+[run] meanflow  k=1/10 seq=5/10 (5/100)  t0=3887   rollout=  2.3s  avg= 2.5s/seq  elapsed=  0.2m  eta=  3.9m
+[run] meanflow  k=1/10 seq=6/10 (6/100)  t0=4858   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.2m  eta=  3.8m
+[run] meanflow  k=1/10 seq=7/10 (7/100)  t0=5830   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.3m  eta=  3.7m
+[run] meanflow  k=1/10 seq=8/10 (8/100)  t0=6802   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.3m  eta=  3.7m
+[run] meanflow  k=1/10 seq=9/10 (9/100)  t0=7774   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.4m  eta=  3.6m
+[run] meanflow  k=1/10 seq=10/10 (10/100)  t0=8746   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.4m  eta=  3.6m
+[run] meanflow  k=2/10 seq=1/10 (11/100)  t0=0      rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.4m  eta=  3.5m
+[run] meanflow  k=2/10 seq=2/10 (12/100)  t0=971    rollout=  2.4s  avg= 2.4s/seq  elapsed=  0.5m  eta=  3.5m
+[run] meanflow  k=2/10 seq=3/10 (13/100)  t0=1943   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.5m  eta=  3.4m
+[run] meanflow  k=2/10 seq=4/10 (14/100)  t0=2915   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.6m  eta=  3.4m
+[run] meanflow  k=2/10 seq=5/10 (15/100)  t0=3887   rollout=  2.3s  avg= 2.4s/seq  elapsed=  0.6m  eta=  3.3m
+[run] meanflow  k=2/10 seq=6/10 (16/100)  t0=4858   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.6m  eta=  3.3m
+[run] meanflow  k=2/10 seq=7/10 (17/100)  t0=5830   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.7m  eta=  3.2m
+[run] meanflow  k=2/10 seq=8/10 (18/100)  t0=6802   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.7m  eta=  3.2m
+[run] meanflow  k=2/10 seq=9/10 (19/100)  t0=7774   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.7m  eta=  3.2m
+[run] meanflow  k=2/10 seq=10/10 (20/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.8m  eta=  3.1m
+[run] meanflow  k=3/10 seq=1/10 (21/100)  t0=0      rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.8m  eta=  3.1m
+[run] meanflow  k=3/10 seq=2/10 (22/100)  t0=971    rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.9m  eta=  3.0m
+[run] meanflow  k=3/10 seq=3/10 (23/100)  t0=1943   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.9m  eta=  3.0m
+[run] meanflow  k=3/10 seq=4/10 (24/100)  t0=2915   rollout=  2.2s  avg= 2.3s/seq  elapsed=  0.9m  eta=  3.0m
+[run] meanflow  k=3/10 seq=5/10 (25/100)  t0=3887   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.0m  eta=  2.9m
+[run] meanflow  k=3/10 seq=6/10 (26/100)  t0=4858   rollout=  2.2s  avg= 2.3s/seq  elapsed=  1.0m  eta=  2.9m
+[run] meanflow  k=3/10 seq=7/10 (27/100)  t0=5830   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.0m  eta=  2.8m
+[run] meanflow  k=3/10 seq=8/10 (28/100)  t0=6802   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.1m  eta=  2.8m
+[run] meanflow  k=3/10 seq=9/10 (29/100)  t0=7774   rollout=  2.4s  avg= 2.3s/seq  elapsed=  1.1m  eta=  2.7m
+[run] meanflow  k=3/10 seq=10/10 (30/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.2m  eta=  2.7m
+[run] meanflow  k=4/10 seq=1/10 (31/100)  t0=0      rollout=  2.2s  avg= 2.3s/seq  elapsed=  1.2m  eta=  2.7m
+[run] meanflow  k=4/10 seq=2/10 (32/100)  t0=971    rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.2m  eta=  2.6m
+[run] meanflow  k=4/10 seq=3/10 (33/100)  t0=1943   rollout=  2.5s  avg= 2.3s/seq  elapsed=  1.3m  eta=  2.6m
+[run] meanflow  k=4/10 seq=4/10 (34/100)  t0=2915   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.3m  eta=  2.6m
+[run] meanflow  k=4/10 seq=5/10 (35/100)  t0=3887   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.4m  eta=  2.5m
+[run] meanflow  k=4/10 seq=6/10 (36/100)  t0=4858   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.4m  eta=  2.5m
+[run] meanflow  k=4/10 seq=7/10 (37/100)  t0=5830   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.4m  eta=  2.4m
+[run] meanflow  k=4/10 seq=8/10 (38/100)  t0=6802   rollout=  2.4s  avg= 2.3s/seq  elapsed=  1.5m  eta=  2.4m
+[run] meanflow  k=4/10 seq=9/10 (39/100)  t0=7774   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.5m  eta=  2.4m
+[run] meanflow  k=4/10 seq=10/10 (40/100)  t0=8746   rollout=  2.2s  avg= 2.3s/seq  elapsed=  1.5m  eta=  2.3m
+[run] meanflow  k=5/10 seq=1/10 (41/100)  t0=0      rollout=  2.4s  avg= 2.3s/seq  elapsed=  1.6m  eta=  2.3m
+[run] meanflow  k=5/10 seq=2/10 (42/100)  t0=971    rollout=  2.4s  avg= 2.3s/seq  elapsed=  1.6m  eta=  2.2m
+[run] meanflow  k=5/10 seq=3/10 (43/100)  t0=1943   rollout=  2.4s  avg= 2.3s/seq  elapsed=  1.7m  eta=  2.2m
+[run] meanflow  k=5/10 seq=4/10 (44/100)  t0=2915   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.7m  eta=  2.2m
+[run] meanflow  k=5/10 seq=5/10 (45/100)  t0=3887   rollout=  2.2s  avg= 2.3s/seq  elapsed=  1.7m  eta=  2.1m
+[run] meanflow  k=5/10 seq=6/10 (46/100)  t0=4858   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.8m  eta=  2.1m
+[run] meanflow  k=5/10 seq=7/10 (47/100)  t0=5830   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.8m  eta=  2.1m
+[run] meanflow  k=5/10 seq=8/10 (48/100)  t0=6802   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.9m  eta=  2.0m
+[run] meanflow  k=5/10 seq=9/10 (49/100)  t0=7774   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.9m  eta=  2.0m
+[run] meanflow  k=5/10 seq=10/10 (50/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.9m  eta=  1.9m
+[run] meanflow  k=6/10 seq=1/10 (51/100)  t0=0      rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.0m  eta=  1.9m
+[run] meanflow  k=6/10 seq=2/10 (52/100)  t0=971    rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.0m  eta=  1.9m
+[run] meanflow  k=6/10 seq=3/10 (53/100)  t0=1943   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.0m  eta=  1.8m
+[run] meanflow  k=6/10 seq=4/10 (54/100)  t0=2915   rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.1m  eta=  1.8m
+[run] meanflow  k=6/10 seq=5/10 (55/100)  t0=3887   rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.1m  eta=  1.7m
+[run] meanflow  k=6/10 seq=6/10 (56/100)  t0=4858   rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.2m  eta=  1.7m
+[run] meanflow  k=6/10 seq=7/10 (57/100)  t0=5830   rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.2m  eta=  1.7m
+[run] meanflow  k=6/10 seq=8/10 (58/100)  t0=6802   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.2m  eta=  1.6m
+[run] meanflow  k=6/10 seq=9/10 (59/100)  t0=7774   rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.3m  eta=  1.6m
+[run] meanflow  k=6/10 seq=10/10 (60/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.3m  eta=  1.5m
+[run] meanflow  k=7/10 seq=1/10 (61/100)  t0=0      rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.3m  eta=  1.5m
+[run] meanflow  k=7/10 seq=2/10 (62/100)  t0=971    rollout=  2.4s  avg= 2.3s/seq  elapsed=  2.4m  eta=  1.5m
+[run] meanflow  k=7/10 seq=3/10 (63/100)  t0=1943   rollout=  2.4s  avg= 2.3s/seq  elapsed=  2.4m  eta=  1.4m
+[run] meanflow  k=7/10 seq=4/10 (64/100)  t0=2915   rollout=  2.4s  avg= 2.3s/seq  elapsed=  2.5m  eta=  1.4m
+[run] meanflow  k=7/10 seq=5/10 (65/100)  t0=3887   rollout=  2.4s  avg= 2.3s/seq  elapsed=  2.5m  eta=  1.4m
+[run] meanflow  k=7/10 seq=6/10 (66/100)  t0=4858   rollout=  2.4s  avg= 2.3s/seq  elapsed=  2.5m  eta=  1.3m
+[run] meanflow  k=7/10 seq=7/10 (67/100)  t0=5830   rollout=  2.9s  avg= 2.3s/seq  elapsed=  2.6m  eta=  1.3m
+[run] meanflow  k=7/10 seq=8/10 (68/100)  t0=6802   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.6m  eta=  1.2m
+[run] meanflow  k=7/10 seq=9/10 (69/100)  t0=7774   rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.7m  eta=  1.2m
+[run] meanflow  k=7/10 seq=10/10 (70/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.7m  eta=  1.2m
+[run] meanflow  k=8/10 seq=1/10 (71/100)  t0=0      rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.7m  eta=  1.1m
+[run] meanflow  k=8/10 seq=2/10 (72/100)  t0=971    rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.8m  eta=  1.1m
+[run] meanflow  k=8/10 seq=3/10 (73/100)  t0=1943   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.8m  eta=  1.0m
+[run] meanflow  k=8/10 seq=4/10 (74/100)  t0=2915   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.9m  eta=  1.0m
+[run] meanflow  k=8/10 seq=5/10 (75/100)  t0=3887   rollout=  2.3s  avg= 2.3s/seq  elapsed=  2.9m  eta=  1.0m
+[run] meanflow  k=8/10 seq=6/10 (76/100)  t0=4858   rollout=  2.2s  avg= 2.3s/seq  elapsed=  2.9m  eta=  0.9m
+[run] meanflow  k=8/10 seq=7/10 (77/100)  t0=5830   rollout=  2.4s  avg= 2.3s/seq  elapsed=  3.0m  eta=  0.9m
+[run] meanflow  k=8/10 seq=8/10 (78/100)  t0=6802   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.0m  eta=  0.9m
+[run] meanflow  k=8/10 seq=9/10 (79/100)  t0=7774   rollout=  2.4s  avg= 2.3s/seq  elapsed=  3.1m  eta=  0.8m
+[run] meanflow  k=8/10 seq=10/10 (80/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.1m  eta=  0.8m
+[run] meanflow  k=9/10 seq=1/10 (81/100)  t0=0      rollout=  2.2s  avg= 2.3s/seq  elapsed=  3.1m  eta=  0.7m
+[run] meanflow  k=9/10 seq=2/10 (82/100)  t0=971    rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.2m  eta=  0.7m
+[run] meanflow  k=9/10 seq=3/10 (83/100)  t0=1943   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.2m  eta=  0.7m
+[run] meanflow  k=9/10 seq=4/10 (84/100)  t0=2915   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.2m  eta=  0.6m
+[run] meanflow  k=9/10 seq=5/10 (85/100)  t0=3887   rollout=  2.2s  avg= 2.3s/seq  elapsed=  3.3m  eta=  0.6m
+[run] meanflow  k=9/10 seq=6/10 (86/100)  t0=4858   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.3m  eta=  0.5m
+[run] meanflow  k=9/10 seq=7/10 (87/100)  t0=5830   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.4m  eta=  0.5m
+[run] meanflow  k=9/10 seq=8/10 (88/100)  t0=6802   rollout=  2.4s  avg= 2.3s/seq  elapsed=  3.4m  eta=  0.5m
+[run] meanflow  k=9/10 seq=9/10 (89/100)  t0=7774   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.4m  eta=  0.4m
+[run] meanflow  k=9/10 seq=10/10 (90/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.5m  eta=  0.4m
+[run] meanflow  k=10/10 seq=1/10 (91/100)  t0=0      rollout=  2.4s  avg= 2.3s/seq  elapsed=  3.5m  eta=  0.3m
+[run] meanflow  k=10/10 seq=2/10 (92/100)  t0=971    rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.6m  eta=  0.3m
+[run] meanflow  k=10/10 seq=3/10 (93/100)  t0=1943   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.6m  eta=  0.3m
+[run] meanflow  k=10/10 seq=4/10 (94/100)  t0=2915   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.6m  eta=  0.2m
+[run] meanflow  k=10/10 seq=5/10 (95/100)  t0=3887   rollout=  2.4s  avg= 2.3s/seq  elapsed=  3.7m  eta=  0.2m
+[run] meanflow  k=10/10 seq=6/10 (96/100)  t0=4858   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.7m  eta=  0.2m
+[run] meanflow  k=10/10 seq=7/10 (97/100)  t0=5830   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.7m  eta=  0.1m
+[run] meanflow  k=10/10 seq=8/10 (98/100)  t0=6802   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.8m  eta=  0.1m
+[run] meanflow  k=10/10 seq=9/10 (99/100)  t0=7774   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.8m  eta=  0.0m
+[run] meanflow  k=10/10 seq=10/10 (100/100)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  3.9m  eta=  0.0m
+[run] meanflow ensemble finished in 3.9m
+[score] aggregating...
+| method | Time/Seq.(s) | CRPS↓ | CSI-M@10km↑ | HSS-M@10km↑ | FAR-M@10km↓ | FSS-P16@10km↑ | CSI-M@0.25°↑ | HSS-M@0.25°↑ | FAR-M@0.25°↓ | FSS-P16@0.25°↑ | RMSE_u10↓ | RMSE_v10↓ | RMSE_t2m↓ | RMSE_qpepre↓ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| diffusion | 20.674 | 0.6783 | 0.1841 | 0.2051 | 0.3693 | 0.0018 | 0.2222 | 0.2245 | 0.2753 | 0.0010 | 1.5626 | 1.9574 | 1.0208 | 0.9429 |
+| flowcast_nfe10 | 5.924 | 0.6833 | 0.1639 | 0.1912 | 0.3678 | 0.0000 | 0.1974 | 0.2124 | 0.2723 | 0.0000 | 1.4935 | 1.6423 | 1.1410 | 0.8959 |
+| flowcast_nfe15 | 8.084 | 0.6740 | 0.1746 | 0.2038 | 0.3671 | 0.0000 | 0.2104 | 0.2270 | 0.2483 | 0.0000 | 1.5203 | 1.6710 | 1.1312 | 0.8897 |
+| flowcast_nfe20 | 10.461 | 0.6856 | 0.1794 | 0.2071 | 0.4411 | 0.0000 | 0.2210 | 0.2368 | 0.3155 | 0.0000 | 1.5226 | 1.7316 | 1.1767 | 0.9013 |
+| meanflow_nfe1 | 1.804 | 0.8485 | 0.1588 | 0.1882 | 0.3485 | 0.0018 | 0.1792 | 0.1961 | 0.2855 | 0.0010 | 1.6540 | 2.1740 | 1.0453 | 0.9263 |
+| meanflow_nfe2 | 2.370 | 0.7265 | 0.1709 | 0.1980 | 0.4680 | 0.0000 | 0.1972 | 0.2101 | 0.3901 | 0.0000 | 1.5350 | 1.7902 | 0.9999 | 0.9404 |
+[done] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M
+[2026-06-15 12:31:53] [run_main] leg B done in 5125s
+[2026-06-15 12:31:53] [run_main] [cleaned_2M] outputs: 103 files (88M) under /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M
+[2026-06-15 12:31:53] [run_main] [cleaned_2M] scoreboard.md:
+[run_main]     | | method | Time/Seq.(s) | CRPS↓ | CSI-M@10km↑ | HSS-M@10km↑ | FAR-M@10km↓ | FSS-P16@10km↑ | CSI-M@0.25°↑ | HSS-M@0.25°↑ | FAR-M@0.25°↓ | FSS-P16@0.25°↑ | RMSE_u10↓ | RMSE_v10↓ | RMSE_t2m↓ | RMSE_qpepre↓ |
+[run_main]     | |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+[run_main]     | | diffusion | 20.674 | 0.6783 | 0.1841 | 0.2051 | 0.3693 | 0.0018 | 0.2222 | 0.2245 | 0.2753 | 0.0010 | 1.5626 | 1.9574 | 1.0208 | 0.9429 |
+[run_main]     | | flowcast_nfe10 | 5.924 | 0.6833 | 0.1639 | 0.1912 | 0.3678 | 0.0000 | 0.1974 | 0.2124 | 0.2723 | 0.0000 | 1.4935 | 1.6423 | 1.1410 | 0.8959 |
+[run_main]     | | flowcast_nfe15 | 8.084 | 0.6740 | 0.1746 | 0.2038 | 0.3671 | 0.0000 | 0.2104 | 0.2270 | 0.2483 | 0.0000 | 1.5203 | 1.6710 | 1.1312 | 0.8897 |
+[run_main]     | | flowcast_nfe20 | 10.461 | 0.6856 | 0.1794 | 0.2071 | 0.4411 | 0.0000 | 0.2210 | 0.2368 | 0.3155 | 0.0000 | 1.5226 | 1.7316 | 1.1767 | 0.9013 |
+[run_main]     | | meanflow_nfe1 | 1.804 | 0.8485 | 0.1588 | 0.1882 | 0.3485 | 0.0018 | 0.1792 | 0.1961 | 0.2855 | 0.0010 | 1.6540 | 2.1740 | 1.0453 | 0.9263 |
+[run_main]     | | meanflow_nfe2 | 2.370 | 0.7265 | 0.1709 | 0.1980 | 0.4680 | 0.0000 | 0.1972 | 0.2101 | 0.3901 | 0.0000 | 1.5350 | 1.7902 | 0.9999 | 0.9404 |
+[2026-06-15 12:31:53] [run_main] [cleaned_2M] panels rendered: 96 PNGs
+
+================================================================
+[2026-06-15 12:31:53] Stitching 3-way scoreboard
+================================================================
+[stitch] root = /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd
+[stitch]   legacy_edm             <- /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/legacy/scoreboard.csv::diffusion
+[stitch]   cleaned_edm            <- /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M/scoreboard.csv::diffusion
+[stitch]   cleaned_flow_nfe10     <- /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M/scoreboard.csv::flowcast_nfe10
+[stitch]   cleaned_flow_nfe15     <- /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M/scoreboard.csv::flowcast_nfe15
+[stitch]   cleaned_flow_nfe20     <- /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M/scoreboard.csv::flowcast_nfe20
+[stitch]   cleaned_meanflow_nfe1  <- /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M/scoreboard.csv::meanflow_nfe1
+[stitch]   cleaned_meanflow_nfe2  <- /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/cleaned_2M/scoreboard.csv::meanflow_nfe2
+[stitch]   collected legacy_edm
+[stitch]   collected cleaned_edm
+[stitch]   collected cleaned_flow_nfe10
+[stitch]   collected cleaned_flow_nfe15
+[stitch]   collected cleaned_flow_nfe20
+[stitch]   collected cleaned_meanflow_nfe1
+[stitch]   collected cleaned_meanflow_nfe2
+[stitch] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/scoreboard_3way.csv
+[stitch] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/scoreboard_3way.md
+[stitch] preview:
+[stitch]   legacy_edm | 117.759 | 0.8762 | 0.0833 | 0.0762 | 0.5679 | 0.0050 | 0.1162 | 0.0845 | 0.4581 | 0.0036 | 1.9491 | 2.0435 | 1.5621 | 1.1736
+[stitch]   cleaned_edm | 20.674 | 0.6783 | 0.1841 | 0.2051 | 0.3693 | 0.0018 | 0.2222 | 0.2245 | 0.2753 | 0.0010 | 1.5626 | 1.9574 | 1.0208 | 0.9429
+[stitch]   cleaned_flow_nfe10 | 5.924 | 0.6833 | 0.1639 | 0.1912 | 0.3678 | 0.0000 | 0.1974 | 0.2124 | 0.2723 | 0.0000 | 1.4935 | 1.6423 | 1.1410 | 0.8959
+[stitch]   cleaned_flow_nfe15 | 8.084 | 0.6740 | 0.1746 | 0.2038 | 0.3671 | 0.0000 | 0.2104 | 0.2270 | 0.2483 | 0.0000 | 1.5203 | 1.6710 | 1.1312 | 0.8897
+[stitch]   cleaned_flow_nfe20 | 10.461 | 0.6856 | 0.1794 | 0.2071 | 0.4411 | 0.0000 | 0.2210 | 0.2368 | 0.3155 | 0.0000 | 1.5226 | 1.7316 | 1.1767 | 0.9013
+[stitch]   cleaned_meanflow_nfe1 | 1.804 | 0.8485 | 0.1588 | 0.1882 | 0.3485 | 0.0018 | 0.1792 | 0.1961 | 0.2855 | 0.0010 | 1.6540 | 2.1740 | 1.0453 | 0.9263
+[stitch]   cleaned_meanflow_nfe2 | 2.370 | 0.7265 | 0.1709 | 0.1980 | 0.4680 | 0.0000 | 0.1972 | 0.2101 | 0.3901 | 0.0000 | 1.5350 | 1.7902 | 0.9999 | 0.9404
+[stitch] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/rmse_per_step_3way.csv  (84 rows)
+[2026-06-15 12:31:53] [run_main] stitch done in 0s
+
+================================================================
+[2026-06-15 12:31:53] All done — total elapsed 10739s
+================================================================
+[2026-06-15 12:31:53] [run_main] outputs:
+[2026-06-15 12:31:53] [run_main]   scoreboard         : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/scoreboard_3way.{md,csv}
+[2026-06-15 12:31:53] [run_main]   per-step RMSE      : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/rmse_per_step_3way.csv
+[2026-06-15 12:31:53] [run_main]   per-leg            : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/{legacy,cleaned_2M}/scoreboard.{md,csv}
+[2026-06-15 12:31:53] [run_main]   per-leg per-step   : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/{legacy,cleaned_2M}/rmse_per_step.csv
+[2026-06-15 12:31:53] [run_main]   per-leg PNG panels : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/{legacy,cleaned_2M}/panels/<channel>/seq*_step*.png
+[2026-06-15 12:31:53] [run_main]   per-leg DIFF panels: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/{legacy,cleaned_2M}/panels/diff/<channel>/seq*_step*.png
+[2026-06-15 12:31:53] [run_main]   per-leg run logs   : /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/main_experiment_nbhd/{legacy,cleaned_2M}.log
+[2026-06-15 12:31:53] [run_main] tail the 3-way scoreboard:
+[run_main]     | # Main experiment scoreboard
+[run_main]     | 
+[run_main]     | Multi-method comparison: legacy old-stormcast baseline vs. cleaned EDM and I-CFM (FlowCast) students at matched ~2 M-sample budget. Each I-CFM row reports a different sampler NFE (10, 15, 20).
+[run_main]     | 
+[run_main]     | | method | Time/Seq.(s) | CRPS↓ | CSI-M@10km↑ | HSS-M@10km↑ | FAR-M@10km↓ | FSS-P16@10km↑ | CSI-M@0.25°↑ | HSS-M@0.25°↑ | FAR-M@0.25°↓ | FSS-P16@0.25°↑ | RMSE_u10↓ | RMSE_v10↓ | RMSE_t2m↓ | RMSE_qpepre↓ |
+[run_main]     | |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+[run_main]     | | legacy_edm | 117.759 | 0.8762 | 0.0833 | 0.0762 | 0.5679 | 0.0050 | 0.1162 | 0.0845 | 0.4581 | 0.0036 | 1.9491 | 2.0435 | 1.5621 | 1.1736 |
+[run_main]     | | cleaned_edm | 20.674 | 0.6783 | 0.1841 | 0.2051 | 0.3693 | 0.0018 | 0.2222 | 0.2245 | 0.2753 | 0.0010 | 1.5626 | 1.9574 | 1.0208 | 0.9429 |
+[run_main]     | | cleaned_flow_nfe10 | 5.924 | 0.6833 | 0.1639 | 0.1912 | 0.3678 | 0.0000 | 0.1974 | 0.2124 | 0.2723 | 0.0000 | 1.4935 | 1.6423 | 1.1410 | 0.8959 |
+[run_main]     | | cleaned_flow_nfe15 | 8.084 | 0.6740 | 0.1746 | 0.2038 | 0.3671 | 0.0000 | 0.2104 | 0.2270 | 0.2483 | 0.0000 | 1.5203 | 1.6710 | 1.1312 | 0.8897 |
+[run_main]     | | cleaned_flow_nfe20 | 10.461 | 0.6856 | 0.1794 | 0.2071 | 0.4411 | 0.0000 | 0.2210 | 0.2368 | 0.3155 | 0.0000 | 1.5226 | 1.7316 | 1.1767 | 0.9013 |
+[run_main]     | | cleaned_meanflow_nfe1 | 1.804 | 0.8485 | 0.1588 | 0.1882 | 0.3485 | 0.0018 | 0.1792 | 0.1961 | 0.2855 | 0.0010 | 1.6540 | 2.1740 | 1.0453 | 0.9263 |
+[run_main]     | | cleaned_meanflow_nfe2 | 2.370 | 0.7265 | 0.1709 | 0.1980 | 0.4680 | 0.0000 | 0.1972 | 0.2101 | 0.3901 | 0.0000 | 1.5350 | 1.7902 | 0.9999 | 0.9404 |

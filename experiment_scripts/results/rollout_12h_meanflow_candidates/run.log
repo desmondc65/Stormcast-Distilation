@@ -1,0 +1,102 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] new-domain: samples=8759  channels=['u10', 'v10', 't2m', 'qpepre']
+Zarr store exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/stormcast/datasets/data_loader_rwrf_era5_stable.py:254: FutureWarning: The return type of `Dataset.dims` will be changed to return a set of dimension names in future, in order to be more consistent with `DataArray.dims`. To access a mapping from dimension names to lengths, please use `Dataset.sizes`.
+  return np.ones(ds.dims["time"], dtype=bool)
+Zarr store exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+[data] original-domain: samples=8759  channels=['t2m', 'u10', 'v10', 'qpepre']
+[t0] 10 initial time(s), rollout to +12h: 6904(10-15 16Z), 3222(05-15 06Z), 8746(12-31 10Z), 460(01-20 04Z), 7825(11-23 01Z), 5984(09-07 08Z), 5063(07-30 23Z), 0(01-01 00Z), 7365(11-03 21Z), 5523(08-19 03Z)
+[load] new-domain regression runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[load] new-domain diffusion runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[run] new-domain EDM rollouts (12h, NFE/step=36)
+[run]   EDM 1/10 t0=6904 (10-15 16Z) in 23.9s
+[run]   EDM 2/10 t0=3222 (05-15 06Z) in 22.9s
+[run]   EDM 3/10 t0=8746 (12-31 10Z) in 21.5s
+[run]   EDM 4/10 t0=460 (01-20 04Z) in 22.0s
+[run]   EDM 5/10 t0=7825 (11-23 01Z) in 22.1s
+[run]   EDM 6/10 t0=5984 (09-07 08Z) in 21.8s
+[run]   EDM 7/10 t0=5063 (07-30 23Z) in 22.3s
+[run]   EDM 8/10 t0=0 (01-01 00Z) in 21.7s
+[run]   EDM 9/10 t0=7365 (11-03 21Z) in 23.0s
+[run]   EDM 10/10 t0=5523 (08-19 03Z) in 22.1s
+[load] flowcast runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[run] FlowCast rollouts (NFE=10)
+[run]   CFM 1/10 t0=6904 (10-15 16Z) in 7.0s
+[run]   CFM 2/10 t0=3222 (05-15 06Z) in 6.9s
+[run]   CFM 3/10 t0=8746 (12-31 10Z) in 6.7s
+[run]   CFM 4/10 t0=460 (01-20 04Z) in 6.6s
+[run]   CFM 5/10 t0=7825 (11-23 01Z) in 6.7s
+[run]   CFM 6/10 t0=5984 (09-07 08Z) in 6.8s
+[run]   CFM 7/10 t0=5063 (07-30 23Z) in 6.6s
+[run]   CFM 8/10 t0=0 (01-01 00Z) in 6.6s
+[run]   CFM 9/10 t0=7365 (11-03 21Z) in 6.8s
+[run]   CFM 10/10 t0=5523 (08-19 03Z) in 6.6s
+[load] meanflow runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[run] MeanFlow rollouts (NFE=2)
+[run]   MeanFlow 1/10 t0=6904 (10-15 16Z) in 2.8s
+[run]   MeanFlow 2/10 t0=3222 (05-15 06Z) in 2.5s
+[run]   MeanFlow 3/10 t0=8746 (12-31 10Z) in 2.5s
+[run]   MeanFlow 4/10 t0=460 (01-20 04Z) in 2.6s
+[run]   MeanFlow 5/10 t0=7825 (11-23 01Z) in 2.6s
+[run]   MeanFlow 6/10 t0=5984 (09-07 08Z) in 2.6s
+[run]   MeanFlow 7/10 t0=5063 (07-30 23Z) in 2.7s
+[run]   MeanFlow 8/10 t0=0 (01-01 00Z) in 2.6s
+[run]   MeanFlow 9/10 t0=7365 (11-03 21Z) in 2.5s
+[run]   MeanFlow 10/10 t0=5523 (08-19 03Z) in 2.6s
+[load] original-domain regression exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[load] original-domain diffusion exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[run] original-domain EDM rollouts (12h)
+[run]   legacy 1/10 t0=6904 (10-15 16Z) in 47.9s
+[run]   legacy 2/10 t0=3222 (05-15 06Z) in 46.3s
+[run]   legacy 3/10 t0=8746 (12-31 10Z) in 43.4s
+[run]   legacy 4/10 t0=460 (01-20 04Z) in 40.8s
+[run]   legacy 5/10 t0=7825 (11-23 01Z) in 39.9s
+[run]   legacy 6/10 t0=5984 (09-07 08Z) in 40.4s
+[run]   legacy 7/10 t0=5063 (07-30 23Z) in 40.5s
+[run]   legacy 8/10 t0=0 (01-01 00Z) in 41.0s
+[run]   legacy 9/10 t0=7365 (11-03 21Z) in 40.7s
+[run]   legacy 10/10 t0=5523 (08-19 03Z) in 41.6s
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_6904_20221015_16/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_6904_20221015_16/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_6904_20221015_16/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_6904_20221015_16/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_3222_20220515_06/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_3222_20220515_06/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_3222_20220515_06/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_3222_20220515_06/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_8746_20221231_10/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_8746_20221231_10/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_8746_20221231_10/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_8746_20221231_10/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0460_20220120_04/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0460_20220120_04/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0460_20220120_04/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0460_20220120_04/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7825_20221123_01/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7825_20221123_01/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7825_20221123_01/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7825_20221123_01/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5984_20220907_08/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5984_20220907_08/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5984_20220907_08/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5984_20220907_08/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5063_20220730_23/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5063_20220730_23/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5063_20220730_23/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5063_20220730_23/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0000_20220101_00/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0000_20220101_00/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0000_20220101_00/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_0000_20220101_00/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7365_20221103_21/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7365_20221103_21/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7365_20221103_21/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_7365_20221103_21/rollout_12h_qpepre.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5523_20220819_03/rollout_12h_t2m.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5523_20220819_03/rollout_12h_u10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5523_20220819_03/rollout_12h_v10.png
+[plot] wrote experiment_scripts/results/rollout_12h_meanflow_candidates/t0_5523_20220819_03/rollout_12h_qpepre.png
+[done] candidate summary -> experiment_scripts/results/rollout_12h_meanflow_candidates/candidates.md
+[done] outputs in experiment_scripts/results/rollout_12h_meanflow_candidates

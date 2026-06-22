@@ -1,0 +1,158 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026 valid=['2022/01/01', '2022/12/31'] hr=[192, 96]
+[data] usable pairs=8759 channels=['u10', 'v10', 't2m', 'qpepre']
+[seqs] 8 sequences x 12 steps (first=0, last=8746)
+[load] regression runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[load] diffusion runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[run] diffusion ensemble (K=4, NFE/step≈36)
+[run] diffusion ensemble starting: K=4 x S=8 x T=12 = 32 sequence-rollouts
+[run] diffusion  k=1/4 seq=1/8 (1/32)  t0=0      rollout= 20.9s  avg=20.9s/seq  elapsed=  0.3m  eta= 10.8m
+[run] diffusion  k=1/4 seq=2/8 (2/32)  t0=1249   rollout= 20.1s  avg=20.5s/seq  elapsed=  0.7m  eta= 10.2m
+[run] diffusion  k=1/4 seq=3/8 (3/32)  t0=2498   rollout= 20.1s  avg=20.3s/seq  elapsed=  1.0m  eta=  9.8m
+[run] diffusion  k=1/4 seq=4/8 (4/32)  t0=3748   rollout= 20.2s  avg=20.3s/seq  elapsed=  1.4m  eta=  9.5m
+[run] diffusion  k=1/4 seq=5/8 (5/32)  t0=4997   rollout= 19.8s  avg=20.2s/seq  elapsed=  1.7m  eta=  9.1m
+[run] diffusion  k=1/4 seq=6/8 (6/32)  t0=6247   rollout= 20.0s  avg=20.2s/seq  elapsed=  2.0m  eta=  8.7m
+[run] diffusion  k=1/4 seq=7/8 (7/32)  t0=7496   rollout= 20.3s  avg=20.2s/seq  elapsed=  2.4m  eta=  8.4m
+[run] diffusion  k=1/4 seq=8/8 (8/32)  t0=8746   rollout= 19.6s  avg=20.1s/seq  elapsed=  2.7m  eta=  8.0m
+[run] diffusion  k=2/4 seq=1/8 (9/32)  t0=0      rollout= 19.7s  avg=20.1s/seq  elapsed=  3.0m  eta=  7.7m
+[run] diffusion  k=2/4 seq=2/8 (10/32)  t0=1249   rollout= 19.6s  avg=20.0s/seq  elapsed=  3.3m  eta=  7.4m
+[run] diffusion  k=2/4 seq=3/8 (11/32)  t0=2498   rollout= 19.5s  avg=20.0s/seq  elapsed=  3.7m  eta=  7.0m
+[run] diffusion  k=2/4 seq=4/8 (12/32)  t0=3748   rollout= 19.8s  avg=20.0s/seq  elapsed=  4.0m  eta=  6.7m
+[run] diffusion  k=2/4 seq=5/8 (13/32)  t0=4997   rollout= 19.8s  avg=20.0s/seq  elapsed=  4.3m  eta=  6.3m
+[run] diffusion  k=2/4 seq=6/8 (14/32)  t0=6247   rollout= 19.8s  avg=20.0s/seq  elapsed=  4.7m  eta=  6.0m
+[run] diffusion  k=2/4 seq=7/8 (15/32)  t0=7496   rollout= 19.8s  avg=19.9s/seq  elapsed=  5.0m  eta=  5.7m
+[run] diffusion  k=2/4 seq=8/8 (16/32)  t0=8746   rollout= 19.8s  avg=19.9s/seq  elapsed=  5.3m  eta=  5.3m
+[run] diffusion  k=3/4 seq=1/8 (17/32)  t0=0      rollout= 19.8s  avg=19.9s/seq  elapsed=  5.6m  eta=  5.0m
+[run] diffusion  k=3/4 seq=2/8 (18/32)  t0=1249   rollout= 19.8s  avg=19.9s/seq  elapsed=  6.0m  eta=  4.6m
+[run] diffusion  k=3/4 seq=3/8 (19/32)  t0=2498   rollout= 19.6s  avg=19.9s/seq  elapsed=  6.3m  eta=  4.3m
+[run] diffusion  k=3/4 seq=4/8 (20/32)  t0=3748   rollout= 19.7s  avg=19.9s/seq  elapsed=  6.6m  eta=  4.0m
+[run] diffusion  k=3/4 seq=5/8 (21/32)  t0=4997   rollout= 19.6s  avg=19.9s/seq  elapsed=  7.0m  eta=  3.6m
+[run] diffusion  k=3/4 seq=6/8 (22/32)  t0=6247   rollout= 20.0s  avg=19.9s/seq  elapsed=  7.3m  eta=  3.3m
+[run] diffusion  k=3/4 seq=7/8 (23/32)  t0=7496   rollout= 19.8s  avg=19.9s/seq  elapsed=  7.6m  eta=  3.0m
+[run] diffusion  k=3/4 seq=8/8 (24/32)  t0=8746   rollout= 19.7s  avg=19.9s/seq  elapsed=  8.0m  eta=  2.7m
+[run] diffusion  k=4/4 seq=1/8 (25/32)  t0=0      rollout= 19.6s  avg=19.9s/seq  elapsed=  8.3m  eta=  2.3m
+[run] diffusion  k=4/4 seq=2/8 (26/32)  t0=1249   rollout= 19.7s  avg=19.9s/seq  elapsed=  8.6m  eta=  2.0m
+[run] diffusion  k=4/4 seq=3/8 (27/32)  t0=2498   rollout= 19.8s  avg=19.9s/seq  elapsed=  8.9m  eta=  1.7m
+[run] diffusion  k=4/4 seq=4/8 (28/32)  t0=3748   rollout= 19.6s  avg=19.8s/seq  elapsed=  9.3m  eta=  1.3m
+[run] diffusion  k=4/4 seq=5/8 (29/32)  t0=4997   rollout= 19.6s  avg=19.8s/seq  elapsed=  9.6m  eta=  1.0m
+[run] diffusion  k=4/4 seq=6/8 (30/32)  t0=6247   rollout= 19.6s  avg=19.8s/seq  elapsed=  9.9m  eta=  0.7m
+[run] diffusion  k=4/4 seq=7/8 (31/32)  t0=7496   rollout= 19.8s  avg=19.8s/seq  elapsed= 10.2m  eta=  0.3m
+[run] diffusion  k=4/4 seq=8/8 (32/32)  t0=8746   rollout= 19.8s  avg=19.8s/seq  elapsed= 10.6m  eta=  0.0m
+[run] diffusion ensemble finished in 10.6m
+[load] flowcast runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[run] flowcast ensemble (K=4, NFE=10)
+[run] flowcast ensemble starting: K=4 x S=8 x T=12 = 32 sequence-rollouts
+[run] flowcast  k=1/4 seq=1/8 (1/32)  t0=0      rollout=  7.5s  avg= 7.5s/seq  elapsed=  0.1m  eta=  3.9m
+[run] flowcast  k=1/4 seq=2/8 (2/32)  t0=1249   rollout=  7.1s  avg= 7.3s/seq  elapsed=  0.2m  eta=  3.7m
+[run] flowcast  k=1/4 seq=3/8 (3/32)  t0=2498   rollout=  6.2s  avg= 6.9s/seq  elapsed=  0.3m  eta=  3.3m
+[run] flowcast  k=1/4 seq=4/8 (4/32)  t0=3748   rollout=  6.3s  avg= 6.8s/seq  elapsed=  0.5m  eta=  3.2m
+[run] flowcast  k=1/4 seq=5/8 (5/32)  t0=4997   rollout=  5.9s  avg= 6.6s/seq  elapsed=  0.5m  eta=  3.0m
+[run] flowcast  k=1/4 seq=6/8 (6/32)  t0=6247   rollout=  6.1s  avg= 6.5s/seq  elapsed=  0.7m  eta=  2.8m
+[run] flowcast  k=1/4 seq=7/8 (7/32)  t0=7496   rollout=  5.9s  avg= 6.4s/seq  elapsed=  0.7m  eta=  2.7m
+[run] flowcast  k=1/4 seq=8/8 (8/32)  t0=8746   rollout=  6.0s  avg= 6.4s/seq  elapsed=  0.8m  eta=  2.5m
+[run] flowcast  k=2/4 seq=1/8 (9/32)  t0=0      rollout=  6.1s  avg= 6.3s/seq  elapsed=  1.0m  eta=  2.4m
+[run] flowcast  k=2/4 seq=2/8 (10/32)  t0=1249   rollout=  6.0s  avg= 6.3s/seq  elapsed=  1.1m  eta=  2.3m
+[run] flowcast  k=2/4 seq=3/8 (11/32)  t0=2498   rollout=  6.1s  avg= 6.3s/seq  elapsed=  1.2m  eta=  2.2m
+[run] flowcast  k=2/4 seq=4/8 (12/32)  t0=3748   rollout=  6.4s  avg= 6.3s/seq  elapsed=  1.3m  eta=  2.1m
+[run] flowcast  k=2/4 seq=5/8 (13/32)  t0=4997   rollout=  6.3s  avg= 6.3s/seq  elapsed=  1.4m  eta=  2.0m
+[run] flowcast  k=2/4 seq=6/8 (14/32)  t0=6247   rollout=  6.0s  avg= 6.3s/seq  elapsed=  1.5m  eta=  1.9m
+[run] flowcast  k=2/4 seq=7/8 (15/32)  t0=7496   rollout=  6.2s  avg= 6.3s/seq  elapsed=  1.6m  eta=  1.8m
+[run] flowcast  k=2/4 seq=8/8 (16/32)  t0=8746   rollout=  6.0s  avg= 6.3s/seq  elapsed=  1.7m  eta=  1.7m
+[run] flowcast  k=3/4 seq=1/8 (17/32)  t0=0      rollout=  6.3s  avg= 6.3s/seq  elapsed=  1.8m  eta=  1.6m
+[run] flowcast  k=3/4 seq=2/8 (18/32)  t0=1249   rollout=  6.2s  avg= 6.3s/seq  elapsed=  1.9m  eta=  1.5m
+[run] flowcast  k=3/4 seq=3/8 (19/32)  t0=2498   rollout=  6.0s  avg= 6.2s/seq  elapsed=  2.0m  eta=  1.4m
+[run] flowcast  k=3/4 seq=4/8 (20/32)  t0=3748   rollout=  6.0s  avg= 6.2s/seq  elapsed=  2.1m  eta=  1.2m
+[run] flowcast  k=3/4 seq=5/8 (21/32)  t0=4997   rollout=  6.1s  avg= 6.2s/seq  elapsed=  2.2m  eta=  1.1m
+[run] flowcast  k=3/4 seq=6/8 (22/32)  t0=6247   rollout=  6.0s  avg= 6.2s/seq  elapsed=  2.3m  eta=  1.0m
+[run] flowcast  k=3/4 seq=7/8 (23/32)  t0=7496   rollout=  6.0s  avg= 6.2s/seq  elapsed=  2.4m  eta=  0.9m
+[run] flowcast  k=3/4 seq=8/8 (24/32)  t0=8746   rollout=  7.3s  avg= 6.3s/seq  elapsed=  2.5m  eta=  0.8m
+[run] flowcast  k=4/4 seq=1/8 (25/32)  t0=0      rollout=  6.0s  avg= 6.2s/seq  elapsed=  2.6m  eta=  0.7m
+[run] flowcast  k=4/4 seq=2/8 (26/32)  t0=1249   rollout=  6.0s  avg= 6.2s/seq  elapsed=  2.7m  eta=  0.6m
+[run] flowcast  k=4/4 seq=3/8 (27/32)  t0=2498   rollout=  5.9s  avg= 6.2s/seq  elapsed=  2.8m  eta=  0.5m
+[run] flowcast  k=4/4 seq=4/8 (28/32)  t0=3748   rollout=  6.0s  avg= 6.2s/seq  elapsed=  2.9m  eta=  0.4m
+[run] flowcast  k=4/4 seq=5/8 (29/32)  t0=4997   rollout=  5.9s  avg= 6.2s/seq  elapsed=  3.0m  eta=  0.3m
+[run] flowcast  k=4/4 seq=6/8 (30/32)  t0=6247   rollout=  6.0s  avg= 6.2s/seq  elapsed=  3.1m  eta=  0.2m
+[run] flowcast  k=4/4 seq=7/8 (31/32)  t0=7496   rollout=  6.0s  avg= 6.2s/seq  elapsed=  3.2m  eta=  0.1m
+[run] flowcast  k=4/4 seq=8/8 (32/32)  t0=8746   rollout=  6.2s  avg= 6.2s/seq  elapsed=  3.3m  eta=  0.0m
+[run] flowcast ensemble finished in 3.3m
+[load] meanflow runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[run] meanflow_nfe1 ensemble (K=4, NFE=1)
+[run] meanflow ensemble starting: K=4 x S=8 x T=12 = 32 sequence-rollouts
+[run] meanflow  k=1/4 seq=1/8 (1/32)  t0=0      rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.0m  eta=  0.9m
+[run] meanflow  k=1/4 seq=2/8 (2/32)  t0=1249   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.1m  eta=  0.9m
+[run] meanflow  k=1/4 seq=3/8 (3/32)  t0=2498   rollout=  1.7s  avg= 1.8s/seq  elapsed=  0.1m  eta=  0.9m
+[run] meanflow  k=1/4 seq=4/8 (4/32)  t0=3748   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.1m  eta=  0.8m
+[run] meanflow  k=1/4 seq=5/8 (5/32)  t0=4997   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.1m  eta=  0.8m
+[run] meanflow  k=1/4 seq=6/8 (6/32)  t0=6247   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.2m  eta=  0.8m
+[run] meanflow  k=1/4 seq=7/8 (7/32)  t0=7496   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.2m  eta=  0.7m
+[run] meanflow  k=1/4 seq=8/8 (8/32)  t0=8746   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.2m  eta=  0.7m
+[run] meanflow  k=2/4 seq=1/8 (9/32)  t0=0      rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.3m  eta=  0.7m
+[run] meanflow  k=2/4 seq=2/8 (10/32)  t0=1249   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.3m  eta=  0.7m
+[run] meanflow  k=2/4 seq=3/8 (11/32)  t0=2498   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.3m  eta=  0.6m
+[run] meanflow  k=2/4 seq=4/8 (12/32)  t0=3748   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.4m  eta=  0.6m
+[run] meanflow  k=2/4 seq=5/8 (13/32)  t0=4997   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.4m  eta=  0.6m
+[run] meanflow  k=2/4 seq=6/8 (14/32)  t0=6247   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.4m  eta=  0.5m
+[run] meanflow  k=2/4 seq=7/8 (15/32)  t0=7496   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.4m  eta=  0.5m
+[run] meanflow  k=2/4 seq=8/8 (16/32)  t0=8746   rollout=  1.9s  avg= 1.8s/seq  elapsed=  0.5m  eta=  0.5m
+[run] meanflow  k=3/4 seq=1/8 (17/32)  t0=0      rollout=  1.9s  avg= 1.8s/seq  elapsed=  0.5m  eta=  0.4m
+[run] meanflow  k=3/4 seq=2/8 (18/32)  t0=1249   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.5m  eta=  0.4m
+[run] meanflow  k=3/4 seq=3/8 (19/32)  t0=2498   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.6m  eta=  0.4m
+[run] meanflow  k=3/4 seq=4/8 (20/32)  t0=3748   rollout=  2.0s  avg= 1.8s/seq  elapsed=  0.6m  eta=  0.4m
+[run] meanflow  k=3/4 seq=5/8 (21/32)  t0=4997   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.6m  eta=  0.3m
+[run] meanflow  k=3/4 seq=6/8 (22/32)  t0=6247   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.7m  eta=  0.3m
+[run] meanflow  k=3/4 seq=7/8 (23/32)  t0=7496   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.7m  eta=  0.3m
+[run] meanflow  k=3/4 seq=8/8 (24/32)  t0=8746   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.7m  eta=  0.2m
+[run] meanflow  k=4/4 seq=1/8 (25/32)  t0=0      rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.7m  eta=  0.2m
+[run] meanflow  k=4/4 seq=2/8 (26/32)  t0=1249   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.8m  eta=  0.2m
+[run] meanflow  k=4/4 seq=3/8 (27/32)  t0=2498   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.8m  eta=  0.1m
+[run] meanflow  k=4/4 seq=4/8 (28/32)  t0=3748   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.8m  eta=  0.1m
+[run] meanflow  k=4/4 seq=5/8 (29/32)  t0=4997   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.9m  eta=  0.1m
+[run] meanflow  k=4/4 seq=6/8 (30/32)  t0=6247   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.9m  eta=  0.1m
+[run] meanflow  k=4/4 seq=7/8 (31/32)  t0=7496   rollout=  1.8s  avg= 1.8s/seq  elapsed=  0.9m  eta=  0.0m
+[run] meanflow  k=4/4 seq=8/8 (32/32)  t0=8746   rollout=  1.8s  avg= 1.8s/seq  elapsed=  1.0m  eta=  0.0m
+[run] meanflow ensemble finished in 1.0m
+[run] meanflow_nfe2 ensemble (K=4, NFE=2)
+[run] meanflow ensemble starting: K=4 x S=8 x T=12 = 32 sequence-rollouts
+[run] meanflow  k=1/4 seq=1/8 (1/32)  t0=0      rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.0m  eta=  1.2m
+[run] meanflow  k=1/4 seq=2/8 (2/32)  t0=1249   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.1m  eta=  1.1m
+[run] meanflow  k=1/4 seq=3/8 (3/32)  t0=2498   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.1m  eta=  1.1m
+[run] meanflow  k=1/4 seq=4/8 (4/32)  t0=3748   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.2m  eta=  1.1m
+[run] meanflow  k=1/4 seq=5/8 (5/32)  t0=4997   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.2m  eta=  1.0m
+[run] meanflow  k=1/4 seq=6/8 (6/32)  t0=6247   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.2m  eta=  1.0m
+[run] meanflow  k=1/4 seq=7/8 (7/32)  t0=7496   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.3m  eta=  1.0m
+[run] meanflow  k=1/4 seq=8/8 (8/32)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.3m  eta=  0.9m
+[run] meanflow  k=2/4 seq=1/8 (9/32)  t0=0      rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.3m  eta=  0.9m
+[run] meanflow  k=2/4 seq=2/8 (10/32)  t0=1249   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.4m  eta=  0.8m
+[run] meanflow  k=2/4 seq=3/8 (11/32)  t0=2498   rollout=  2.6s  avg= 2.3s/seq  elapsed=  0.4m  eta=  0.8m
+[run] meanflow  k=2/4 seq=4/8 (12/32)  t0=3748   rollout=  2.4s  avg= 2.3s/seq  elapsed=  0.5m  eta=  0.8m
+[run] meanflow  k=2/4 seq=5/8 (13/32)  t0=4997   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.5m  eta=  0.7m
+[run] meanflow  k=2/4 seq=6/8 (14/32)  t0=6247   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.5m  eta=  0.7m
+[run] meanflow  k=2/4 seq=7/8 (15/32)  t0=7496   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.6m  eta=  0.7m
+[run] meanflow  k=2/4 seq=8/8 (16/32)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.6m  eta=  0.6m
+[run] meanflow  k=3/4 seq=1/8 (17/32)  t0=0      rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.7m  eta=  0.6m
+[run] meanflow  k=3/4 seq=2/8 (18/32)  t0=1249   rollout=  2.4s  avg= 2.3s/seq  elapsed=  0.7m  eta=  0.5m
+[run] meanflow  k=3/4 seq=3/8 (19/32)  t0=2498   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.7m  eta=  0.5m
+[run] meanflow  k=3/4 seq=4/8 (20/32)  t0=3748   rollout=  2.6s  avg= 2.3s/seq  elapsed=  0.8m  eta=  0.5m
+[run] meanflow  k=3/4 seq=5/8 (21/32)  t0=4997   rollout=  2.6s  avg= 2.3s/seq  elapsed=  0.8m  eta=  0.4m
+[run] meanflow  k=3/4 seq=6/8 (22/32)  t0=6247   rollout=  2.4s  avg= 2.3s/seq  elapsed=  0.9m  eta=  0.4m
+[run] meanflow  k=3/4 seq=7/8 (23/32)  t0=7496   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.9m  eta=  0.4m
+[run] meanflow  k=3/4 seq=8/8 (24/32)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  0.9m  eta=  0.3m
+[run] meanflow  k=4/4 seq=1/8 (25/32)  t0=0      rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.0m  eta=  0.3m
+[run] meanflow  k=4/4 seq=2/8 (26/32)  t0=1249   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.0m  eta=  0.2m
+[run] meanflow  k=4/4 seq=3/8 (27/32)  t0=2498   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.1m  eta=  0.2m
+[run] meanflow  k=4/4 seq=4/8 (28/32)  t0=3748   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.1m  eta=  0.2m
+[run] meanflow  k=4/4 seq=5/8 (29/32)  t0=4997   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.1m  eta=  0.1m
+[run] meanflow  k=4/4 seq=6/8 (30/32)  t0=6247   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.2m  eta=  0.1m
+[run] meanflow  k=4/4 seq=7/8 (31/32)  t0=7496   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.2m  eta=  0.0m
+[run] meanflow  k=4/4 seq=8/8 (32/32)  t0=8746   rollout=  2.3s  avg= 2.3s/seq  elapsed=  1.2m  eta=  0.0m
+[run] meanflow ensemble finished in 1.2m
+[score] aggregating...
+| method | Time/Seq.(s) | CRPS↓ | CSI-M↑ | CSI-P16↑ | FSS-P16-M↑ | HSS-M↑ | FAR-M↓ | RMSE_u10↓ | RMSE_v10↓ | RMSE_t2m↓ | RMSE_qpepre↓ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| diffusion | 20.112 | 0.7549 | 0.1123 | 0.0000 | -0.0000 | 0.1343 | 0.8166 | 1.6837 | 2.0852 | 1.2871 | 1.2786 |
+| flowcast | 6.373 | 0.8121 | 0.1159 | 0.0000 | 0.0000 | 0.1484 | 0.6810 | 1.7856 | 2.1715 | 1.2501 | 1.1894 |
+| meanflow_nfe1 | 1.774 | 0.8333 | 0.1101 | 0.0000 | 0.0000 | 0.1400 | 0.7011 | 1.6946 | 2.0640 | 1.1135 | 1.2218 |
+| meanflow_nfe2 | 2.283 | 0.7475 | 0.1110 | 0.0000 | 0.0000 | 0.1371 | 0.7370 | 1.6157 | 1.9212 | 1.0087 | 1.2380 |
+[done] experiment_scripts/results/meanflow_compare

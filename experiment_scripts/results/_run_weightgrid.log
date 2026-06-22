@@ -1,0 +1,24 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0
+[data] legacy  /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/stormcast/datasets/data_loader_rwrf_era5_stable.py:254: FutureWarning: The return type of `Dataset.dims` will be changed to return a set of dimension names in future, in order to be more consistent with `DataArray.dims`. To access a mapping from dimension names to lengths, please use `Dataset.sizes`.
+  return np.ones(ds.dims["time"], dtype=bool)
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+[data] cleaned /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026
+[data] legacy channels=['t2m', 'u10', 'v10', 'qpepre']  cleaned channels=['u10', 'v10', 't2m', 'qpepre']
+[data] legacy pairs=8759  cleaned pairs=8759
+[dates] 4 date(s): 2022-01-01 00:00, 2022-05-02 15:00, 2022-09-01 06:00, 2022-12-31 22:00
+[load] regression (legacy / cleaned)
+[load] legacy EDM / cleaned EDM / cleaned FlowCast
+[load] cleaned MeanFlow /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[run] 2022-01-01 00:00  cleaned_idx=0 legacy_idx=0
+[plot] wrote experiment_scripts/results/weight_grid_meanflow/weight_grid_20220101_01.png
+[run] 2022-05-02 15:00  cleaned_idx=2919 legacy_idx=2919
+[plot] wrote experiment_scripts/results/weight_grid_meanflow/weight_grid_20220502_16.png
+[run] 2022-09-01 06:00  cleaned_idx=5838 legacy_idx=5838
+[plot] wrote experiment_scripts/results/weight_grid_meanflow/weight_grid_20220901_07.png
+[run] 2022-12-31 22:00  cleaned_idx=8758 legacy_idx=8758
+[plot] wrote experiment_scripts/results/weight_grid_meanflow/weight_grid_20221231_23.png
+[done] experiment_scripts/results/weight_grid_meanflow

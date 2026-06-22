@@ -8,12 +8,16 @@
 #   ./run_all.sh             # core subset (recommended first pass)
 #   ./run_all.sh all         # every ablation in this directory
 #   ./run_all.sh core        # explicit core subset
+#   ./run_all.sh extended    # only the bracketing / secondary runs
 #   ./run_all.sh 01 05 13    # only the scripts whose names start with these
 #
 # Groups (see README.md for the rationale of each):
-#   core : 00 baseline, the mf_ratio sweep, adaptive off, spectral off,
-#          channel-weight uniform -- the questions most central to the method.
-#   all  : core + the bracketing / secondary runs.
+#   core     : 00 baseline, the mf_ratio sweep, adaptive off, spectral off,
+#              channel-weight uniform -- the questions most central to the method.
+#   extended : 06 adaptive_p0.5, 08 spectral_strong, 10 chanw_qpepre_strong,
+#              11 ema_0.9999, 12 no_pos_embed, 13 attn -- the bracketing /
+#              secondary runs.
+#   all      : core + extended.
 
 cd "$(dirname "$0")"
 # _common.sh enables `set -euo pipefail` (right for a single training run); the
@@ -29,8 +33,9 @@ EXTENDED=(06_adaptive_p0.5 08_spectral_strong 10_chanw_qpepre_strong \
 
 selection=()
 case "${1:-core}" in
-  all)  selection=("${CORE[@]}" "${EXTENDED[@]}") ;;
-  core) selection=("${CORE[@]}") ;;
+  all)      selection=("${CORE[@]}" "${EXTENDED[@]}") ;;
+  core)     selection=("${CORE[@]}") ;;
+  extended) selection=("${EXTENDED[@]}") ;;
   *)    # treat args as name prefixes to filter all scripts
         for arg in "$@"; do
           for f in [0-9][0-9]_*.sh; do
