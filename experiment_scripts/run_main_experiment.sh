@@ -89,14 +89,21 @@ REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 OUT_DIR="${OUT_DIR:-${REPO_ROOT}/experiment_scripts/results/main_experiment}"
 mkdir -p "${OUT_DIR}"
 
+# Run on GPU 1 by default (overridable). The user pinned this experiment there.
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
+
 N_SEQUENCES="${N_SEQUENCES:-10}"
-N_STEPS="${N_STEPS:-12}"                  # autoregressive horizon, hours
-# 10 members = the project's metrics-plan standard (CLAUDE.md §7) and the
-# HREF-class convection-permitting EPS bracket; enables rank histograms.
-ENSEMBLE="${ENSEMBLE:-10}"
+# 6-hour autoregressive horizon: StormCast (Pathak et al. 2024) reports
+# "competitive 1-6 hour forecast skill" as its headline window, so the rollout
+# RMSE / lead-time curves run +1h … +6h.
+N_STEPS="${N_STEPS:-6}"                   # autoregressive horizon, hours
+# 5 members = the StormCast ensemble design (Pathak et al. 2024 §2.3: "a
+# 5-member ensemble forecast" propagated autoregressively each hour).
+ENSEMBLE="${ENSEMBLE:-5}"
 DIFFUSION_NFE="${DIFFUSION_NFE:-18}"      # 18 Heun steps = 36 NFE
-# Space-separated list — each NFE becomes its own row flowcast_nfe<N>.
-FLOWCAST_NFES="${FLOWCAST_NFES:-10 15 20}"
+# Space-separated list — each NFE becomes its own row flowcast_nfe<N>. Pinned to
+# the single K=10 sampler for this experiment (one FlowCast row in the scoreboard).
+FLOWCAST_NFES="${FLOWCAST_NFES:-10}"
 # MeanFlow average-velocity sampler NFEs — each becomes a row meanflow_nfe<N>.
 # 1 = the headline one-step sampler, 2 = the config default. Leave empty to
 # skip the MeanFlow leg entirely.
@@ -309,8 +316,12 @@ LEGS = [
     ("cleaned_edm",  ROOT / "cleaned_2M" / "scoreboard.csv", "diffusion"),
 ]
 for nfe in NFES:
+    # compare_diffusion_vs_flowcast.py names the row "flowcast" when only one NFE
+    # is requested, else "flowcast_nfe<N>" — mirror that so the stitch finds the
+    # source row in the single-NFE case (e.g. FLOWCAST_NFES="15").
+    src_key = "flowcast" if len(NFES) == 1 else f"flowcast_nfe{nfe}"
     LEGS.append(
-        (f"cleaned_flow_nfe{nfe}", ROOT / "cleaned_2M" / "scoreboard.csv", f"flowcast_nfe{nfe}")
+        (f"cleaned_flow_nfe{nfe}", ROOT / "cleaned_2M" / "scoreboard.csv", src_key)
     )
 # MeanFlow rows. compare_diffusion_vs_flowcast.py names the row "meanflow" when
 # only one NFE is requested, else "meanflow_nfe<N>" — mirror that here so the

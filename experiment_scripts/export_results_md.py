@@ -7,10 +7,9 @@ headline numbers, per-channel / per-threshold breakdowns, and the encoding and
 NFE/qpw ablations. Every section states its provenance (which CSV, which
 checkpoints) so the document is traceable and regenerable.
 
-Pure file reads; no GPU, no inference. Run after the experiments have populated
-``results/`` (see ``run_main_experiment.sh``, ``run_log1p_ablation.sh``,
-``run_flowcast_nfe_sweep.sh``). Missing inputs are skipped with a visible note
-rather than failing.
+Pure file reads; no GPU, no inference. Run after ``run_main_experiment.sh`` has
+populated ``results/main_experiment/``. Missing inputs are skipped with a
+visible note rather than failing.
 
 Usage::
 
@@ -131,7 +130,8 @@ def sec_rollout() -> str:
     if header is None:
         return missing("main_experiment/rmse_per_step_3way.csv", "run_main_experiment.sh")
     channels = header[2:]
-    want_steps = [1, 3, 6, 12]
+    # 6-hour rollout horizon (StormCast 1-6 h skill window): report every lead.
+    want_steps = [1, 2, 3, 4, 5, 6]
     by = {}
     for r in data:
         by.setdefault(r[0], {})[int(r[1])] = r[2:]
@@ -143,28 +143,6 @@ def sec_rollout() -> str:
                 rows.append([label(m), s] + [fnum(v) for v in steps[s]])
     return ("RMSE (physical units) at selected lead times:\n\n"
             + md_table(head, rows))
-
-
-def sec_log1p() -> str:
-    header, data = read_csv(RESULTS / "log1p_ablation" / "scoreboard_log1p.csv")
-    if header is None:
-        return missing("log1p_ablation/scoreboard_log1p.csv", "run_log1p_ablation.sh")
-    rows = [[r[0]] + [fnum(v) for v in r[1:]] for r in data]
-    return md_table(["Run"] + list(header[1:]), rows)
-
-
-def sec_nfe() -> str:
-    out = []
-    for method, sub in (("FlowCast", "flowcast_nfe_sweep"),
-                        ("MeanFlow", "meanflow_nfe_sweep")):
-        header, data = read_csv(RESULTS / sub / "nfe_sweep.csv")
-        if header is None:
-            out.append(missing(f"{sub}/nfe_sweep.csv", "run_flowcast_nfe_sweep.sh"))
-            continue
-        rows = [[fnum(v, 3) for v in r] for r in data]
-        out.append(f"**{method}** (`results/{sub}/nfe_sweep.csv`):\n\n"
-                   + md_table(list(header), rows))
-    return "\n\n".join(out)
 
 
 # ---------------------------------------------------------------------------
@@ -180,8 +158,11 @@ def build(out: Path):
     )
     chunks.append(
         "**Scope.** All evaluation is on the 2022 validation year with "
-        "**ten-member ensembles** (the project standard; HREF-class EPS "
-        "bracket). The cleaned pipeline is the 192x96, log1p-qpepre store; the "
+        "**five-member ensembles** (the StormCast ensemble design, Pathak et "
+        "al. 2024 §2.3: a 5-member ensemble propagated autoregressively each "
+        "hour). Forecasts are rolled out autoregressively over a **6-hour "
+        "horizon** (+1 h … +6 h), matching StormCast's headline 1-6 h skill "
+        "window. The cleaned pipeline is the 192x96, log1p-qpepre store; the "
         "regression mean (`StormCastUNet.0.8000`) is shared by every cleaned "
         "head. Matched budget = ~2M training samples: cleaned EDM at step "
         "31000 (batch 64), FlowCast at step 20000 (batch 96). Precipitation "
@@ -206,35 +187,20 @@ def build(out: Path):
         "Source: `results/main_experiment/cleaned_2M/{rmse,crps}_per_channel.csv`.")
     add("3. Precipitation skill by threshold (cleaned, ~2M)", sec_per_threshold(),
         "Source: `results/main_experiment/cleaned_2M/per_threshold.csv`. "
-        "CSI/POD/HSS higher better; FAR lower better. Scored at two neighbourhood "
-        "kernels on the ~2 km grid: **10 km** (5x5 px) and **0.25 deg** (13x13 px, "
-        "ERA5 scale). CSI/POD/FAR/HSS use neighbourhood-max pooling (an event "
-        "counts if any pixel within the kernel exceeds the threshold); FSS uses "
-        "fractional coverage. Single-pixel exact-match is no longer reported "
-        "(it collapses to ~0 at heavy-rain thresholds — the double-penalty "
-        "artifact the neighbourhood scoring removes).")
+        "CSI/POD/HSS higher better; FAR lower better. Scored at the four "
+        "StormCast (Pathak et al. 2024, Fig. 3) pooling windows on the ~2 km "
+        "grid: **3 km** (1x1 px, grid scale), **15 km** (7x7 px), **27 km** "
+        "(13x13 px) and **45 km** (23x23 px). CSI/POD/FAR/HSS use "
+        "neighbourhood-max pooling (an event counts if any pixel within the "
+        "window exceeds the threshold); FSS uses fractional coverage. The 3 km "
+        "(grid-scale) categorical scores collapse toward 0 at heavy-rain "
+        "thresholds — the single-pixel double-penalty the larger windows relax.")
     add("4. Heavy-rain FSS at >=16 mm/h (cleaned, ~2M)", sec_fss(),
         "Source: `results/main_experiment/cleaned_2M/fss_nbhd.csv`. Fractions "
-        "Skill Score (Roberts & Lean 2008) per threshold at each neighbourhood "
-        "kernel (10 km = 5x5 px, 0.25 deg = 13x13 px).")
+        "Skill Score (Roberts & Lean 2008) per threshold at each StormCast "
+        "pooling window (3 km = 1 px, 15 km = 7 px, 27 km = 13 px, 45 km = 23 px).")
     add("5. Autoregressive rollout RMSE vs. lead time", sec_rollout(),
         "Source: `results/main_experiment/rmse_per_step_3way.csv`.")
-    add("6. Encoding ablation — log1p vs. raw mm/h (FlowCast)", sec_log1p(),
-        "Source: `results/log1p_ablation/scoreboard_log1p.csv`. qpepre reported "
-        "in mm/h on both legs, so columns are directly comparable.")
-    add("7. NFE Pareto sweeps (FlowCast + MeanFlow)", sec_nfe(),
-        "Matched ~2M checkpoints, step/segment count K swept (single +1h "
-        "generative step, 12 sequences x 10 members); quality vs. wall-clock. "
-        "MeanFlow K=2 CRPS-qpepre (0.128) undercuts FlowCast at any K "
-        "(best 0.132 at K=50).")
-    add("8. qpepre channel-weight (qpw) sweep",
-        "Full 8-row sweep (standardised-unit single-step validation RMSE) lives "
-        "in `result_table.md` section C and thesis Table `tab:qpw`. Headline: "
-        "qpw=2.0 is the default (best t2m & qpepre); qpw=1.4 is the wind sweet "
-        "spot. Above qpw=2.0 skill degrades across the board. The per-run "
-        "validation CSVs are under `runs/flowcast_qpw_ablation/qpw*/.../run_0/`.",
-        "Source: training-loop validation CSVs (not a single harness scoreboard).")
-
     out.write_text("\n".join(chunks).rstrip() + "\n")
     print(f"[export_results_md] wrote {out}")
 

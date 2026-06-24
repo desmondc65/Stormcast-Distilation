@@ -109,8 +109,11 @@ CHANNEL_LABELS = {ch: f"{ch} [{u}]" for ch, u in CHANNEL_UNITS.items()}
 DIFFUSION_CONDITIONS = ["state", "regression", "invariant"]
 REGRESSION_CONDITIONS = ["state", "background", "invariant"]
 
-# qpepre categorical-skill thresholds (mm/h).
-PRECIP_THRESHOLDS = [0.1, 1.0, 5.0, 10.0, 16.0, 32.0]
+# qpepre categorical-skill thresholds (mm/h). 32 mm/h dropped: at the 5-member
+# ensemble-mean field almost nothing exceeds it, so CSI/POD/HSS collapse to ~0
+# and FAR is undefined (0/0 -> "--") — an uninformative column. 16 mm/h is now
+# the heavy-rain headline (P16 / FSS-P16).
+PRECIP_THRESHOLDS = [0.1, 1.0, 5.0, 10.0, 16.0]
 P16_THRESHOLD = 16.0
 
 # FSS pooling half-widths (cells) — legacy default, kept for the FlowCast NFE
@@ -118,24 +121,31 @@ P16_THRESHOLD = 16.0
 # now scores at the two physically-anchored neighbourhood kernels below.
 FSS_WINDOWS_PIX = [3, 7, 15]
 
-# Neighbourhood kernels for ALL spatial precip skill scores (CSI/POD/FAR/HSS +
-# FSS). Both the cleaned 192x96 and legacy 224x128 grids sit on the same ~2 km
-# isotropic RWRF mesh (dy~1.997 km / 0.01794 deg lat, dx~2.008 km / 0.01969 deg
-# lon per pixel), so the kernels are the same number of *pixels* on both grids:
-#     5x5  px  (half-width w=2) ~= 10 km x 10 km   (9.99 x 10.04 km)
-#    13x13 px  (half-width w=6) ~= 0.25 deg ERA5 box (~25.6 x 26.1 km, ~0.25 deg)
+# Neighbourhood pooling windows for ALL spatial precip skill scores (CSI/POD/
+# FAR/HSS + FSS). These mirror StormCast (Pathak et al. 2024, Fig. 3), which
+# scores the FSS at four pooling-window sizes — 3 km (grid scale), 15, 27 and
+# 45 km — to show forecast skill across spatial scales. Both the cleaned 192x96
+# and legacy 224x128 grids sit on the same ~2 km isotropic RWRF mesh (dy~1.997 km
+# / 0.01794 deg lat, dx~2.008 km / 0.01969 deg lon per pixel), so each km target
+# maps to the nearest odd pixel window side (2w+1); the realised km is noted:
+#     3 km  -> 1x1  px  (half-width w=0)  ~= grid scale (~2 km on the RWRF mesh)
+#    15 km  -> 7x7  px  (half-width w=3)  ~= 14 km  (13.98 x 14.06 km)
+#    27 km  -> 13x13 px  (half-width w=6) ~= 26 km  (25.96 x 26.10 km)
+#    45 km  -> 23x23 px  (half-width w=11) ~= 46 km  (45.93 x 46.18 km)
 # CSI/POD/FAR/HSS use NEIGHBOURHOOD-MAXIMUM pooling: a cell counts as an "event"
 # if ANY pixel within the kernel exceeds the threshold (binary dilation of BOTH
 # the forecast and the observation before the contingency table). This relaxes
 # the single-pixel exact-match double penalty (Ebert 2008 fuzzy verification).
 # FSS uses the fractional-coverage (mean-kernel) definition of Roberts & Lean
-# (2008) at the same kernels. Tuple = (label, half-width w); side = 2w+1 px.
+# (2008) at the same windows. Tuple = (label, half-width w); side = 2w+1 px.
 NBHD_KERNELS = [
-    ("10km", 2),       # 5x5 px
-    ("0p25deg", 6),    # 13x13 px
+    ("3km", 0),        # 1x1 px   (grid scale, ~2 km)
+    ("15km", 3),       # 7x7 px   (~14 km)
+    ("27km", 6),       # 13x13 px (~26 km)
+    ("45km", 11),      # 23x23 px (~46 km)
 ]
 # Pretty labels for scoreboard column headers.
-NBHD_PRETTY = {"10km": "10km", "0p25deg": "0.25°"}
+NBHD_PRETTY = {"3km": "3km", "15km": "15km", "27km": "27km", "45km": "45km"}
 
 
 # --- Dataset wiring ---------------------------------------------------------
@@ -1057,7 +1067,8 @@ def main():
     # Per-threshold, per-kernel detail dump. One row per (method, kernel,
     # metric); columns are the qpepre thresholds (mm/h). CSI/POD/FAR/HSS are the
     # neighbourhood-max contingency scores; fss is the fractional-coverage skill
-    # at that kernel. Kernels: 10km (5x5 px), 0p25deg (13x13 px).
+    # at that kernel. Windows (StormCast Fig. 3): 3km (1px, grid scale), 15km
+    # (7px), 27km (13px), 45km (23px).
     with open(args.output_dir / "per_threshold.csv", "w", newline="") as f:
         wtr = csv.writer(f)
         wtr.writerow(["method", "kernel", "metric", *PRECIP_THRESHOLDS])

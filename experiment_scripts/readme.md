@@ -12,27 +12,34 @@ across many initial times and ensemble members.
 
 | File | Purpose |
 | --- | --- |
-| [analysis_plan.md](analysis_plan.md) | The list of metrics and checkpoint pairings the user wants compared. |
-| [compare_diffusion_vs_flowcast.py](compare_diffusion_vs_flowcast.py) | Core runner: ensemble rollout for EDM diffusion + (optionally) FlowCast + scoreboard + per-channel PNG panels. Now supports `--kept-channels` and `--skip-flowcast` so the same script handles both the legacy 224×128 dataset and the cleaned 192×96 dataset. |
-| [**run_main_experiment.sh**](run_main_experiment.sh) | **Headline 4-way comparison** — legacy old-stormcast (raw qpepre, 224×128) vs. cleaned EDM (log1p) vs. FlowCast (log1p, qpw=2.0) vs. MeanFlow (log1p, qpw=2.0, 1–2 NFE), all cleaned legs at the matched ~2 M-sample checkpoint. Runs `compare_diffusion_vs_flowcast.py` twice and stitches the scoreboards. Set `MEANFLOW_NFES=""` to drop the MeanFlow leg. |
-| [run_compare_diffusion_vs_flowcast.sh](run_compare_diffusion_vs_flowcast.sh) | Older wrapper around [`log1p_ablation.py`](log1p_ablation.py); the log1p × architecture grid (D1/D2/F1/F2), separate from the main experiment. |
-| [**flowcast_nfe_sweep.py**](flowcast_nfe_sweep.py) / [run_flowcast_nfe_sweep.sh](run_flowcast_nfe_sweep.sh) | **NFE Pareto sweep** — hold the FlowCast checkpoint fixed, vary the Euler step count `S ∈ {1, 2, ..., 50}` and record quality (RMSE / CRPS / CSI-M / FSS / HSS / FAR) and wall-clock per sequence. Replicates FlowCast paper Fig. 5 on the Taiwan RWRF domain. Writes `nfe_sweep.{csv,md}` plus `plot_{quality,time,pareto}_vs_nfe.png` for the presentation. |
-| [log1p_ablation.py](log1p_ablation.py) / [qpw_ablation.py](qpw_ablation.py) | Dedicated ablation harnesses. See [ablation.md](ablation.md) for the run matrix. |
-| [_eval_utils.py](_eval_utils.py) | Shared helpers: dataset wiring, regression + diffusion + flowcast checkpoint loaders, `MetricAccumulator` (RMSE / MAE / bias / CSI tables / radial PSD), `autoregressive_rollout`. |
-| [result_table.md](result_table.md) | Latest tabulated single-step skill at a fixed sample-budget cutoff; see CLAUDE.md §6.5 for the headline numbers. |
-| `results/<run-tag>/` | Created at runtime: `scoreboard.{md,csv}`, `per_threshold.csv`, `fss_p16.csv`, `rmse_per_channel.csv`, `crps_per_channel.csv`, plus a `panels/` tree with `panels/<channel>/seq{NN}_step{KK}.png` (truth + predictions + prediction − truth diffs, in physical units) and `panels/diff/<channel>/seq{NN}_step{KK}.png` (diff fields only). |
+| [compare_diffusion_vs_flowcast.py](compare_diffusion_vs_flowcast.py) | Core runner: ensemble rollout for EDM diffusion + FlowCast + MeanFlow, scoreboard, per-channel PNG panels, and neighbourhood precip skill at the StormCast pooling windows **3 / 15 / 27 / 45 km** (Pathak et al. 2024, Fig. 3). `--kept-channels` / `--skip-flowcast` let the same script score both the legacy 224×128 and cleaned 192×96 datasets. |
+| [**run_main_experiment.sh**](run_main_experiment.sh) | **Headline comparison** — legacy old-stormcast (raw qpepre, 224×128) vs. cleaned EDM (log1p) vs. FlowCast (**K=10**) vs. MeanFlow (**1–2 NFE**), cleaned legs at the matched ~2 M-sample checkpoint. **5-member ensembles, 6 h rollout** (StormCast eval design). Runs `compare_diffusion_vs_flowcast.py` twice (legacy + cleaned grids) and stitches the scoreboards. Defaults to GPU 1; set `MEANFLOW_NFES=""` to drop the MeanFlow leg. |
+| [export_results_md.py](export_results_md.py) | Consolidates the harness CSVs under `results/main_experiment/` into [results.md](results.md). Pure file reads, no GPU. |
+| [make_thesis_figures.py](make_thesis_figures.py) / [make_thesis_figures.sh](make_thesis_figures.sh) | Regenerate the data-driven thesis figures (scoreboard, per-channel RMSE/CRPS, CSI/FSS per pooling window, rollout RMSE, latency) from the CSVs, then rebuild `results.md`. CPU-only. |
+| [make_thesis_qualitative.sh](make_thesis_qualitative.sh) | GPU step: render the `truth | EDM | FlowCast | MeanFlow` field panels (viridis) for a couple of 2022 validation cases. |
+| [export_main_experiment_figures.py](export_main_experiment_figures.py) | LaTeX + matplotlib rendering of the `results/main_experiment/` scoreboard / per-threshold / RMSE tables and plots to PNG/PDF. |
+| [make_plain_latex_tables.py](make_plain_latex_tables.py) | Plain, paste-ready standalone booktabs tables (`.tex` + 300-dpi `.png`) of every `results.md` table **plus the inference-timing table** into [results/plain_latex_tables/](results/plain_latex_tables/). Via `pdflatex` → `pdftoppm`. Timing is device-aware: reads `results/timing/a6000.csv` (+ `h100.csv` when present) and adds an H100 column + A6000/H100 speed-up automatically. |
+| [make_dataset_overview_figures.py](make_dataset_overview_figures.py) | Dataset overview / sample-field figures for the data chapter. |
+| [run_timing.sh](run_timing.sh) / [run_timing_zettabyte.sh](run_timing_zettabyte.sh) | Inference-timing benchmark (local + zettabyte variants). |
+| [_eval_utils.py](_eval_utils.py) | Shared helpers: dataset wiring, regression/diffusion/flowcast/meanflow loaders, `MetricAccumulator` (RMSE / MAE / bias / CSI tables / radial PSD), `autoregressive_rollout`. |
+| [_nbhd_io.py](_nbhd_io.py) / [thesis_style.py](thesis_style.py) | Neighbourhood-kernel CSV schema helpers; shared viridis palette + matplotlib rcParams. |
+| `results/main_experiment/` | Created at runtime: `scoreboard_3way.{md,csv}`, per-leg `scoreboard.{md,csv}`, `per_threshold.csv`, `fss_nbhd.csv`, `rmse_per_channel.csv`, `rmse_per_step.csv`, `crps_per_channel.csv`, plus a `panels/` tree (`panels/<channel>/seq{NN}_step{KK}.png` = truth + predictions + diffs; `panels/diff/...` = diff fields only). |
 
 ---
 
 ## Main experiment — legacy vs. cleaned-2M (run this first)
 
-The thesis headline. Three rows compared on the same 2022 validation year:
+The thesis headline, scored the way StormCast (Pathak et al. 2024) evaluates:
+**5-member ensembles**, autoregressive **6-hour rollouts** (the paper's 1–6 h
+skill window), and precip skill at the four StormCast pooling windows
+(**3 / 15 / 27 / 45 km**). Five rows compared on the same 2022 validation year
+(D expands to one row per MeanFlow NFE):
 
 | Tag | Method | Dataset | Regression | Generative head | Encoding | Channel order | Grid |
 |---|---|---|---|---|---|---|---|
 | **A. `legacy_edm`** | Old StormCast (NVIDIA-style residual EDM) | [`exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full`](../exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full) | [`StormCastUNet.0.7500.mdlus`](../exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus) | [`EDMPrecond.0.70000.mdlus`](../exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus) | raw mm/h | `[t2m, u10, v10, qpepre]` | 224×128 |
 | **B. `cleaned_edm`** | New EDM teacher @ ~2 M samples | [`...cleaned_4_27_2026`](../exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026) | [`StormCastUNet.0.8000`](../runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus) | [`EDMPrecond.0.31000`](../runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus) | log1p(mm/h) | `[u10, v10, t2m, qpepre]` | 192×96 |
-| **C. `cleaned_flow`** | FlowCast student (qpw=2.0, spectral on qpepre) @ ~2 M samples | same as B | same as B | [`FlowCastPrecond.0.20000`](../runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus) | log1p(mm/h) | `[u10, v10, t2m, qpepre]` | 192×96 |
+| **C. `cleaned_flow_nfe10`** | FlowCast student (qpw=2.0, spectral on qpepre) @ ~2 M samples, **10 NFE** | same as B | same as B | [`FlowCastPrecond.0.20000`](../runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus) | log1p(mm/h) | `[u10, v10, t2m, qpepre]` | 192×96 |
 | **D. `cleaned_meanflow_nfe{1,2}`** | MeanFlow student (avg-velocity, qpw=2.0, spectral on qpepre) @ ~2 M samples, 1–2 NFE | same as B | same as B | [`MeanFlowPrecond.0.20000`](../runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus) | log1p(mm/h) | `[u10, v10, t2m, qpepre]` | 192×96 |
 
 **Step-to-samples reminder** (for the ~2 M-sample anchor):
@@ -54,19 +61,19 @@ Outputs:
 experiment_scripts/results/main_experiment/
 ├── legacy/                                # leg A
 │   ├── scoreboard.{md,csv}
-│   ├── per_threshold.csv, fss_p16.csv, rmse_per_channel.csv, crps_per_channel.csv
+│   ├── per_threshold.csv, fss_nbhd.csv, rmse_per_channel.csv, rmse_per_step.csv, crps_per_channel.csv
 │   └── panels/
 │       ├── <channel>/seq{NN}_step{KK}.png       # 2-row: row 1 = truth | diffusion (physical units)
 │       │                                        #        row 2 = -      | diffusion − truth   (Δ units, symmetric)
 │       └── diff/<channel>/seq{NN}_step{KK}.png  # 1-row: diffusion − truth only
 ├── cleaned_2M/                            # legs B + C
 │   ├── scoreboard.{md,csv}
-│   ├── per_threshold.csv, fss_p16.csv, rmse_per_channel.csv, crps_per_channel.csv
+│   ├── per_threshold.csv, fss_nbhd.csv, rmse_per_channel.csv, rmse_per_step.csv, crps_per_channel.csv
 │   └── panels/
 │       ├── <channel>/seq{NN}_step{KK}.png       # row 1 = truth | diffusion | flowcast
 │       │                                        # row 2 = -      | diffusion − truth | flowcast − truth
 │       └── diff/<channel>/seq{NN}_step{KK}.png  # diffusion − truth | flowcast − truth only
-└── scoreboard_3way.{md,csv}               # final stitched 3-row table
+└── scoreboard_3way.{md,csv}               # final stitched table (legacy + cleaned EDM/FlowCast/MeanFlow rows)
 ```
 
 Channel-keyed subdirectories (`<channel>` ∈ `{t2m, u10, v10, qpepre}`) make
@@ -83,11 +90,13 @@ Env-var overrides:
 
 | Var | Default | Meaning |
 |---|---|---|
-| `N_SEQUENCES` | 24 | Number of evenly-spaced initial times across 2022. |
-| `N_STEPS` | 6 | Autoregressive horizon (hours). |
-| `ENSEMBLE` | 4 | Members per sequence (kernel CRPS needs ≥ 2). |
+| `N_SEQUENCES` | 10 | Number of evenly-spaced initial times across 2022. |
+| `N_STEPS` | 6 | Autoregressive horizon (hours) — StormCast 1–6 h window. |
+| `ENSEMBLE` | 5 | Members per sequence (StormCast 5-member ensemble; kernel CRPS needs ≥ 2). |
 | `DIFFUSION_NFE` | 18 | EDM Heun steps (2N-1 = 35 NFE). |
-| `FLOWCAST_NFE` | 10 | FlowCast Euler steps (= 10 NFE). |
+| `FLOWCAST_NFES` | `"10"` | FlowCast Euler steps; space-separated, one scoreboard row per value (= NFE). |
+| `MEANFLOW_NFES` | `"1 2"` | MeanFlow avg-velocity NFEs, one row each; `""` drops the MeanFlow leg. |
+| `CUDA_VISIBLE_DEVICES` | 1 | GPU to run on. |
 | `N_PANELS_SEQ` | 6 | How many sequences to render PNGs for, per leg. |
 | `PANEL_STEPS` | "" (first + last) | Space-separated lead-time indices to render. E.g. `"0 2 5"`. |
 | `SEED` | 0 | Base RNG; member `k` uses `seed + 1000·k`. |
@@ -118,7 +127,7 @@ at the *same dates of 2022* up to a small offset from missing-data
 filtering. That's the closest thing to "matched initialisations" you can
 have given the dataset gap.
 
-### What to look for in the 3-row scoreboard
+### What to look for in the scoreboard
 
 - **A → B**: isolates the value of the cleaning pipeline + log1p encoding
   + retraining on the cropped grid. A win for B at matched 2 M samples
@@ -126,10 +135,12 @@ have given the dataset gap.
 - **B → C**: isolates the FlowCast (CFM) generative head vs. the EDM
   diffusion teacher. This is the FlowCast-paper claim re-tested on
   Taiwan RWRF. Expect FlowCast to beat EDM on CRPS and CSI-M while
-  matching or slightly trailing on RMSE — see
-  [result_table.md](result_table.md) Tables A and C.
-- **A → C**: end-to-end win of the new pipeline over the legacy baseline.
-  This is the headline number for the thesis.
+  matching or slightly trailing on RMSE — see the headline scoreboard in
+  [results.md](results.md) §1.
+- **C → D**: MeanFlow (average-velocity, 1–2 NFE) vs. FlowCast (K=10) at
+  matched budget — the few-step novelty A/B.
+- **A → C / A → D**: end-to-end win of the new pipeline over the legacy
+  baseline. This is the headline number for the thesis.
 
 ---
 
@@ -138,9 +149,11 @@ have given the dataset gap.
 ```bash
 # Direct single-config run (one dataset, one cell of the matrix)
 python experiment_scripts/compare_diffusion_vs_flowcast.py \
-    --n-sequences 32 --n-steps 12 --ensemble 4 \
-    --diffusion-checkpoint runs/.../EDMPrecond.0.30000.mdlus \
-    --flowcast-checkpoint  runs/.../FlowCastPrecond.0.25000.mdlus \
+    --n-sequences 10 --n-steps 6 --ensemble 5 \
+    --diffusion-checkpoint runs/.../EDMPrecond.0.31000.mdlus \
+    --flowcast-checkpoint  runs/.../FlowCastPrecond.0.20000.mdlus \
+    --flowcast-num-steps 10 \
+    --meanflow-checkpoint  runs/.../MeanFlowPrecond.0.20000.mdlus --meanflow-num-steps 1 2 \
     --regression-checkpoint runs/.../StormCastUNet.0.8000.mdlus
 
 # Legacy-only (old dataset, old checkpoints, no FlowCast).
@@ -155,9 +168,6 @@ python experiment_scripts/compare_diffusion_vs_flowcast.py \
     --diffusion-checkpoint  exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus \
     --skip-flowcast \
     --output-dir experiment_scripts/results/legacy_only
-
-# log1p vs raw ablation (orthogonal to the main experiment)
-bash experiment_scripts/run_compare_diffusion_vs_flowcast.sh
 ```
 
 The default dataset (no `--data-location` override) is the cleaned 192×96

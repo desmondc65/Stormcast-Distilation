@@ -175,7 +175,7 @@ def fig_time_per_seq(results_root: Path, out: Path):
         ax.set_ylim(10 ** np.floor(np.log10(finite.min())),
                     finite.max() * 1.8)
     ax.set_ylabel(r"wall-clock per sequence (s, log) $\downarrow$")
-    ax.set_title(r"Inference cost — per 12 h rollout sequence $\downarrow$")
+    ax.set_title(r"Inference cost — per 6 h rollout sequence $\downarrow$")
     ax.set_xticks(range(len(methods)))
     ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=8)
     for k, v in enumerate(vals):

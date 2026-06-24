@@ -4,21 +4,21 @@
 \usepackage{array}
 \renewcommand{\arraystretch}{1.15}
 \begin{document}
-\begin{tabular}{llcccccc}
+\begin{tabular}{llccccc}
 \toprule
-\multicolumn{8}{c}{\textbf{Neighbourhood kernel: 0.25°}} \\
+\multicolumn{7}{c}{\textbf{Neighbourhood kernel: 15 km}} \\
 \midrule
-\textbf{Method} & \textbf{Metric} & $\geq 0.1$ mm/h & $\geq 1.0$ mm/h & $\geq 5.0$ mm/h & $\geq 10.0$ mm/h & $\geq 16.0$ mm/h & $\geq 32.0$ mm/h \\
+\textbf{Method} & \textbf{Metric} & $\geq 0.1$ mm/h & $\geq 1.0$ mm/h & $\geq 5.0$ mm/h & $\geq 10.0$ mm/h & $\geq 16.0$ mm/h \\
 \midrule
-stormcast (224$\times$128) & csi $\uparrow$ & \textbf{0.4223} & \textbf{0.2401} & \textbf{0.0199} & \textbf{0.0090} & \textbf{0.0058} & \textbf{0.0000} \\
+stormcast (224$\times$128) & csi $\uparrow$ & \textbf{0.3586} & \textbf{0.2379} & \textbf{0.0685} & \textbf{0.0376} & \textbf{0.0213} \\
 \midrule
-stormcast (224$\times$128) & far $\downarrow$ & \textbf{0.5398} & \textbf{0.5859} & \textbf{0.5034} & \textbf{0.5537} & \textbf{0.1076} & \textbf{--} \\
+stormcast (224$\times$128) & far $\downarrow$ & \textbf{0.6173} & \textbf{0.6179} & \textbf{0.2460} & \textbf{0.3200} & \textbf{0.2537} \\
 \midrule
-stormcast (224$\times$128) & pod $\uparrow$ & \textbf{0.8368} & \textbf{0.3637} & \textbf{0.0203} & \textbf{0.0091} & \textbf{0.0058} & \textbf{0.0000} \\
+stormcast (224$\times$128) & pod $\uparrow$ & \textbf{0.8503} & \textbf{0.3868} & \textbf{0.0701} & \textbf{0.0383} & \textbf{0.0215} \\
 \midrule
-stormcast (224$\times$128) & hss $\uparrow$ & \textbf{0.2099} & \textbf{0.2342} & \textbf{0.0343} & \textbf{0.0169} & \textbf{0.0115} & \textbf{0.0000} \\
+stormcast (224$\times$128) & hss $\uparrow$ & \textbf{0.1892} & \textbf{0.2740} & \textbf{0.1226} & \textbf{0.0711} & \textbf{0.0415} \\
 \midrule
-stormcast (224$\times$128) & fss $\uparrow$ & \textbf{0.5126} & \textbf{0.2933} & \textbf{0.0234} & \textbf{0.0052} & \textbf{0.0036} & \textbf{0.0000} \\
+stormcast (224$\times$128) & fss $\uparrow$ & \textbf{0.5456} & \textbf{0.3548} & \textbf{0.1220} & \textbf{0.0420} & \textbf{0.0273} \\
 \bottomrule
 \end{tabular}
 \end{document}

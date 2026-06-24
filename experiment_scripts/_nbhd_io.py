@@ -1,10 +1,12 @@
 """Shared IO + schema helpers for the neighbourhood precip metrics.
 
-``compare_diffusion_vs_flowcast.py`` now scores CSI/POD/FAR/HSS/FSS at two
-neighbourhood kernels on the ~2 km RWRF grid:
+``compare_diffusion_vs_flowcast.py`` now scores CSI/POD/FAR/HSS/FSS at the four
+StormCast (Pathak et al. 2024, Fig. 3) pooling windows on the ~2 km RWRF grid:
 
-    10km     = 5x5  px  (half-width w=2)  ~= 10 km x 10 km
-    0p25deg  = 13x13 px  (half-width w=6)  ~= 0.25 deg (ERA5 grid box)
+    3km   = 1x1   px  (half-width w=0)   ~= grid scale (~2 km)
+    15km  = 7x7   px  (half-width w=3)   ~= 14 km
+    27km  = 13x13 px  (half-width w=6)   ~= 26 km
+    45km  = 23x23 px  (half-width w=11)  ~= 46 km
 
 This changed two CSV schemas the figure/results scripts consume:
 
@@ -25,13 +27,14 @@ import csv
 from pathlib import Path
 
 # Canonical kernel order + display labels. Mirrors NBHD_KERNELS / NBHD_PRETTY in
-# compare_diffusion_vs_flowcast.py.
-KERNELS = ["10km", "0p25deg"]
-KERNEL_PRETTY = {"10km": "10 km", "0p25deg": "0.25°"}
+# compare_diffusion_vs_flowcast.py (StormCast Fig. 3 pooling windows).
+KERNELS = ["3km", "15km", "27km", "45km"]
+KERNEL_PRETTY = {"3km": "3 km", "15km": "15 km", "27km": "27 km", "45km": "45 km"}
 # Pixel side length per kernel (for axis labels / captions).
-KERNEL_PX = {"10km": 5, "0p25deg": 13}
-# Where a single value/figure is forced, report the ERA5-scale 0.25 deg kernel.
-HEADLINE_KERNEL = "0p25deg"
+KERNEL_PX = {"3km": 1, "15km": 7, "27km": 13, "45km": 23}
+# Where a single value/figure is forced, report the 15 km meso-gamma window
+# (the scale at which StormCast reports useful light-rain predictability).
+HEADLINE_KERNEL = "15km"
 
 
 def kernel_pretty(label: str | None) -> str:

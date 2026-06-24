@@ -4,18 +4,16 @@
 \usepackage{array}
 \renewcommand{\arraystretch}{1.15}
 \begin{document}
-\begin{tabular}{lcccccc}
+\begin{tabular}{lccccc}
 \toprule
-\multicolumn{7}{c}{\textbf{FSS by threshold — 0.25° kernel} $\uparrow$} \\
+\multicolumn{6}{c}{\textbf{FSS by threshold — 15 km kernel} $\uparrow$} \\
 \midrule
-\textbf{Method} & $\geq 0.1$ mm/h & $\geq 1.0$ mm/h & $\geq 5.0$ mm/h & $\geq 10.0$ mm/h & $\geq 16.0$ mm/h & $\geq 32.0$ mm/h \\
+\textbf{Method} & $\geq 0.1$ mm/h & $\geq 1.0$ mm/h & $\geq 5.0$ mm/h & $\geq 10.0$ mm/h & $\geq 16.0$ mm/h \\
 \midrule
-stormcast (192$\times$96) & 0.7733 & 0.5907 & 0.2719 & 0.0461 & \textbf{0.0010} & \textbf{0.0000} \\
-I-CFM (10 NFE) & 0.8013 & 0.5796 & 0.1497 & 0.0119 & 0.0000 & 0.0000 \\
-I-CFM (15 NFE) & 0.8100 & 0.6211 & 0.1839 & 0.0277 & 0.0000 & 0.0000 \\
-I-CFM (20 NFE) & \textbf{0.8113} & \textbf{0.6308} & 0.1700 & 0.0042 & 0.0000 & 0.0000 \\
-MeanFlow (1 NFE) & 0.7787 & 0.5455 & 0.2431 & \textbf{0.0644} & 0.0010 & 0.0000 \\
-MeanFlow (2 NFE) & 0.7931 & 0.5377 & \textbf{0.2739} & 0.0588 & 0.0000 & 0.0000 \\
+stormcast (192$\times$96) & 0.7794 & 0.5973 & 0.2668 & 0.0281 & 0.0076 \\
+I-CFM & 0.8046 & \textbf{0.6290} & 0.2262 & 0.0148 & 0.0038 \\
+MeanFlow (1 NFE) & 0.8037 & 0.6153 & 0.2815 & 0.0416 & 0.0017 \\
+MeanFlow (2 NFE) & \textbf{0.8079} & 0.6016 & \textbf{0.3094} & \textbf{0.0553} & \textbf{0.0264} \\
 \bottomrule
 \end{tabular}
 \end{document}

@@ -1,9 +1,0 @@
-data: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full_cleaned_4_27_2026
-hr_size: (192, 96)
-qpepre_log1p: True
-valid_dates: ['2022/01/01', '2022/12/31']
-n_times: 10
-t_indices: [0, 973, 1946, 2919, 3892, 4865, 5838, 6811, 7784, 8758]
-hr_channels: ['t2m', 'u10', 'v10', 'qpepre']
-lr_channels: [np.str_('mslp'), np.str_('t2m'), np.str_('u10'), np.str_('v10'), np.str_('q1000'), np.str_('q850'), np.str_('q500'), np.str_('q250'), np.str_('t1000'), np.str_('t850'), np.str_('t500'), np.str_('t250'), np.str_('u1000'), np.str_('u850'), np.str_('u500'), np.str_('u250'), np.str_('v1000'), np.str_('v850'), np.str_('v500'), np.str_('v250'), np.str_('z1000'), np.str_('z850'), np.str_('z500'), np.str_('z250')]
-invariant_channels: ['lsm', 'orog']
