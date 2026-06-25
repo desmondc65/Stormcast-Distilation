@@ -23,9 +23,16 @@
 # Dataset spatial shape: 192 (y) x 96 (x). qpepre is stored as log1p(mm/h); the
 # loader's denormalize_state auto-applies expm1 for downstream metrics.
 #
+# The CORE subset (00,01,02,03,04,05,07,09) has already been trained and
+# archived to Azure, so with no args this now trains the EXTENDED group --
+# the still-missing bracketing / secondary runs (06,08,10,11,12,13).
+# run_all.sh skips any ablation whose final checkpoint already exists, so this
+# stays idempotent and safe to re-run.
+#
 # Usage (args are forwarded verbatim to run_all.sh):
-#   ./train_meanflow_ablations.sh           # core subset (recommended first pass)
-#   ./train_meanflow_ablations.sh all       # every ablation
+#   ./train_meanflow_ablations.sh           # EXTENDED group: the missing 06/08/10/11/12/13
+#   ./train_meanflow_ablations.sh core      # the original core subset
+#   ./train_meanflow_ablations.sh all       # every ablation (skips ones already done)
 #   ./train_meanflow_ablations.sh 01 05 13  # only scripts starting 01_/05_/13_
 
 # Mirror all stdout/stderr of the whole suite (conda activation + every per-run
@@ -49,5 +56,12 @@ if [[ ! -f "${suite}" ]]; then
     exit 1
 fi
 
-echo "Launching MeanFlow ablation suite: ${suite} $*"
-bash "${suite}" "$@"
+# Default to the EXTENDED group (the ablations not covered by the finished
+# core pass); any explicit args (core / all / name prefixes) override it.
+args=("$@")
+if [[ ${#args[@]} -eq 0 ]]; then
+    args=(extended)
+fi
+
+echo "Launching MeanFlow ablation suite: ${suite} ${args[*]}"
+bash "${suite}" "${args[@]}"
