@@ -1,0 +1,24 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.15}
+\begin{document}
+\begin{tabular}{llccccc}
+\toprule
+\multicolumn{7}{c}{\textbf{Neighbourhood kernel: 45 km}} \\
+\midrule
+\textbf{Method} & \textbf{Metric} & $\geq 0.1$ mm/h & $\geq 1.0$ mm/h & $\geq 5.0$ mm/h & $\geq 10.0$ mm/h & $\geq 16.0$ mm/h \\
+\midrule
+stormcast (224$\times$128) & csi $\uparrow$ & \textbf{0.5458} & \textbf{0.4095} & \textbf{0.1075} & \textbf{0.0587} & \textbf{0.0347} \\
+\midrule
+stormcast (224$\times$128) & far $\downarrow$ & \textbf{0.4440} & \textbf{0.4624} & \textbf{0.1123} & \textbf{0.1633} & \textbf{0.1030} \\
+\midrule
+stormcast (224$\times$128) & pod $\uparrow$ & \textbf{0.9674} & \textbf{0.6321} & \textbf{0.1090} & \textbf{0.0594} & \textbf{0.0349} \\
+\midrule
+stormcast (224$\times$128) & hss $\uparrow$ & \textbf{0.0929} & \textbf{0.3513} & \textbf{0.1723} & \textbf{0.1041} & \textbf{0.0650} \\
+\midrule
+stormcast (224$\times$128) & fss $\uparrow$ & \textbf{0.6159} & \textbf{0.4557} & \textbf{0.1346} & \textbf{0.0485} & \textbf{0.0230} \\
+\bottomrule
+\end{tabular}
+\end{document}

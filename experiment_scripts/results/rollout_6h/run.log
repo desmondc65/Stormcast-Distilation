@@ -1,0 +1,182 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/LowRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/stormcast/datasets/data_loader_rwrf_era5_stable.py:254: FutureWarning: The return type of `Dataset.dims` will be changed to return a set of dimension names in future, in order to be more consistent with `DataArray.dims`. To access a mapping from dimension names to lengths, please use `Dataset.sizes`.
+  return np.ones(ds.dims["time"], dtype=bool)
+Zarr store /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_exp3_L_24_H_24_train_2_5_years_full/HighRes/stormcast_test_valid.zarr lacks 'valid' variable; assuming all timestamps are valid
+[device] cuda:0
+[data] new-domain: samples=8759  channels=['u10', 'v10', 't2m', 'qpepre']
+[data] original-domain: samples=8759  channels=['t2m', 'u10', 'v10', 'qpepre']
+[t0] 20 initial time(s), rollout to +6h: 0(01-01 00Z), 460(01-20 04Z), 921(02-08 09Z), 1381(02-27 13Z), 1842(03-18 18Z), 2303(04-06 23Z), 2763(04-26 03Z), 3224(05-15 08Z), 3685(06-03 13Z), 4145(06-22 17Z), 4606(07-11 22Z), 5066(07-31 02Z), 5527(08-19 07Z), 5988(09-07 12Z), 6448(09-26 16Z), 6909(10-15 21Z), 7370(11-04 02Z), 7830(11-23 06Z), 8291(12-12 11Z), 8752(12-31 16Z)
+[load] new-domain regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+[load] new-domain diffusion /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus
+[run] new-domain EDM rollouts (6h, NFE/step=36)
+[run]   EDM 1/20 t0=0 (01-01 00Z) in 9.5s
+[run]   EDM 2/20 t0=460 (01-20 04Z) in 9.7s
+[run]   EDM 3/20 t0=921 (02-08 09Z) in 10.4s
+[run]   EDM 4/20 t0=1381 (02-27 13Z) in 9.6s
+[run]   EDM 5/20 t0=1842 (03-18 18Z) in 9.9s
+[run]   EDM 6/20 t0=2303 (04-06 23Z) in 9.8s
+[run]   EDM 7/20 t0=2763 (04-26 03Z) in 9.7s
+[run]   EDM 8/20 t0=3224 (05-15 08Z) in 9.6s
+[run]   EDM 9/20 t0=3685 (06-03 13Z) in 9.8s
+[run]   EDM 10/20 t0=4145 (06-22 17Z) in 9.3s
+[run]   EDM 11/20 t0=4606 (07-11 22Z) in 10.4s
+[run]   EDM 12/20 t0=5066 (07-31 02Z) in 10.2s
+[run]   EDM 13/20 t0=5527 (08-19 07Z) in 9.8s
+[run]   EDM 14/20 t0=5988 (09-07 12Z) in 9.9s
+[run]   EDM 15/20 t0=6448 (09-26 16Z) in 9.9s
+[run]   EDM 16/20 t0=6909 (10-15 21Z) in 10.4s
+[run]   EDM 17/20 t0=7370 (11-04 02Z) in 10.0s
+[run]   EDM 18/20 t0=7830 (11-23 06Z) in 10.3s
+[run]   EDM 19/20 t0=8291 (12-12 11Z) in 9.8s
+[run]   EDM 20/20 t0=8752 (12-31 16Z) in 9.4s
+[load] flowcast /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus
+[run] FlowCast rollouts (NFE=10)
+[run]   CFM 1/20 t0=0 (01-01 00Z) in 3.0s
+[run]   CFM 2/20 t0=460 (01-20 04Z) in 3.0s
+[run]   CFM 3/20 t0=921 (02-08 09Z) in 3.1s
+[run]   CFM 4/20 t0=1381 (02-27 13Z) in 3.0s
+[run]   CFM 5/20 t0=1842 (03-18 18Z) in 2.9s
+[run]   CFM 6/20 t0=2303 (04-06 23Z) in 2.9s
+[run]   CFM 7/20 t0=2763 (04-26 03Z) in 2.9s
+[run]   CFM 8/20 t0=3224 (05-15 08Z) in 2.9s
+[run]   CFM 9/20 t0=3685 (06-03 13Z) in 2.9s
+[run]   CFM 10/20 t0=4145 (06-22 17Z) in 2.9s
+[run]   CFM 11/20 t0=4606 (07-11 22Z) in 3.0s
+[run]   CFM 12/20 t0=5066 (07-31 02Z) in 3.0s
+[run]   CFM 13/20 t0=5527 (08-19 07Z) in 3.0s
+[run]   CFM 14/20 t0=5988 (09-07 12Z) in 3.0s
+[run]   CFM 15/20 t0=6448 (09-26 16Z) in 2.9s
+[run]   CFM 16/20 t0=6909 (10-15 21Z) in 2.9s
+[run]   CFM 17/20 t0=7370 (11-04 02Z) in 2.9s
+[run]   CFM 18/20 t0=7830 (11-23 06Z) in 2.9s
+[run]   CFM 19/20 t0=8291 (12-12 11Z) in 2.9s
+[run]   CFM 20/20 t0=8752 (12-31 16Z) in 2.9s
+[load] meanflow /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[run] MeanFlow rollouts (NFE=2)
+[run]   MeanFlow 1/20 t0=0 (01-01 00Z) in 1.1s
+[run]   MeanFlow 2/20 t0=460 (01-20 04Z) in 1.1s
+[run]   MeanFlow 3/20 t0=921 (02-08 09Z) in 1.1s
+[run]   MeanFlow 4/20 t0=1381 (02-27 13Z) in 1.1s
+[run]   MeanFlow 5/20 t0=1842 (03-18 18Z) in 1.1s
+[run]   MeanFlow 6/20 t0=2303 (04-06 23Z) in 1.1s
+[run]   MeanFlow 7/20 t0=2763 (04-26 03Z) in 1.1s
+[run]   MeanFlow 8/20 t0=3224 (05-15 08Z) in 1.1s
+[run]   MeanFlow 9/20 t0=3685 (06-03 13Z) in 1.1s
+[run]   MeanFlow 10/20 t0=4145 (06-22 17Z) in 1.1s
+[run]   MeanFlow 11/20 t0=4606 (07-11 22Z) in 1.1s
+[run]   MeanFlow 12/20 t0=5066 (07-31 02Z) in 1.2s
+[run]   MeanFlow 13/20 t0=5527 (08-19 07Z) in 1.1s
+[run]   MeanFlow 14/20 t0=5988 (09-07 12Z) in 1.1s
+[run]   MeanFlow 15/20 t0=6448 (09-26 16Z) in 1.1s
+[run]   MeanFlow 16/20 t0=6909 (10-15 21Z) in 1.2s
+[run]   MeanFlow 17/20 t0=7370 (11-04 02Z) in 1.1s
+[run]   MeanFlow 18/20 t0=7830 (11-23 06Z) in 1.1s
+[run]   MeanFlow 19/20 t0=8291 (12-12 11Z) in 1.1s
+[run]   MeanFlow 20/20 t0=8752 (12-31 16Z) in 1.1s
+[load] original-domain regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_reg_L_24_H_4_train_2_5_years/0/checkpoints_regression/StormCastUNet.0.7500.mdlus
+[load] original-domain diffusion /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/exp_3_train_2_5_yrs_val_1yr_tp1/exp_3_dif_L_24_H_4_train_2_5_years/0/checkpoints_diffusion/EDMPrecond.0.70000.mdlus
+[run] original-domain EDM rollouts (6h)
+[run]   legacy 1/20 t0=0 (01-01 00Z) in 18.2s
+[run]   legacy 2/20 t0=460 (01-20 04Z) in 18.2s
+[run]   legacy 3/20 t0=921 (02-08 09Z) in 17.9s
+[run]   legacy 4/20 t0=1381 (02-27 13Z) in 18.7s
+[run]   legacy 5/20 t0=1842 (03-18 18Z) in 18.5s
+[run]   legacy 6/20 t0=2303 (04-06 23Z) in 18.6s
+[run]   legacy 7/20 t0=2763 (04-26 03Z) in 18.6s
+[run]   legacy 8/20 t0=3224 (05-15 08Z) in 18.5s
+[run]   legacy 9/20 t0=3685 (06-03 13Z) in 18.4s
+[run]   legacy 10/20 t0=4145 (06-22 17Z) in 18.5s
+[run]   legacy 11/20 t0=4606 (07-11 22Z) in 18.6s
+[run]   legacy 12/20 t0=5066 (07-31 02Z) in 18.5s
+[run]   legacy 13/20 t0=5527 (08-19 07Z) in 18.3s
+[run]   legacy 14/20 t0=5988 (09-07 12Z) in 18.2s
+[run]   legacy 15/20 t0=6448 (09-26 16Z) in 18.3s
+[run]   legacy 16/20 t0=6909 (10-15 21Z) in 18.6s
+[run]   legacy 17/20 t0=7370 (11-04 02Z) in 18.5s
+[run]   legacy 18/20 t0=7830 (11-23 06Z) in 18.4s
+[run]   legacy 19/20 t0=8291 (12-12 11Z) in 18.6s
+[run]   legacy 20/20 t0=8752 (12-31 16Z) in 18.7s
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0000_20220101_00/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0000_20220101_00/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0000_20220101_00/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0000_20220101_00/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0460_20220120_04/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0460_20220120_04/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0460_20220120_04/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0460_20220120_04/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0921_20220208_09/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0921_20220208_09/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0921_20220208_09/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_0921_20220208_09/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1381_20220227_13/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1381_20220227_13/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1381_20220227_13/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1381_20220227_13/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1842_20220318_18/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1842_20220318_18/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1842_20220318_18/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_1842_20220318_18/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2303_20220406_23/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2303_20220406_23/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2303_20220406_23/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2303_20220406_23/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2763_20220426_03/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2763_20220426_03/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2763_20220426_03/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_2763_20220426_03/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3224_20220515_08/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3224_20220515_08/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3224_20220515_08/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3224_20220515_08/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3685_20220603_13/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3685_20220603_13/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3685_20220603_13/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_3685_20220603_13/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4145_20220622_17/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4145_20220622_17/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4145_20220622_17/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4145_20220622_17/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4606_20220711_22/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4606_20220711_22/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4606_20220711_22/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_4606_20220711_22/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5066_20220731_02/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5066_20220731_02/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5066_20220731_02/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5066_20220731_02/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5527_20220819_07/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5527_20220819_07/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5527_20220819_07/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5527_20220819_07/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5988_20220907_12/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5988_20220907_12/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5988_20220907_12/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_5988_20220907_12/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6448_20220926_16/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6448_20220926_16/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6448_20220926_16/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6448_20220926_16/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6909_20221015_21/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6909_20221015_21/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6909_20221015_21/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_6909_20221015_21/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7370_20221104_02/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7370_20221104_02/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7370_20221104_02/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7370_20221104_02/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7830_20221123_06/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7830_20221123_06/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7830_20221123_06/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_7830_20221123_06/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8291_20221212_11/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8291_20221212_11/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8291_20221212_11/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8291_20221212_11/rollout_6h_qpepre.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8752_20221231_16/rollout_6h_t2m.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8752_20221231_16/rollout_6h_u10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8752_20221231_16/rollout_6h_v10.png
+[plot] wrote /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/t0_8752_20221231_16/rollout_6h_qpepre.png
+[done] candidate summary -> /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h/candidates.md
+[done] outputs in /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/rollout_6h

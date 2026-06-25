@@ -1,0 +1,24 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.2}
+\begin{document}
+\begin{tabular}{@{}l l >{\raggedright\arraybackslash}p{9cm}@{}}
+\toprule
+Metric & Formula & Meaning \\
+\midrule
+RMSE~$\downarrow$ & $\sqrt{\dfrac{1}{N}\sum_{i=1}^{N}\bigl(\hat{x}_i-x_i\bigr)^2}$ & Mean per-pixel error in physical units; reported per channel. \\[5pt]
+CRPS~$\downarrow$ & $\dfrac{1}{K}\sum_{k}\lvert x_k-y\rvert-\dfrac{1}{2K(K-1)}\sum_{j,k}\lvert x_j-x_k\rvert$ & Probabilistic MAE: rewards accuracy and a calibrated ensemble spread. \\[5pt]
+CSI~$\uparrow$ & $\dfrac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FP}+\mathrm{FN}}$ & Hit fraction among forecast-or-observed rain pixels; ignores dry pixels. \\[5pt]
+HSS~$\uparrow$ & $\dfrac{\mathrm{TP}+\mathrm{TN}-E}{N-E}$ & Categorical skill above random chance $E$ ($1$ = perfect). \\[5pt]
+FAR~$\downarrow$ & $\dfrac{\mathrm{FP}}{\mathrm{TP}+\mathrm{FP}}$ & Fraction of forecast rain pixels that stayed dry. \\[5pt]
+FSS~$\uparrow$ & $1-\dfrac{\overline{(P_f-P_o)^2}}{\overline{P_f^{\,2}}+\overline{P_o^{\,2}}}$ & Neighbourhood rain-fraction overlap; tolerant to small displacement. \\[5pt]
+\midrule
+\multicolumn{3}{@{}l@{}}{\textit{Evaluation protocols}} \\
+\addlinespace[1pt]
+Rollout & $\hat{x}_{t+k}=\mathcal{M}\bigl(\hat{x}_{t+k-1}\bigr)$ & Autoregressive feedback; tracks error growth vs lead time ($1$--$6$\,h). \\[5pt]
+Ensemble & $\{x_k\}_{k=1}^{K},\ x_k=\mu+r_\theta(c,\epsilon_k)$ & $K$ stochastic samples: mean is the forecast, spread the uncertainty. \\[5pt]
+\bottomrule
+\end{tabular}
+\end{document}

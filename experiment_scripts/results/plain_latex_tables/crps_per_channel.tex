@@ -1,0 +1,17 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.2}
+\begin{document}
+\begin{tabular}{lcccc}
+\toprule
+Method & u10 $\downarrow$ & v10 $\downarrow$ & t2m $\downarrow$ & qpepre $\downarrow$ \\
+\midrule
+EDM diffusion & \textbf{0.6591} & 0.7929 & 0.4681 & 0.2945 \\
+FlowCast ($K{=}10$) & 0.6665 & 0.7420 & 0.5175 & 0.2814 \\
+MeanFlow ($K{=}1$) & 0.7094 & 0.7841 & 0.4297 & \textbf{0.2772} \\
+MeanFlow ($K{=}2$) & 0.6621 & \textbf{0.7395} & \textbf{0.4007} & 0.2805 \\
+\bottomrule
+\end{tabular}
+\end{document}

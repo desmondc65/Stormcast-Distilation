@@ -1,0 +1,16 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.15}
+\begin{document}
+\begin{tabular}{lccccc}
+\toprule
+\multicolumn{6}{c}{\textbf{FSS by threshold — 27 km kernel} $\uparrow$} \\
+\midrule
+\textbf{Method} & $\geq 0.1$ mm/h & $\geq 1.0$ mm/h & $\geq 5.0$ mm/h & $\geq 10.0$ mm/h & $\geq 16.0$ mm/h \\
+\midrule
+stormcast (224$\times$128) & \textbf{0.5779} & \textbf{0.4002} & \textbf{0.1292} & \textbf{0.0433} & \textbf{0.0256} \\
+\bottomrule
+\end{tabular}
+\end{document}

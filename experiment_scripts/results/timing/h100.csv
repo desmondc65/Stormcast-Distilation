@@ -1,0 +1,7 @@
+method,nfe_per_step,ensemble,n_sequences,n_steps,n_rollouts,total_s,sec_per_ensemble_forecast,sec_per_member_rollout,sec_per_forecast_hour,sec_per_nfe,member_rollout_std_s
+stormcast_edm,36,50,1,24,50,986.588,986.588,19.7318,0.8222,0.02284,0.06
+flowcast_nfe10,10,50,1,24,50,321.224,321.224,6.4245,0.2677,0.02677,0.029
+flowcast_nfe15,15,50,1,24,50,450.989,450.989,9.0198,0.3758,0.02505,0.0515
+flowcast_nfe20,20,50,1,24,50,577.808,577.808,11.5562,0.4815,0.02408,0.0334
+meanflow_nfe1,1,50,1,24,50,91.082,91.082,1.8216,0.0759,0.0759,0.0355
+meanflow_nfe2,2,50,1,24,50,116.369,116.369,2.3274,0.097,0.04849,0.0059

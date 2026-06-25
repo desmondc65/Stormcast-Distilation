@@ -1,0 +1,342 @@
+/home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/physicsnemo/distributed/manager.py:415: UserWarning: Could not initialize using ENV, SLURM or OPENMPI methods. Assuming this is a single process job
+  warn(
+[device] cuda:0  (NVIDIA RTX A6000)
+[data] usable pairs=8759 channels=['u10', 'v10', 't2m', 'qpepre']
+[seqs] 1 init time(s) x 24h  (t0=[0])
+[load] regression /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus
+
+[load] stormcast_edm: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.73000.mdlus
+[time] stormcast_edm: 50 members x 1 init x 24h = 50 rollouts, 36 NFE/step
+[time] stormcast_edm  member 1/50  elapsed=  36.3s  eta=1778.3s
+[time] stormcast_edm  member 2/50  elapsed=  72.8s  eta=1748.1s
+[time] stormcast_edm  member 3/50  elapsed= 109.5s  eta=1715.1s
+[time] stormcast_edm  member 4/50  elapsed= 145.9s  eta=1677.6s
+[time] stormcast_edm  member 5/50  elapsed= 182.3s  eta=1641.1s
+[time] stormcast_edm  member 6/50  elapsed= 218.6s  eta=1603.2s
+[time] stormcast_edm  member 7/50  elapsed= 254.9s  eta=1565.9s
+[time] stormcast_edm  member 8/50  elapsed= 291.5s  eta=1530.2s
+[time] stormcast_edm  member 9/50  elapsed= 330.8s  eta=1506.8s
+[time] stormcast_edm  member 10/50  elapsed= 374.5s  eta=1498.2s
+[time] stormcast_edm  member 11/50  elapsed= 411.3s  eta=1458.1s
+[time] stormcast_edm  member 12/50  elapsed= 447.9s  eta=1418.4s
+[time] stormcast_edm  member 13/50  elapsed= 484.0s  eta=1377.6s
+[time] stormcast_edm  member 14/50  elapsed= 526.9s  eta=1354.8s
+[time] stormcast_edm  member 15/50  elapsed= 568.3s  eta=1326.0s
+[time] stormcast_edm  member 16/50  elapsed= 612.8s  eta=1302.2s
+[time] stormcast_edm  member 17/50  elapsed= 657.4s  eta=1276.1s
+[time] stormcast_edm  member 18/50  elapsed= 701.6s  eta=1247.3s
+[time] stormcast_edm  member 19/50  elapsed= 743.0s  eta=1212.3s
+[time] stormcast_edm  member 20/50  elapsed= 779.1s  eta=1168.6s
+[time] stormcast_edm  member 21/50  elapsed= 815.3s  eta=1125.8s
+[time] stormcast_edm  member 22/50  elapsed= 854.8s  eta=1087.9s
+[time] stormcast_edm  member 23/50  elapsed= 890.9s  eta=1045.8s
+[time] stormcast_edm  member 24/50  elapsed= 927.2s  eta=1004.5s
+[time] stormcast_edm  member 25/50  elapsed= 963.6s  eta= 963.6s
+[time] stormcast_edm  member 26/50  elapsed=1000.7s  eta= 923.7s
+[time] stormcast_edm  member 27/50  elapsed=1037.7s  eta= 884.0s
+[time] stormcast_edm  member 28/50  elapsed=1074.6s  eta= 844.4s
+[time] stormcast_edm  member 29/50  elapsed=1111.5s  eta= 804.9s
+[time] stormcast_edm  member 30/50  elapsed=1148.7s  eta= 765.8s
+[time] stormcast_edm  member 31/50  elapsed=1186.3s  eta= 727.1s
+[time] stormcast_edm  member 32/50  elapsed=1222.9s  eta= 687.9s
+[time] stormcast_edm  member 33/50  elapsed=1259.5s  eta= 648.8s
+[time] stormcast_edm  member 34/50  elapsed=1296.1s  eta= 609.9s
+[time] stormcast_edm  member 35/50  elapsed=1338.3s  eta= 573.6s
+[time] stormcast_edm  member 36/50  elapsed=1383.7s  eta= 538.1s
+[time] stormcast_edm  member 37/50  elapsed=1420.8s  eta= 499.2s
+[time] stormcast_edm  member 38/50  elapsed=1458.0s  eta= 460.4s
+[time] stormcast_edm  member 39/50  elapsed=1495.6s  eta= 421.8s
+[time] stormcast_edm  member 40/50  elapsed=1532.5s  eta= 383.1s
+[time] stormcast_edm  member 41/50  elapsed=1568.9s  eta= 344.4s
+[time] stormcast_edm  member 42/50  elapsed=1605.7s  eta= 305.9s
+[time] stormcast_edm  member 43/50  elapsed=1643.2s  eta= 267.5s
+[time] stormcast_edm  member 44/50  elapsed=1679.9s  eta= 229.1s
+[time] stormcast_edm  member 45/50  elapsed=1716.3s  eta= 190.7s
+[time] stormcast_edm  member 46/50  elapsed=1752.4s  eta= 152.4s
+[time] stormcast_edm  member 47/50  elapsed=1788.7s  eta= 114.2s
+[time] stormcast_edm  member 48/50  elapsed=1825.1s  eta=  76.0s
+[time] stormcast_edm  member 49/50  elapsed=1861.5s  eta=  38.0s
+[time] stormcast_edm  member 50/50  elapsed=1898.0s  eta=   0.0s
+[done] stormcast_edm: total=1898.0s  ensemble_forecast=1898.0s  member=37.961s  hour=1.5817s
+
+[load] flowcast_nfe10: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.140000.mdlus
+[time] flowcast_nfe10: 50 members x 1 init x 24h = 50 rollouts, 10 NFE/step
+[time] flowcast_nfe10  member 1/50  elapsed=  11.9s  eta= 583.7s
+[time] flowcast_nfe10  member 2/50  elapsed=  23.9s  eta= 573.7s
+[time] flowcast_nfe10  member 3/50  elapsed=  35.9s  eta= 562.7s
+[time] flowcast_nfe10  member 4/50  elapsed=  47.7s  eta= 549.0s
+[time] flowcast_nfe10  member 5/50  elapsed=  59.5s  eta= 535.3s
+[time] flowcast_nfe10  member 6/50  elapsed=  71.3s  eta= 523.0s
+[time] flowcast_nfe10  member 7/50  elapsed=  82.9s  eta= 509.2s
+[time] flowcast_nfe10  member 8/50  elapsed=  94.5s  eta= 496.3s
+[time] flowcast_nfe10  member 9/50  elapsed= 106.1s  eta= 483.4s
+[time] flowcast_nfe10  member 10/50  elapsed= 117.7s  eta= 470.7s
+[time] flowcast_nfe10  member 11/50  elapsed= 129.3s  eta= 458.3s
+[time] flowcast_nfe10  member 12/50  elapsed= 140.7s  eta= 445.7s
+[time] flowcast_nfe10  member 13/50  elapsed= 152.4s  eta= 433.7s
+[time] flowcast_nfe10  member 14/50  elapsed= 164.1s  eta= 422.0s
+[time] flowcast_nfe10  member 15/50  elapsed= 177.4s  eta= 413.9s
+[time] flowcast_nfe10  member 16/50  elapsed= 191.6s  eta= 407.1s
+[time] flowcast_nfe10  member 17/50  elapsed= 205.7s  eta= 399.3s
+[time] flowcast_nfe10  member 18/50  elapsed= 219.8s  eta= 390.8s
+[time] flowcast_nfe10  member 19/50  elapsed= 233.9s  eta= 381.6s
+[time] flowcast_nfe10  member 20/50  elapsed= 248.0s  eta= 372.1s
+[time] flowcast_nfe10  member 21/50  elapsed= 262.2s  eta= 362.1s
+[time] flowcast_nfe10  member 22/50  elapsed= 276.6s  eta= 352.0s
+[time] flowcast_nfe10  member 23/50  elapsed= 291.0s  eta= 341.6s
+[time] flowcast_nfe10  member 24/50  elapsed= 305.5s  eta= 330.9s
+[time] flowcast_nfe10  member 25/50  elapsed= 319.9s  eta= 319.9s
+[time] flowcast_nfe10  member 26/50  elapsed= 334.4s  eta= 308.7s
+[time] flowcast_nfe10  member 27/50  elapsed= 348.9s  eta= 297.2s
+[time] flowcast_nfe10  member 28/50  elapsed= 363.1s  eta= 285.3s
+[time] flowcast_nfe10  member 29/50  elapsed= 377.3s  eta= 273.2s
+[time] flowcast_nfe10  member 30/50  elapsed= 391.5s  eta= 261.0s
+[time] flowcast_nfe10  member 31/50  elapsed= 405.7s  eta= 248.7s
+[time] flowcast_nfe10  member 32/50  elapsed= 420.2s  eta= 236.4s
+[time] flowcast_nfe10  member 33/50  elapsed= 434.8s  eta= 224.0s
+[time] flowcast_nfe10  member 34/50  elapsed= 449.2s  eta= 211.4s
+[time] flowcast_nfe10  member 35/50  elapsed= 463.4s  eta= 198.6s
+[time] flowcast_nfe10  member 36/50  elapsed= 477.6s  eta= 185.7s
+[time] flowcast_nfe10  member 37/50  elapsed= 491.9s  eta= 172.8s
+[time] flowcast_nfe10  member 38/50  elapsed= 506.0s  eta= 159.8s
+[time] flowcast_nfe10  member 39/50  elapsed= 517.5s  eta= 146.0s
+[time] flowcast_nfe10  member 40/50  elapsed= 528.9s  eta= 132.2s
+[time] flowcast_nfe10  member 41/50  elapsed= 540.5s  eta= 118.6s
+[time] flowcast_nfe10  member 42/50  elapsed= 552.3s  eta= 105.2s
+[time] flowcast_nfe10  member 43/50  elapsed= 563.9s  eta=  91.8s
+[time] flowcast_nfe10  member 44/50  elapsed= 575.4s  eta=  78.5s
+[time] flowcast_nfe10  member 45/50  elapsed= 587.0s  eta=  65.2s
+[time] flowcast_nfe10  member 46/50  elapsed= 598.6s  eta=  52.1s
+[time] flowcast_nfe10  member 47/50  elapsed= 610.2s  eta=  39.0s
+[time] flowcast_nfe10  member 48/50  elapsed= 621.9s  eta=  25.9s
+[time] flowcast_nfe10  member 49/50  elapsed= 633.6s  eta=  12.9s
+[time] flowcast_nfe10  member 50/50  elapsed= 645.2s  eta=   0.0s
+[done] flowcast_nfe10: total=645.2s  ensemble_forecast=645.2s  member=12.904s  hour=0.5377s
+
+[load] flowcast_nfe15: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.140000.mdlus
+[time] flowcast_nfe15: 50 members x 1 init x 24h = 50 rollouts, 15 NFE/step
+[time] flowcast_nfe15  member 1/50  elapsed=  16.0s  eta= 784.3s
+[time] flowcast_nfe15  member 2/50  elapsed=  32.2s  eta= 773.2s
+[time] flowcast_nfe15  member 3/50  elapsed=  48.5s  eta= 760.2s
+[time] flowcast_nfe15  member 4/50  elapsed=  64.9s  eta= 746.1s
+[time] flowcast_nfe15  member 5/50  elapsed=  80.9s  eta= 728.0s
+[time] flowcast_nfe15  member 6/50  elapsed=  96.9s  eta= 710.3s
+[time] flowcast_nfe15  member 7/50  elapsed= 112.8s  eta= 693.2s
+[time] flowcast_nfe15  member 8/50  elapsed= 128.9s  eta= 676.9s
+[time] flowcast_nfe15  member 9/50  elapsed= 145.0s  eta= 660.7s
+[time] flowcast_nfe15  member 10/50  elapsed= 165.0s  eta= 660.1s
+[time] flowcast_nfe15  member 11/50  elapsed= 184.9s  eta= 655.5s
+[time] flowcast_nfe15  member 12/50  elapsed= 204.9s  eta= 648.8s
+[time] flowcast_nfe15  member 13/50  elapsed= 222.0s  eta= 631.9s
+[time] flowcast_nfe15  member 14/50  elapsed= 238.0s  eta= 612.1s
+[time] flowcast_nfe15  member 15/50  elapsed= 255.2s  eta= 595.5s
+[time] flowcast_nfe15  member 16/50  elapsed= 271.4s  eta= 576.7s
+[time] flowcast_nfe15  member 17/50  elapsed= 287.7s  eta= 558.5s
+[time] flowcast_nfe15  member 18/50  elapsed= 303.6s  eta= 539.8s
+[time] flowcast_nfe15  member 19/50  elapsed= 319.5s  eta= 521.2s
+[time] flowcast_nfe15  member 20/50  elapsed= 335.5s  eta= 503.3s
+[time] flowcast_nfe15  member 21/50  elapsed= 351.6s  eta= 485.5s
+[time] flowcast_nfe15  member 22/50  elapsed= 368.0s  eta= 468.4s
+[time] flowcast_nfe15  member 23/50  elapsed= 384.0s  eta= 450.8s
+[time] flowcast_nfe15  member 24/50  elapsed= 400.0s  eta= 433.4s
+[time] flowcast_nfe15  member 25/50  elapsed= 416.2s  eta= 416.2s
+[time] flowcast_nfe15  member 26/50  elapsed= 432.5s  eta= 399.2s
+[time] flowcast_nfe15  member 27/50  elapsed= 448.3s  eta= 381.9s
+[time] flowcast_nfe15  member 28/50  elapsed= 464.4s  eta= 364.9s
+[time] flowcast_nfe15  member 29/50  elapsed= 480.6s  eta= 348.0s
+[time] flowcast_nfe15  member 30/50  elapsed= 496.8s  eta= 331.2s
+[time] flowcast_nfe15  member 31/50  elapsed= 515.2s  eta= 315.7s
+[time] flowcast_nfe15  member 32/50  elapsed= 535.2s  eta= 301.1s
+[time] flowcast_nfe15  member 33/50  elapsed= 553.1s  eta= 284.9s
+[time] flowcast_nfe15  member 34/50  elapsed= 569.2s  eta= 267.8s
+[time] flowcast_nfe15  member 35/50  elapsed= 585.4s  eta= 250.9s
+[time] flowcast_nfe15  member 36/50  elapsed= 601.5s  eta= 233.9s
+[time] flowcast_nfe15  member 37/50  elapsed= 617.8s  eta= 217.1s
+[time] flowcast_nfe15  member 38/50  elapsed= 633.8s  eta= 200.1s
+[time] flowcast_nfe15  member 39/50  elapsed= 649.7s  eta= 183.2s
+[time] flowcast_nfe15  member 40/50  elapsed= 665.9s  eta= 166.5s
+[time] flowcast_nfe15  member 41/50  elapsed= 681.9s  eta= 149.7s
+[time] flowcast_nfe15  member 42/50  elapsed= 698.0s  eta= 132.9s
+[time] flowcast_nfe15  member 43/50  elapsed= 714.2s  eta= 116.3s
+[time] flowcast_nfe15  member 44/50  elapsed= 730.3s  eta=  99.6s
+[time] flowcast_nfe15  member 45/50  elapsed= 746.5s  eta=  82.9s
+[time] flowcast_nfe15  member 46/50  elapsed= 762.4s  eta=  66.3s
+[time] flowcast_nfe15  member 47/50  elapsed= 778.2s  eta=  49.7s
+[time] flowcast_nfe15  member 48/50  elapsed= 794.1s  eta=  33.1s
+[time] flowcast_nfe15  member 49/50  elapsed= 810.2s  eta=  16.5s
+[time] flowcast_nfe15  member 50/50  elapsed= 826.4s  eta=   0.0s
+[done] flowcast_nfe15: total=826.4s  ensemble_forecast=826.4s  member=16.529s  hour=0.6887s
+
+[load] flowcast_nfe20: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.140000.mdlus
+[time] flowcast_nfe20: 50 members x 1 init x 24h = 50 rollouts, 20 NFE/step
+[time] flowcast_nfe20  member 1/50  elapsed=  20.5s  eta=1003.0s
+[time] flowcast_nfe20  member 2/50  elapsed=  40.8s  eta= 979.2s
+[time] flowcast_nfe20  member 3/50  elapsed=  65.9s  eta=1031.9s
+[time] flowcast_nfe20  member 4/50  elapsed=  91.6s  eta=1052.9s
+[time] flowcast_nfe20  member 5/50  elapsed= 117.2s  eta=1054.8s
+[time] flowcast_nfe20  member 6/50  elapsed= 139.8s  eta=1025.1s
+[time] flowcast_nfe20  member 7/50  elapsed= 160.5s  eta= 986.2s
+[time] flowcast_nfe20  member 8/50  elapsed= 181.3s  eta= 951.8s
+[time] flowcast_nfe20  member 9/50  elapsed= 202.0s  eta= 920.2s
+[time] flowcast_nfe20  member 10/50  elapsed= 222.7s  eta= 890.8s
+[time] flowcast_nfe20  member 11/50  elapsed= 243.5s  eta= 863.2s
+[time] flowcast_nfe20  member 12/50  elapsed= 264.0s  eta= 835.9s
+[time] flowcast_nfe20  member 13/50  elapsed= 284.6s  eta= 810.0s
+[time] flowcast_nfe20  member 14/50  elapsed= 305.3s  eta= 785.1s
+[time] flowcast_nfe20  member 15/50  elapsed= 326.0s  eta= 760.7s
+[time] flowcast_nfe20  member 16/50  elapsed= 346.8s  eta= 736.9s
+[time] flowcast_nfe20  member 17/50  elapsed= 367.6s  eta= 713.6s
+[time] flowcast_nfe20  member 18/50  elapsed= 388.2s  eta= 690.2s
+[time] flowcast_nfe20  member 19/50  elapsed= 409.2s  eta= 667.7s
+[time] flowcast_nfe20  member 20/50  elapsed= 429.9s  eta= 644.8s
+[time] flowcast_nfe20  member 21/50  elapsed= 450.8s  eta= 622.5s
+[time] flowcast_nfe20  member 22/50  elapsed= 471.6s  eta= 600.2s
+[time] flowcast_nfe20  member 23/50  elapsed= 491.9s  eta= 577.4s
+[time] flowcast_nfe20  member 24/50  elapsed= 513.0s  eta= 555.8s
+[time] flowcast_nfe20  member 25/50  elapsed= 536.9s  eta= 536.9s
+[time] flowcast_nfe20  member 26/50  elapsed= 558.1s  eta= 515.2s
+[time] flowcast_nfe20  member 27/50  elapsed= 579.2s  eta= 493.4s
+[time] flowcast_nfe20  member 28/50  elapsed= 600.0s  eta= 471.4s
+[time] flowcast_nfe20  member 29/50  elapsed= 620.8s  eta= 449.6s
+[time] flowcast_nfe20  member 30/50  elapsed= 641.6s  eta= 427.8s
+[time] flowcast_nfe20  member 31/50  elapsed= 662.5s  eta= 406.0s
+[time] flowcast_nfe20  member 32/50  elapsed= 683.5s  eta= 384.4s
+[time] flowcast_nfe20  member 33/50  elapsed= 704.4s  eta= 362.9s
+[time] flowcast_nfe20  member 34/50  elapsed= 725.4s  eta= 341.4s
+[time] flowcast_nfe20  member 35/50  elapsed= 746.4s  eta= 319.9s
+[time] flowcast_nfe20  member 36/50  elapsed= 767.3s  eta= 298.4s
+[time] flowcast_nfe20  member 37/50  elapsed= 788.1s  eta= 276.9s
+[time] flowcast_nfe20  member 38/50  elapsed= 808.8s  eta= 255.4s
+[time] flowcast_nfe20  member 39/50  elapsed= 830.0s  eta= 234.1s
+[time] flowcast_nfe20  member 40/50  elapsed= 855.2s  eta= 213.8s
+[time] flowcast_nfe20  member 41/50  elapsed= 880.8s  eta= 193.4s
+[time] flowcast_nfe20  member 42/50  elapsed= 906.4s  eta= 172.6s
+[time] flowcast_nfe20  member 43/50  elapsed= 931.9s  eta= 151.7s
+[time] flowcast_nfe20  member 44/50  elapsed= 957.4s  eta= 130.6s
+[time] flowcast_nfe20  member 45/50  elapsed= 983.0s  eta= 109.2s
+[time] flowcast_nfe20  member 46/50  elapsed=1003.7s  eta=  87.3s
+[time] flowcast_nfe20  member 47/50  elapsed=1024.2s  eta=  65.4s
+[time] flowcast_nfe20  member 48/50  elapsed=1044.9s  eta=  43.5s
+[time] flowcast_nfe20  member 49/50  elapsed=1065.6s  eta=  21.7s
+[time] flowcast_nfe20  member 50/50  elapsed=1086.3s  eta=   0.0s
+[done] flowcast_nfe20: total=1086.3s  ensemble_forecast=1086.3s  member=21.726s  hour=0.9052s
+
+[load] meanflow_nfe1: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[time] meanflow_nfe1: 50 members x 1 init x 24h = 50 rollouts, 1 NFE/step
+[time] meanflow_nfe1  member 1/50  elapsed=   3.5s  eta= 170.2s
+[time] meanflow_nfe1  member 2/50  elapsed=   7.0s  eta= 168.2s
+[time] meanflow_nfe1  member 3/50  elapsed=  10.5s  eta= 164.1s
+[time] meanflow_nfe1  member 4/50  elapsed=  14.0s  eta= 161.4s
+[time] meanflow_nfe1  member 5/50  elapsed=  18.0s  eta= 162.1s
+[time] meanflow_nfe1  member 6/50  elapsed=  21.9s  eta= 160.8s
+[time] meanflow_nfe1  member 7/50  elapsed=  25.9s  eta= 158.8s
+[time] meanflow_nfe1  member 8/50  elapsed=  29.8s  eta= 156.4s
+[time] meanflow_nfe1  member 9/50  elapsed=  33.8s  eta= 153.8s
+[time] meanflow_nfe1  member 10/50  elapsed=  37.7s  eta= 150.7s
+[time] meanflow_nfe1  member 11/50  elapsed=  41.5s  eta= 147.0s
+[time] meanflow_nfe1  member 12/50  elapsed=  45.0s  eta= 142.4s
+[time] meanflow_nfe1  member 13/50  elapsed=  48.4s  eta= 137.8s
+[time] meanflow_nfe1  member 14/50  elapsed=  51.9s  eta= 133.5s
+[time] meanflow_nfe1  member 15/50  elapsed=  55.4s  eta= 129.3s
+[time] meanflow_nfe1  member 16/50  elapsed=  58.9s  eta= 125.1s
+[time] meanflow_nfe1  member 17/50  elapsed=  62.3s  eta= 121.0s
+[time] meanflow_nfe1  member 18/50  elapsed=  65.9s  eta= 117.2s
+[time] meanflow_nfe1  member 19/50  elapsed=  69.5s  eta= 113.3s
+[time] meanflow_nfe1  member 20/50  elapsed=  73.4s  eta= 110.2s
+[time] meanflow_nfe1  member 21/50  elapsed=  77.4s  eta= 106.9s
+[time] meanflow_nfe1  member 22/50  elapsed=  81.3s  eta= 103.5s
+[time] meanflow_nfe1  member 23/50  elapsed=  85.3s  eta= 100.1s
+[time] meanflow_nfe1  member 24/50  elapsed=  89.2s  eta=  96.7s
+[time] meanflow_nfe1  member 25/50  elapsed=  93.2s  eta=  93.2s
+[time] meanflow_nfe1  member 26/50  elapsed=  97.2s  eta=  89.7s
+[time] meanflow_nfe1  member 27/50  elapsed= 101.1s  eta=  86.2s
+[time] meanflow_nfe1  member 28/50  elapsed= 105.1s  eta=  82.6s
+[time] meanflow_nfe1  member 29/50  elapsed= 109.1s  eta=  79.0s
+[time] meanflow_nfe1  member 30/50  elapsed= 113.2s  eta=  75.5s
+[time] meanflow_nfe1  member 31/50  elapsed= 117.2s  eta=  71.8s
+[time] meanflow_nfe1  member 32/50  elapsed= 121.1s  eta=  68.1s
+[time] meanflow_nfe1  member 33/50  elapsed= 125.1s  eta=  64.5s
+[time] meanflow_nfe1  member 34/50  elapsed= 129.1s  eta=  60.8s
+[time] meanflow_nfe1  member 35/50  elapsed= 133.1s  eta=  57.0s
+[time] meanflow_nfe1  member 36/50  elapsed= 137.3s  eta=  53.4s
+[time] meanflow_nfe1  member 37/50  elapsed= 141.6s  eta=  49.8s
+[time] meanflow_nfe1  member 38/50  elapsed= 145.8s  eta=  46.0s
+[time] meanflow_nfe1  member 39/50  elapsed= 149.7s  eta=  42.2s
+[time] meanflow_nfe1  member 40/50  elapsed= 153.8s  eta=  38.5s
+[time] meanflow_nfe1  member 41/50  elapsed= 157.4s  eta=  34.6s
+[time] meanflow_nfe1  member 42/50  elapsed= 160.9s  eta=  30.6s
+[time] meanflow_nfe1  member 43/50  elapsed= 164.7s  eta=  26.8s
+[time] meanflow_nfe1  member 44/50  elapsed= 168.6s  eta=  23.0s
+[time] meanflow_nfe1  member 45/50  elapsed= 172.7s  eta=  19.2s
+[time] meanflow_nfe1  member 46/50  elapsed= 176.8s  eta=  15.4s
+[time] meanflow_nfe1  member 47/50  elapsed= 180.8s  eta=  11.5s
+[time] meanflow_nfe1  member 48/50  elapsed= 184.7s  eta=   7.7s
+[time] meanflow_nfe1  member 49/50  elapsed= 188.5s  eta=   3.8s
+[time] meanflow_nfe1  member 50/50  elapsed= 191.9s  eta=   0.0s
+[done] meanflow_nfe1: total=191.9s  ensemble_forecast=191.9s  member=3.838s  hour=0.1599s
+
+[load] meanflow_nfe2: /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus
+[time] meanflow_nfe2: 50 members x 1 init x 24h = 50 rollouts, 2 NFE/step
+[time] meanflow_nfe2  member 1/50  elapsed=   4.5s  eta= 218.8s
+[time] meanflow_nfe2  member 2/50  elapsed=   9.6s  eta= 229.6s
+[time] meanflow_nfe2  member 3/50  elapsed=  14.8s  eta= 231.2s
+[time] meanflow_nfe2  member 4/50  elapsed=  20.0s  eta= 230.0s
+[time] meanflow_nfe2  member 5/50  elapsed=  25.2s  eta= 227.0s
+[time] meanflow_nfe2  member 6/50  elapsed=  30.2s  eta= 221.8s
+[time] meanflow_nfe2  member 7/50  elapsed=  34.8s  eta= 213.6s
+[time] meanflow_nfe2  member 8/50  elapsed=  39.1s  eta= 205.5s
+[time] meanflow_nfe2  member 9/50  elapsed=  43.6s  eta= 198.4s
+[time] meanflow_nfe2  member 10/50  elapsed=  48.3s  eta= 193.2s
+[time] meanflow_nfe2  member 11/50  elapsed=  53.4s  eta= 189.4s
+[time] meanflow_nfe2  member 12/50  elapsed=  58.6s  eta= 185.4s
+[time] meanflow_nfe2  member 13/50  elapsed=  63.7s  eta= 181.2s
+[time] meanflow_nfe2  member 14/50  elapsed=  68.8s  eta= 176.9s
+[time] meanflow_nfe2  member 15/50  elapsed=  73.9s  eta= 172.5s
+[time] meanflow_nfe2  member 16/50  elapsed=  79.2s  eta= 168.3s
+[time] meanflow_nfe2  member 17/50  elapsed=  84.0s  eta= 163.0s
+[time] meanflow_nfe2  member 18/50  elapsed=  89.1s  eta= 158.4s
+[time] meanflow_nfe2  member 19/50  elapsed=  94.2s  eta= 153.7s
+[time] meanflow_nfe2  member 20/50  elapsed=  99.3s  eta= 149.0s
+[time] meanflow_nfe2  member 21/50  elapsed= 104.5s  eta= 144.3s
+[time] meanflow_nfe2  member 22/50  elapsed= 109.6s  eta= 139.5s
+[time] meanflow_nfe2  member 23/50  elapsed= 114.8s  eta= 134.8s
+[time] meanflow_nfe2  member 24/50  elapsed= 120.1s  eta= 130.1s
+[time] meanflow_nfe2  member 25/50  elapsed= 125.3s  eta= 125.3s
+[time] meanflow_nfe2  member 26/50  elapsed= 130.5s  eta= 120.5s
+[time] meanflow_nfe2  member 27/50  elapsed= 136.0s  eta= 115.8s
+[time] meanflow_nfe2  member 28/50  elapsed= 140.9s  eta= 110.7s
+[time] meanflow_nfe2  member 29/50  elapsed= 145.4s  eta= 105.3s
+[time] meanflow_nfe2  member 30/50  elapsed= 149.8s  eta=  99.8s
+[time] meanflow_nfe2  member 31/50  elapsed= 154.2s  eta=  94.5s
+[time] meanflow_nfe2  member 32/50  elapsed= 158.6s  eta=  89.2s
+[time] meanflow_nfe2  member 33/50  elapsed= 163.1s  eta=  84.0s
+[time] meanflow_nfe2  member 34/50  elapsed= 167.5s  eta=  78.8s
+[time] meanflow_nfe2  member 35/50  elapsed= 171.9s  eta=  73.7s
+[time] meanflow_nfe2  member 36/50  elapsed= 176.3s  eta=  68.5s
+[time] meanflow_nfe2  member 37/50  elapsed= 180.6s  eta=  63.5s
+[time] meanflow_nfe2  member 38/50  elapsed= 185.0s  eta=  58.4s
+[time] meanflow_nfe2  member 39/50  elapsed= 189.4s  eta=  53.4s
+[time] meanflow_nfe2  member 40/50  elapsed= 193.9s  eta=  48.5s
+[time] meanflow_nfe2  member 41/50  elapsed= 198.3s  eta=  43.5s
+[time] meanflow_nfe2  member 42/50  elapsed= 202.7s  eta=  38.6s
+[time] meanflow_nfe2  member 43/50  elapsed= 207.1s  eta=  33.7s
+[time] meanflow_nfe2  member 44/50  elapsed= 211.5s  eta=  28.8s
+[time] meanflow_nfe2  member 45/50  elapsed= 215.9s  eta=  24.0s
+[time] meanflow_nfe2  member 46/50  elapsed= 220.3s  eta=  19.2s
+[time] meanflow_nfe2  member 47/50  elapsed= 224.7s  eta=  14.3s
+[time] meanflow_nfe2  member 48/50  elapsed= 229.8s  eta=   9.6s
+[time] meanflow_nfe2  member 49/50  elapsed= 234.4s  eta=   4.8s
+[time] meanflow_nfe2  member 50/50  elapsed= 239.1s  eta=   0.0s
+[done] meanflow_nfe2: total=239.1s  ensemble_forecast=239.1s  member=4.782s  hour=0.1992s
+
+[write] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/timing/timing.csv
+[write] /home3/davidlcs/Econ-Rag/Local_LLM/test_meeting/Stormcast-Distilation/experiment_scripts/results/timing/timing.md
+
+[summary]
+  method | nfe_per_step | ensemble | n_sequences | n_steps | n_rollouts | total_s | sec_per_ensemble_forecast | sec_per_member_rollout | sec_per_forecast_hour | sec_per_nfe | member_rollout_std_s
+  stormcast_edm | 36 | 50 | 1 | 24 | 50 | 1898.031 | 1898.031 | 37.9606 | 1.5817 | 0.04394 | 2.6839
+  flowcast_nfe10 | 10 | 50 | 1 | 24 | 50 | 645.2 | 645.2 | 12.904 | 0.5377 | 0.05377 | 1.3075
+  flowcast_nfe15 | 15 | 50 | 1 | 24 | 50 | 826.438 | 826.438 | 16.5288 | 0.6887 | 0.04591 | 1.1171
+  flowcast_nfe20 | 20 | 50 | 1 | 24 | 50 | 1086.291 | 1086.291 | 21.7258 | 0.9052 | 0.04526 | 1.8401
+  meanflow_nfe1 | 1 | 50 | 1 | 24 | 50 | 191.925 | 191.925 | 3.8385 | 0.1599 | 0.15994 | 0.2369
+  meanflow_nfe2 | 2 | 50 | 1 | 24 | 50 | 239.098 | 239.098 | 4.782 | 0.1992 | 0.09962 | 0.3644

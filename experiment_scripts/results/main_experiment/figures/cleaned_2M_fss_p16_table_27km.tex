@@ -1,0 +1,19 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.15}
+\begin{document}
+\begin{tabular}{lccccc}
+\toprule
+\multicolumn{6}{c}{\textbf{FSS by threshold — 27 km kernel} $\uparrow$} \\
+\midrule
+\textbf{Method} & $\geq 0.1$ mm/h & $\geq 1.0$ mm/h & $\geq 5.0$ mm/h & $\geq 10.0$ mm/h & $\geq 16.0$ mm/h \\
+\midrule
+stormcast (192$\times$96) & 0.8088 & 0.6356 & 0.3202 & 0.0383 & 0.0065 \\
+I-CFM & 0.8357 & 0.6768 & 0.2673 & 0.0177 & 0.0040 \\
+MeanFlow (1 NFE) & 0.8370 & \textbf{0.7015} & 0.3367 & \textbf{0.0517} & 0.0082 \\
+MeanFlow (2 NFE) & \textbf{0.8399} & 0.6713 & \textbf{0.3458} & 0.0341 & \textbf{0.0210} \\
+\bottomrule
+\end{tabular}
+\end{document}

@@ -1,0 +1,18 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.2}
+\begin{document}
+\begin{tabular}{lccccccc}
+\toprule
+Method & Time/seq (s) $\downarrow$ & Speedup vs EDM $\uparrow$ & CRPS $\downarrow$ & RMSE u10 $\downarrow$ & RMSE v10 $\downarrow$ & RMSE t2m $\downarrow$ & RMSE qpepre $\downarrow$ \\
+\midrule
+Legacy EDM ($224{\times}128$) & 19.6630 & -- & 0.6348 & 1.6912 & 1.6063 & 0.8845 & 1.4827 \\
+EDM diffusion & 11.2300 & 1.0$\times$ & 0.5537 & 1.3513 & 1.6082 & 0.8023 & 1.0292 \\
+FlowCast ($K{=}10$) & 3.0680 & 3.7$\times$ & 0.5518 & 1.2838 & \textbf{1.4085} & 0.8498 & \textbf{0.9590} \\
+MeanFlow ($K{=}1$) & \textbf{0.9130} & \textbf{12.3$\times$} & 0.5501 & 1.3314 & 1.4844 & 0.7498 & 0.9655 \\
+MeanFlow ($K{=}2$) & 1.1000 & 10.2$\times$ & \textbf{0.5207} & \textbf{1.2651} & 1.4286 & \textbf{0.7315} & 0.9637 \\
+\bottomrule
+\end{tabular}
+\end{document}
