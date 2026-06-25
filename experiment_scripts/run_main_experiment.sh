@@ -131,11 +131,18 @@ CLEANED_DATA="${CLEANED_DATA:-${REPO_ROOT}/exp_3_train_2_5_yrs_val_1yr_tp1/zarr_
 CLEANED_REG="${CLEANED_REG:-${REPO_ROOT}/runs/regression_zettabyte_v1_cleaned_4_27_2026/regression_zettabyte_cleaned_4_27_2026/run_0/checkpoints_regression/StormCastUNet.0.8000.mdlus}"
 CLEANED_EDM="${CLEANED_EDM:-${REPO_ROOT}/runs/diffusion_zettabyte_v1_cleaned_4_27_2026/diffusion_zettabyte_cleaned_4_27_2026/run_0/checkpoints_diffusion/EDMPrecond.0.31000.mdlus}"
 CLEANED_FLOW="${CLEANED_FLOW:-${REPO_ROOT}/runs/flowcast_zettabyte_v1_cleaned_4_27_2026/flowcast_zettabyte_cleaned_4_27_2026/run_0/checkpoints_flowcast/FlowCastPrecond.0.20000.mdlus}"
-# MeanFlow student (average-velocity head) at the matched step-20000 budget —
-# same cleaned 192x96 + log1p grid and channel order as the FlowCast leg, so it
-# rides along on Leg B's dataset config. Online-student .mdlus (loaded the same
-# way as CLEANED_FLOW) keeps MeanFlow-vs-FlowCast an A/B on the objective alone.
-CLEANED_MEANFLOW="${CLEANED_MEANFLOW:-${REPO_ROOT}/runs/meanflow_zettabyte_v1_cleaned_4_27_2026/meanflow_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus}"
+# MeanFlow student (average-velocity head). This is the NO-SPECTRAL-LOSS variant
+# (trained without the radial log-PSD term; train_meanflow_no_lspec.sh), at the
+# matched ~2 M-sample budget (step 18000, batch 112). The spectral-loss ablation
+# (results/meanflow_lspec_ablation/) showed dropping the log-PSD term improves
+# the MeanFlow student on CRPS and every per-channel RMSE at both NFE, so the
+# headline MeanFlow leg now uses it. Same cleaned 192x96 + log1p grid and channel
+# order as the FlowCast leg, so it rides along on Leg B's dataset config.
+# Online-student .mdlus (loaded the same way as CLEANED_FLOW) keeps
+# MeanFlow-vs-FlowCast an A/B on the objective alone. To restore the old
+# with-spectral checkpoint, override CLEANED_MEANFLOW with the step-20000 .mdlus
+# under runs/meanflow_zettabyte_v1_cleaned_4_27_2026/.
+CLEANED_MEANFLOW="${CLEANED_MEANFLOW:-${REPO_ROOT}/runs/meanflow_no_lspec_zettabyte_v1_cleaned_4_27_2026/meanflow_no_lspec_zettabyte_cleaned_4_27_2026/run_0/checkpoints_meanflow/MeanFlowPrecond.0.18000.mdlus}"
 
 banner "Configuration"
 log "REPO_ROOT     = ${REPO_ROOT}"

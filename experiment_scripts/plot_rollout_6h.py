@@ -124,10 +124,12 @@ DEFAULT_NEW_FLOW = (
 # MeanFlow shares the FlowCast SongUNet backbone and conditioning bundle, so it
 # loads and rolls out exactly like the FlowCast leg; only the sampler helper
 # (meanflow_model_forward, no solver kwarg) differs. Same ~2 M-sample budget.
+# Uses the NO-spectral-loss checkpoint (step 18000), matching the headline
+# MeanFlow leg in run_main_experiment.sh (see the spectral-loss ablation).
 DEFAULT_NEW_MEANFLOW = (
-    REPO_ROOT / "runs/meanflow_zettabyte_v1_cleaned_4_27_2026"
-    / "meanflow_zettabyte_cleaned_4_27_2026/run_0"
-    / "checkpoints_meanflow/MeanFlowPrecond.0.20000.mdlus"
+    REPO_ROOT / "runs/meanflow_no_lspec_zettabyte_v1_cleaned_4_27_2026"
+    / "meanflow_no_lspec_zettabyte_cleaned_4_27_2026/run_0"
+    / "checkpoints_meanflow/MeanFlowPrecond.0.18000.mdlus"
 )
 
 ORIG_CHANNELS = ["t2m", "u10", "v10", "qpepre"]

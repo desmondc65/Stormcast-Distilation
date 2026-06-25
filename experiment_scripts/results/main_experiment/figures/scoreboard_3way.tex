@@ -9,10 +9,10 @@
 \textbf{Method} & \textbf{Time/Seq.(s)} $\downarrow$ & \textbf{CRPS} $\downarrow$ & \textbf{CSI-M@3km} $\uparrow$ & \textbf{CSI-M@15km} $\uparrow$ & \textbf{CSI-M@27km} $\uparrow$ & \textbf{CSI-M@45km} $\uparrow$ & \textbf{RMSE\_u10} $\downarrow$ & \textbf{RMSE\_v10} $\downarrow$ & \textbf{RMSE\_t2m} $\downarrow$ & \textbf{RMSE\_qpepre} $\downarrow$ \\
 \midrule
 stormcast (224$\times$128) & 19.6630 & 0.6348 & 0.1008 & 0.1448 & 0.1791 & 0.2312 & 1.6912 & 1.6063 & 0.8845 & 1.4827 \\
-stormcast (192$\times$96) & 11.2300 & 0.5537 & 0.1956 & 0.2622 & \textbf{0.2989} & \textbf{0.3434} & 1.3513 & 1.6082 & \textbf{0.8023} & 1.0292 \\
-I-CFM (10 NFE) & 3.0680 & \textbf{0.5518} & 0.1960 & 0.2504 & 0.2839 & 0.3242 & \textbf{1.2838} & \textbf{1.4085} & 0.8498 & \textbf{0.9590} \\
-MeanFlow (1 NFE) & \textbf{0.9310} & 0.6710 & 0.2092 & 0.2443 & 0.2663 & 0.2938 & 1.3767 & 1.6915 & 0.8087 & 0.9834 \\
-MeanFlow (2 NFE) & 1.1640 & 0.6093 & \textbf{0.2156} & \textbf{0.2690} & 0.2950 & 0.3267 & 1.2986 & 1.4887 & 0.8472 & 1.0054 \\
+stormcast (192$\times$96) & 11.2300 & 0.5537 & 0.1956 & 0.2622 & 0.2989 & 0.3434 & 1.3513 & 1.6082 & 0.8023 & 1.0292 \\
+I-CFM (10 NFE) & 3.0680 & 0.5518 & 0.1960 & 0.2504 & 0.2839 & 0.3242 & 1.2838 & \textbf{1.4085} & 0.8498 & \textbf{0.9590} \\
+MeanFlow (1 NFE) & \textbf{0.9130} & 0.5501 & 0.2127 & \textbf{0.2689} & \textbf{0.3040} & \textbf{0.3443} & 1.3314 & 1.4844 & 0.7498 & 0.9655 \\
+MeanFlow (2 NFE) & 1.1000 & \textbf{0.5207} & \textbf{0.2141} & 0.2656 & 0.2954 & 0.3307 & \textbf{1.2651} & 1.4286 & \textbf{0.7315} & 0.9637 \\
 \bottomrule
 \addlinespace[3pt]
 \multicolumn{11}{l}{\footnotesize \textbf{Setup:} 10 sequences $\times$ 6\,h rollout $\times$ 5-member ensemble} \\
