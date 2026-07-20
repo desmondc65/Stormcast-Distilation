@@ -50,6 +50,13 @@ FlowCastPrecond.0.20000 for FlowCast). Typical invocation::
 
 Pass ``--t0-idx`` to choose the initial validation-set sample (defaults to
 mid-summer 2022). Pass ``--hours-to-plot 1 2 3 4 5 6`` to tweak the columns.
+
+``--with-spectra`` doubles the column count: after every lead-time field
+column a radially averaged power-spectrum panel is inserted (that row's
+field vs the RWRF truth at the same lead time), so the default 6 hours
+render as 12 columns. ``--no-legacy`` drops the legacy 224x128 StormCast
+row at the *plot* level (unlike ``--skip-original`` it also applies in
+``--replot`` mode where the legacy fields are already cached).
 """
 
 from __future__ import annotations
@@ -222,6 +229,27 @@ def rollout(*, model, method, regression, invariant, dataset, t0_idx, n_steps,
 
 
 # ---- Plotting --------------------------------------------------------------
+def _radial_psd(field):
+    """Radially averaged power spectrum of a 2D field -> (k, Pk), k >= 1.
+
+    Mirrors the integer-wavenumber ring binning of
+    ``stormcast/utils/flowcast_loss._radial_log_psd`` (rfft2, norm="ortho")
+    so figure spectra follow the same convention as the training-time
+    spectral loss term.
+    """
+    field = np.asarray(field, dtype=np.float64)
+    H, W = field.shape
+    X = np.fft.rfft2(field, norm="ortho")
+    P = X.real**2 + X.imag**2
+    ky = np.fft.fftfreq(H) * H
+    kx = np.fft.rfftfreq(W) * W
+    k_int = np.rint(np.hypot(ky[:, None], kx[None, :])).astype(int).ravel()
+    sums = np.bincount(k_int, weights=P.ravel())
+    counts = np.bincount(k_int)
+    Pk = sums / np.maximum(counts, 1)
+    return np.arange(1, Pk.size), Pk[1:]  # drop the k=0 mean component
+
+
 def _channel_scale(channel, stack):
     """Return (vmin, vmax, cmap) for the given channel across a stacked field.
 
@@ -248,50 +276,85 @@ def plot_channel_grid(
     hours,                # list of ints, e.g. [1,3,6,12]
     out_path: Path,
     t0_label: str,
+    with_spectra: bool = False,
 ):
     # Row order: RWRF truth on TOP as the reference, then the model rows
     # (legacy StormCast, cleaned StormCast, CFM, MeanFlow). Model labels are
     # the bold left-hand row headers (carrying the actual grid shape, e.g.
     # "StormCast (224x128)"); the lead times run across the TOP as the column
-    # titles "+1h .. +6h".
+    # titles "+1h .. +6h". Each (label, arr) row carries a thesis_style method
+    # key for the spectrum line colour (None = truth row).
     cln_shape = f"{truth_new.shape[-2]}x{truth_new.shape[-1]}"
-    rows_data = [(f"RWRF ({cln_shape})", truth_new)]
+    rows_data = [(f"RWRF ({cln_shape})", truth_new, None)]
     if orig_pred is not None:
         leg_shape = f"{orig_pred.shape[-2]}x{orig_pred.shape[-1]}"
-        rows_data.append((f"StormCast ({leg_shape})", orig_pred))
+        rows_data.append((f"StormCast ({leg_shape})", orig_pred, "legacy"))
     if new_edm_pred is not None:
-        rows_data.append((f"StormCast ({cln_shape})", new_edm_pred))
+        rows_data.append((f"StormCast ({cln_shape})", new_edm_pred, "diffusion"))
     if flow_pred is not None:
-        rows_data.append((f"CFM ({cln_shape})", flow_pred))
+        rows_data.append((f"CFM ({cln_shape})", flow_pred, "flowcast"))
     if mf_pred is not None:
-        rows_data.append((f"MeanFlow ({cln_shape})", mf_pred))
+        rows_data.append((f"MeanFlow ({cln_shape})", mf_pred, "meanflow"))
 
     n_rows = len(rows_data)
-    n_cols = len(hours)
+    cols_per_hour = 2 if with_spectra else 1
+    n_cols = len(hours) * cols_per_hour
 
     # Shared colour scale across every panel in this figure.
     sample_panels = []
-    for _, arr in rows_data:
+    for _, arr, _ in rows_data:
         for h in hours:
             sample_panels.append(arr[h - 1])
     flat_stack = np.concatenate([p.reshape(-1) for p in sample_panels])
     vmin, vmax, cmap = _channel_scale(channel, flat_stack)
 
+    # Pre-compute every radial PSD once so all spectrum panels can share the
+    # same (k, Pk) axis limits. Truth is the common reference in every panel;
+    # the legacy row's PSD lives on its own 224x128 wavenumber axis.
+    PSD_EPS = 1e-12
+    truth_psd, row_psds = {}, {}
+    if with_spectra:
+        for h in hours:
+            truth_psd[h] = _radial_psd(truth_new[h - 1])
+        for r, (_, arr, mkey) in enumerate(rows_data):
+            if mkey is not None:
+                row_psds[r] = {h: _radial_psd(arr[h - 1]) for h in hours}
+        all_pk = np.concatenate(
+            [pk for _, pk in truth_psd.values()]
+            + [pk for d in row_psds.values() for _, pk in d.values()]
+        )
+        all_pk = np.clip(all_pk, PSD_EPS, None)
+        ymax = float(all_pk.max())
+        # Cap the visible range at 12 decades so an all-dry qpepre panel
+        # (PSD identically 0, clipped to eps) can't flatten every other line.
+        ymin = max(float(all_pk.min()), ymax * 1e-12)
+        kmax = max(
+            [k[-1] for k, _ in truth_psd.values()]
+            + [k[-1] for d in row_psds.values() for k, _ in d.values()]
+        )
+
     # Size each cell to the field's NATIVE H:W so panels are never stretched
     # (the user-facing convention: keep the pictures' ratio as they are).
+    # Spectrum cells get their own square width so the log-log plots are not
+    # squeezed into the field panels' tall-narrow aspect.
     ph, pw = truth_new.shape[-2], truth_new.shape[-1]
     panel_h = 3.0
     panel_w = panel_h * (pw / ph)
+    if with_spectra:
+        col_widths = [panel_w, panel_h] * len(hours)
+    else:
+        col_widths = [panel_w] * len(hours)
     fig, axes = plt.subplots(
         n_rows, n_cols,
-        figsize=(panel_w * n_cols + 1.6, panel_h * n_rows + 0.6),
+        figsize=(sum(col_widths) + 1.6, panel_h * n_rows + 0.6),
         squeeze=False,
+        gridspec_kw={"width_ratios": col_widths},
     )
 
     im_last = None
-    for r, (label, arr) in enumerate(rows_data):
+    for r, (label, arr, mkey) in enumerate(rows_data):
         for c, h in enumerate(hours):
-            ax = axes[r, c]
+            ax = axes[r, c * cols_per_hour]
             im_last = ax.imshow(
                 arr[h - 1],
                 origin="lower",
@@ -308,6 +371,36 @@ def plot_channel_grid(
             if c == 0:
                 ax.set_ylabel(label, fontsize=10, fontweight="bold")
             for s in ax.spines.values():
+                s.set_linewidth(0.6)
+
+            if not with_spectra:
+                continue
+            sax = axes[r, c * cols_per_hour + 1]
+            kt, pt = truth_psd[h]
+            if mkey is None:
+                sax.loglog(kt, np.clip(pt, PSD_EPS, None),
+                           color="black", lw=1.0, label="RWRF")
+            else:
+                sax.loglog(kt, np.clip(pt, PSD_EPS, None),
+                           color="black", lw=0.9, ls="--", label="RWRF")
+                km, pm = row_psds[r][h]
+                sax.loglog(km, np.clip(pm, PSD_EPS, None),
+                           color=ts.method_color(mkey), lw=1.2, label="model")
+            sax.set_xlim(1, kmax)
+            sax.set_ylim(ymin * 0.5, ymax * 2.0)
+            sax.grid(True, which="both", alpha=0.2, lw=0.4)
+            sax.tick_params(labelsize=6, length=2)
+            if r == 0:
+                sax.set_title(f"+{h}h PSD", fontsize=10)
+            if r < n_rows - 1:
+                sax.set_xticklabels([], minor=False)
+            else:
+                sax.set_xlabel("wavenumber", fontsize=7)
+            if c > 0:
+                sax.set_yticklabels([], minor=False)
+            if r == 1 and c == 0:
+                sax.legend(fontsize=6, frameon=False, loc="lower left")
+            for s in sax.spines.values():
                 s.set_linewidth(0.6)
 
     unit = CHANNEL_UNITS.get(channel, "")
@@ -328,7 +421,8 @@ def plot_channel_grid(
 
 
 def render_case(sub: Path, t0_label: str, truth, new_ch, *, orig_pred, orig_ch,
-                edm_pred, flow_pred, mf_pred, hours, channels_to_plot):
+                edm_pred, flow_pred, mf_pred, hours, channels_to_plot,
+                with_spectra=False):
     """Render all requested channel grids for one case (used by both the
     inference path and --replot)."""
     for ch in channels_to_plot:
@@ -346,6 +440,7 @@ def render_case(sub: Path, t0_label: str, truth, new_ch, *, orig_pred, orig_ch,
             hours=hours,
             out_path=sub / f"rollout_6h_{ch}.png",
             t0_label=t0_label,
+            with_spectra=with_spectra,
         )
 
 
@@ -416,6 +511,18 @@ def main():
     ap.add_argument("--channels-to-plot", nargs="+",
                     default=["t2m", "u10", "v10", "qpepre"],
                     help="Variables to render -- one PNG per variable.")
+    ap.add_argument(
+        "--with-spectra", action="store_true",
+        help="Insert a radially averaged power-spectrum panel after every "
+             "lead-time field column (that row's field vs the RWRF truth at "
+             "the same lead time), doubling the column count: the default 6 "
+             "hours render as 12 columns.")
+    ap.add_argument(
+        "--no-legacy", action="store_true",
+        help="Drop the legacy 224x128 StormCast row from the figures. Unlike "
+             "--skip-original this is plot-level only: it also applies in "
+             "--replot mode where the legacy fields are already cached, and "
+             "in inference mode the legacy rollout is skipped too.")
 
     ap.add_argument("--diffusion-num-steps", type=int, default=18)
     ap.add_argument("--diffusion-solver", choices=("heun", "euler"), default="heun")
@@ -454,6 +561,11 @@ def main():
 
     args = ap.parse_args()
 
+    # --no-legacy is plot-level; in inference mode it also makes running the
+    # legacy leg pointless, so fold it into --skip-original there.
+    if args.no_legacy:
+        args.skip_original = True
+
     # ---- Replot mode: no GPU, no datasets, no models -----------------------
     if args.replot:
         import datetime as _dt
@@ -471,13 +583,15 @@ def main():
             dt0 = _dt.datetime.fromisoformat(str(z["t0_iso"]))
             render_case(
                 p.parent, t0_label, truth, new_ch,
-                orig_pred=z["orig"] if "orig" in z else None,
+                orig_pred=(z["orig"] if "orig" in z and not args.no_legacy
+                           else None),
                 orig_ch=[str(c) for c in z["orig_ch"]] if "orig_ch" in z else None,
                 edm_pred=z["edm"] if "edm" in z else None,
                 flow_pred=z["flow"] if "flow" in z else None,
                 mf_pred=z["meanflow"] if "meanflow" in z else None,
                 hours=args.hours_to_plot,
                 channels_to_plot=args.channels_to_plot,
+                with_spectra=args.with_spectra,
             )
             st = qpepre_stats(truth, new_ch, t0_idx, dt0, p.parent.name)
             if st is not None:
@@ -733,6 +847,7 @@ def main():
             mf_pred=meanflow_preds.get(t0_idx),
             hours=args.hours_to_plot,
             channels_to_plot=args.channels_to_plot,
+            with_spectra=args.with_spectra,
         )
         st = qpepre_stats(truth, new_ch, t0_idx, dt0, sub.name)
         if st is not None:

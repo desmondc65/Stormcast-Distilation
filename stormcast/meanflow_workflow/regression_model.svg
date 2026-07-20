@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="1010" viewBox="0 0 1560 1010">
+<defs>
+<marker id="arrDark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#37474F"/></marker>
+<marker id="arrGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1B5E20"/></marker>
+<marker id="arrGrey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#90A4AE"/></marker>
+<marker id="arrAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#F57F17"/></marker>
+</defs>
+<rect x="0" y="0" width="1560" height="1010" fill="#FFFFFF"/>
+<text x="30" y="42" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#37474F" font-weight="bold" text-anchor="start">Stage 1 · StormCastUNet Fθ — deterministic regression mean (frozen ❄ during MeanFlow training)</text>
+<text x="30" y="66" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#546E7A" font-weight="normal" text-anchor="start">SongUNet backbone · 30 ch in → 4 ch out · 80,726,404 params · 55 UNetBlocks · grid 192×96 · μ_t+1 = Fθ(M_t, S_t, I)</text>
+<rect x="30" y="200" width="250" height="54" rx="6" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.6" opacity="1.0"/>
+<text x="155.0" y="220.16" font-family="Helvetica, Arial, sans-serif" font-size="10.2" fill="#263238" font-weight="bold" text-anchor="middle">M_t · HighRes state (64, 4, 192, 96)</text>
+<text x="155.0" y="235.66" font-family="Helvetica, Arial, sans-serif" font-size="10.2" fill="#263238" font-weight="normal" text-anchor="middle">u10 · v10 · t2m · qpepre</text>
+<path d="M 280 227 L 306 292" fill="none" stroke="#1565C0" stroke-width="1.4" marker-end="url(#arrDark)"/>
+<rect x="30" y="266" width="250" height="54" rx="6" fill="#F3E5F5" stroke="#6A1B9A" stroke-width="1.6" opacity="1.0"/>
+<text x="155.0" y="286.16" font-family="Helvetica, Arial, sans-serif" font-size="10.2" fill="#263238" font-weight="bold" text-anchor="middle">S_t · ERA5 background (64, 24, 192, 96)</text>
+<text x="155.0" y="301.66" font-family="Helvetica, Arial, sans-serif" font-size="10.2" fill="#263238" font-weight="normal" text-anchor="middle">mslp t2m u10 v10 + q/t/u/v/z @ 4 levels</text>
+<path d="M 280 293 L 306 292" fill="none" stroke="#6A1B9A" stroke-width="1.4" marker-end="url(#arrDark)"/>
+<rect x="30" y="332" width="250" height="54" rx="6" fill="#E0F2F1" stroke="#00695C" stroke-width="1.6" opacity="1.0"/>
+<text x="155.0" y="352.16" font-family="Helvetica, Arial, sans-serif" font-size="10.2" fill="#263238" font-weight="bold" text-anchor="middle">I · invariants (64, 2, 192, 96)</text>
+<text x="155.0" y="367.66" font-family="Helvetica, Arial, sans-serif" font-size="10.2" fill="#263238" font-weight="normal" text-anchor="middle">lsm · orog (broadcast)</text>
+<path d="M 280 359 L 306 292" fill="none" stroke="#00695C" stroke-width="1.4" marker-end="url(#arrDark)"/>
+<circle cx="315" cy="292" r="11" fill="#FFFFFF" stroke="#37474F" stroke-width="1.6"/>
+<text x="315" y="296.5" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#263238" font-weight="bold" text-anchor="middle">⊕</text>
+<text x="397" y="252" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="#546E7A" font-weight="normal" text-anchor="end" font-style="italic">(64, 30, 192, 96)</text>
+<text x="327" y="318" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="#546E7A" font-weight="normal" text-anchor="start">concat</text>
+<path d="M 326 292 L 397 273.0" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#arrDark)"/>
+<text x="555.0" y="221" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#546E7A" font-weight="bold" text-anchor="middle">ENCODER  enc.*</text>
+<text x="1315.0" y="221" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#546E7A" font-weight="bold" text-anchor="middle">DECODER  dec.*</text>
+<rect x="400" y="235" width="310" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="555.0" y="255.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">Conv 3×3 30→128 (34,688 p) · + spatial_emb</text>
+<text x="555.0" y="270.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">(1×128×192×96, 2.36 M) · UNetBlock 128→128 ×4</text>
+<text x="555.0" y="286.15999999999997" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 1.48 M + 2.36 M pos-embed</text>
+<rect x="1150" y="235" width="330" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="1315.0" y="255.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↑2× UNetBlock 256→256 (1.38 M)</text>
+<text x="1315.0" y="270.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 384→128 ×1 · 256→128 ×4</text>
+<text x="1315.0" y="286.15999999999997" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">head: GroupNorm+SiLU → Conv 3×3 128→4 (0-init)</text>
+<text x="1315.0" y="301.65999999999997" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 4.26 M</text>
+<text x="402" y="229" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="start">192×96 · 128 ch</text>
+<path d="M 710 273.0 L 1147 273.0" fill="none" stroke="#90A4AE" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arrGrey)"/>
+<text x="930.0" y="266.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">192×96</text>
+<text x="930.0" y="287.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">5 skips · concat</text>
+<path d="M 555.0 311 L 590.0 337" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<path d="M 1280.0 337 L 1315.0 311" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<rect x="435" y="337" width="310" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="590.0" y="357.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↓2× UNetBlock 128→128 (378 k)</text>
+<text x="590.0" y="372.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 128→256 · then 256→256 ×3</text>
+<text x="590.0" y="388.15999999999997" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 5.37 M</text>
+<rect x="1115" y="337" width="330" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="1280.0" y="357.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↑2× UNetBlock 256→256 (1.38 M)</text>
+<text x="1280.0" y="372.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 512→256 ×4 · 384→256 ×1</text>
+<text x="1280.0" y="388.15999999999997" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 11.22 M</text>
+<text x="437" y="331" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="start">96×48 · 256 ch</text>
+<path d="M 745 375.0 L 1112 375.0" fill="none" stroke="#90A4AE" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arrGrey)"/>
+<text x="930.0" y="368.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">96×48</text>
+<text x="930.0" y="389.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">5 skips · concat</text>
+<path d="M 590.0 413 L 625.0 439" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<path d="M 1245.0 439 L 1280.0 413" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<rect x="470" y="439" width="310" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="625.0" y="459.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↓2× UNetBlock 256→256 (1.38 M)</text>
+<text x="625.0" y="474.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 256→256 ×4 (1.31 M each)</text>
+<text x="625.0" y="490.15999999999997" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 6.63 M</text>
+<rect x="1080" y="439" width="330" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="1245.0" y="459.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↑2× UNetBlock 256→256 (1.38 M)</text>
+<text x="1245.0" y="474.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 512→256 ×5 (2.03 M each)</text>
+<text x="1245.0" y="490.15999999999997" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 11.55 M</text>
+<text x="472" y="433" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="start">48×24 · 256 ch</text>
+<path d="M 780 477.0 L 1077 477.0" fill="none" stroke="#90A4AE" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arrGrey)"/>
+<text x="930.0" y="470.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">48×24</text>
+<text x="930.0" y="491.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">5 skips · concat</text>
+<path d="M 625.0 515 L 660.0 541" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<path d="M 1210.0 541 L 1245.0 515" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<rect x="505" y="541" width="310" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="660.0" y="561.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↓2× UNetBlock 256→256 (1.38 M)</text>
+<text x="660.0" y="576.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 256→256 ×4 (1.31 M each)</text>
+<text x="660.0" y="592.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 6.63 M</text>
+<rect x="1045" y="541" width="330" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="1210.0" y="561.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↑2× UNetBlock 256→256 (1.38 M)</text>
+<text x="1210.0" y="576.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 512→256 ×5 (2.03 M each)</text>
+<text x="1210.0" y="592.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 11.55 M</text>
+<text x="507" y="535" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="start">24×12 · 256 ch</text>
+<path d="M 815 579.0 L 1042 579.0" fill="none" stroke="#90A4AE" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arrGrey)"/>
+<text x="930.0" y="572.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">24×12</text>
+<text x="930.0" y="593.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">5 skips · concat</text>
+<path d="M 660.0 617 L 695.0 643" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<path d="M 1175.0 643 L 1210.0 617" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<rect x="540" y="643" width="310" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="695.0" y="663.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">↓2× UNetBlock 256→256 (1.38 M)</text>
+<text x="695.0" y="678.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 256→256 ×4 (1.31 M each)</text>
+<text x="695.0" y="694.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 6.63 M</text>
+<rect x="1010" y="643" width="330" height="76" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.6" opacity="1.0"/>
+<text x="1175.0" y="663.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">from bottleneck ↓</text>
+<text x="1175.0" y="678.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">UNetBlock 512→256 ×5 (2.03 M each)</text>
+<text x="1175.0" y="694.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">Σ 13.06 M incl. in0+in1</text>
+<text x="542" y="637" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="start">12×6 · 256 ch</text>
+<path d="M 850 681.0 L 1007 681.0" fill="none" stroke="#90A4AE" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arrGrey)"/>
+<text x="930.0" y="674.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">12×6</text>
+<text x="930.0" y="695.0" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">5 skips · concat</text>
+<rect x="610" y="745" width="630" height="60" rx="8" fill="#CFD8DC" stroke="#546E7A" stroke-width="2.0" opacity="1.0"/>
+<text x="925.0" y="765.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">in0: UNetBlock 256→256 + single-head self-attn (72 tokens) ⚡ 1.58 M</text>
+<text x="925.0" y="780.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">in1: UNetBlock 256→256 · 1.31 M</text>
+<text x="925.0" y="821" font-family="Helvetica, Arial, sans-serif" font-size="10.5" fill="#78909C" font-weight="normal" text-anchor="middle" font-style="italic">SongUNet bottleneck · 12×6 · the only attention in the network (attn_resolutions=[] disables the rest)</text>
+<path d="M 695.0 719 L 695.0 745" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<path d="M 1175.0 745 L 1175.0 719" fill="none" stroke="#546E7A" stroke-width="1.6" marker-end="url(#arrDark)"/>
+<rect x="1210" y="90" width="290" height="56" rx="8" fill="#ECEFF1" stroke="#37474F" stroke-width="2.0" opacity="1.0"/>
+<text x="1355.0" y="110.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="middle">μ_t+1  (64, 4, 192, 96)</text>
+<text x="1355.0" y="125.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="middle">deterministic mean · residual target R = M_t+1 − μ</text>
+<path d="M 1440 235 L 1370 149" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#arrDark)"/>
+<rect x="30" y="470" width="340" height="178" rx="6" fill="#FFFFFF" stroke="#546E7A" stroke-width="1.3" stroke-dasharray="5 4" opacity="1.0"/>
+<text x="44" y="495.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="bold" text-anchor="start">StormCastUNet specifics</text>
+<text x="44" y="510.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="start">embedding_type='zero' — no map_noise /</text>
+<text x="44" y="526.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="start">map_layer MLP; forward = SongUNet(x, 0).</text>
+<text x="44" y="541.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="start">Every UNetBlock affine Linear(512→C) sees a</text>
+<text x="44" y="557.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="start">zero vector → bias-only shift (no time cond.).</text>
+<text x="44" y="572.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="start">Frozen ❄ in Stage 2 — runs under no_grad,</text>
+<text x="44" y="588.16" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="start">provides μ_t+1 to the condition bundle c.</text>
+<text x="44" y="603.66" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#263238" font-weight="normal" text-anchor="start">Single self-attn: dec.12x12_in0 · 1 head.</text>
+<rect x="30" y="849" width="1500" height="64" rx="6" fill="#FAFAFA" stroke="#B0BEC5" stroke-width="1.2" opacity="1.0"/>
+<text x="45" y="874" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#263238" font-weight="bold" text-anchor="start">UNetBlock (DDPM++ residual block, adaptive_scale=False):   x → GroupNorm(32, ε 1e-6) + SiLU → Conv 3×3 → ⊕ emb-shift → GroupNorm + SiLU → Dropout 0.1 → Conv 3×3 (init ×1e-5) → ⊕ skip (identity / 1×1 conv) → × 1/√2</text>
+<text x="45" y="897" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#455A64" font-weight="normal" text-anchor="start">emb ≡ 0 here (zero embedding) → the ⊕ adds only the affine bias   ·   ↓2×/↑2× fold a [1,1] box-filter resample into conv0 + skip   ·   in0 additionally: → self-attn → × 1/√2</text>
+<text x="30" y="941" font-family="Helvetica, Arial, sans-serif" font-size="11.5" fill="#546E7A" font-weight="normal" text-anchor="start">Σ params — encoder 26.73 M · decoder 51.64 M · spatial_emb 2.36 M · total 80,726,404 · measured by instantiation at (192, 96) · ModuleDict names use the y-resolution only (enc.192x192_* actually runs at 192×96)</text>
+</svg>

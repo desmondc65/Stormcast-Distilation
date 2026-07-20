@@ -498,6 +498,7 @@ def analyze_store(
 	channel_dim: str,
 	time_dim: str,
 	selected_channels: list[str] | None,
+	log1p_channels: set[str] | None,
 	chunk_time: int,
 	bins: int,
 	sample_size: int,
@@ -536,10 +537,16 @@ def analyze_store(
 	print(f"Analyzing channels: {[str(channel_values[i]) for i in indices]}")
 	diagnostics: list[ChannelDiagnostics] = []
 
+	log1p_applied = False
 	for idx in indices:
 		channel_name = str(channel_values[idx])
-		print(f"  - First pass stats for channel '{channel_name}'")
 		da_channel = da.isel({channel_dim: idx})
+		if log1p_channels and channel_name.lower() in log1p_channels:
+			# Same transform as the cleaning pipeline: log1p(max(0, x)).
+			da_channel = np.log1p(da_channel.clip(min=0.0))
+			channel_name = f"log1p_{channel_name}"
+			log1p_applied = True
+		print(f"  - First pass stats for channel '{channel_name}'")
 		first = _compute_first_pass_stats(
 			da_channel,
 			channel_name=channel_name,
@@ -582,7 +589,8 @@ def analyze_store(
 		plt.close(fig)
 		saved_images.append(png_path)
 
-	csv_path = output_dir / f"{zarr_path.stem}_{data_var}_gaussian_stats.csv"
+	csv_tag = "_log1p" if log1p_applied else ""
+	csv_path = output_dir / f"{zarr_path.stem}_{data_var}_gaussian_stats{csv_tag}.csv"
 	_save_csv_summary(csv_path, diagnostics)
 
 	for img in saved_images:
@@ -628,6 +636,15 @@ def parse_args() -> argparse.Namespace:
 		type=str,
 		default=None,
 		help="Comma-separated channels to analyze (names or indices). Default: all channels",
+	)
+	parser.add_argument(
+		"--log1p-channels",
+		type=str,
+		default=None,
+		help=(
+			"Comma-separated channel names to transform with log1p(max(0, x)) before "
+			"analysis (matches the cleaning pipeline). Outputs get a 'log1p_' prefix"
+		),
 	)
 	parser.add_argument(
 		"--chunk-time",
@@ -703,6 +720,12 @@ def main() -> None:
 	if args.channels:
 		selected_channels = [item.strip() for item in args.channels.split(",") if item.strip()]
 
+	log1p_channels = None
+	if args.log1p_channels:
+		log1p_channels = {
+			item.strip().lower() for item in args.log1p_channels.split(",") if item.strip()
+		}
+
 	if args.output_dir is not None:
 		out_dir = pathlib.Path(args.output_dir).expanduser().resolve()
 	else:
@@ -727,6 +750,7 @@ def main() -> None:
 			channel_dim=args.channel_dim,
 			time_dim=args.time_dim,
 			selected_channels=selected_channels,
+			log1p_channels=log1p_channels,
 			chunk_time=args.chunk_time,
 			bins=args.bins,
 			sample_size=args.sample_size,
